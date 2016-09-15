@@ -1,0 +1,24 @@
+#ifndef {{define}}
+#define {{define}}
+
+namespace linphone {
+
+	{{#_class}}
+	class {{name}} {
+		public:
+			{{#methods}}
+			{{prototype}}
+			
+			{{/methods}}
+			
+			{{#staticMethods}}
+			{{prototype}}
+			
+			{{/staticMethods}}
+	
+	};
+	{{/_class}}
+
+};
+
+#endif // {{define}}
