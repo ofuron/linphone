@@ -1,18 +1,25 @@
 #ifndef {{define}}
 #define {{define}}
 
+{{#externalIncludes}}
+#include <{{name}}>
+{{/externalIncludes}}
+{{#internalIncludes}}
+#include "{{name}}.hh"
+{{/internalIncludes}}
+
 namespace linphone {
 
 	{{#_class}}
 	class {{name}} {
 		public:
 			{{#methods}}
-			{{prototype}}
+			{{{prototype}}}
 			
 			{{/methods}}
 			
 			{{#staticMethods}}
-			{{prototype}}
+			{{{prototype}}}
 			
 			{{/staticMethods}}
 	

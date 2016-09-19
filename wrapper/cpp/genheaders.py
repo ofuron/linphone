@@ -157,6 +157,40 @@ class AbstractEnum(AbstractObject):
 			aEnum.add_value(aEnumValue)
 
 
+class AbstractType(AbstractObject):
+	def __init__(self):
+		AbstractObject.__init__(self)
+		self.type = None
+		self.isconst = False
+		self.isobject = False
+		self.isreference = False
+	
+	def set_from_c(self, cType, namespace=None):
+		if cType.ctype == 'char':
+			self.type = 'character'
+		elif cType.ctype == 'bool_t':
+			self.type = 'boolean'
+		elif cType.ctype == 'int':
+			self.type = 'integer'
+		elif cType.ctype in ('float', 'double'):
+			self.type = 'floatant'
+		else:
+			self.type = AbstractName()
+			prefix = namespace._full_c_class_name() if namespace is not None else ''
+			self.type.from_c_class_name(cType.ctype, prefix=prefix)
+			self.isobject = True
+		
+		if '*' in cType.completeType:
+			if not self.isobject:
+				if self.type == 'character':
+					self.type == 'string'
+			else:
+				self.isreference = True
+		
+		if 'const' in cType.completeType:
+			self.isconst = True
+
+
 class AbstractMethod(AbstractObject):
 	class Type:
 		Instance = 0,
@@ -176,6 +210,9 @@ class AbstractMethod(AbstractObject):
 		self.name = AbstractName()
 		self.name.from_c_func_name(cFunction.name, prefix=prefix)
 		self.type = type
+		if cFunction.returnArgument.ctype != 'void':
+			self.returnType = AbstractType()
+			self.returnType.set_from_c(cFunction.returnArgument, namespace=namespace.parent)
 
 
 class AbstractClass(AbstractObject):
@@ -232,10 +269,44 @@ class CppTranslator(object):
 	
 	def translate_method(self, method):
 		methodDict = {}
-		methodDict['prototype'] = 'void {0}();'.format(method.name.to_method_name())
+		methodDict['prototype'] = '{0} {1}();'.format(self.translate_type(method.returnType), method.name.to_method_name())
 		if method.type == AbstractMethod.Type.Class:
 			methodDict['prototype'] = 'static ' + methodDict['prototype'];
 		return methodDict
+	
+	def translate_type(self, type):
+		if type is not None:
+			res = ''
+			if type.isobject:
+				if type.isconst:
+					res += 'const '
+				res += type.type.to_c_class_name()
+				res = 'std::shared_ptr<{0}>'.format(res)
+				return res
+			else:
+				if type.isconst:
+					res += 'const '
+				res += CppTranslator.__abstract_base_type_to_cpp(type.type)
+				if type.isreference:
+					res += ' &'
+				return res
+		else:
+			return 'void'
+	
+	@staticmethod
+	def __abstract_base_type_to_cpp(atype):
+		if atype == 'boolean':
+			return 'bool'
+		elif atype == 'character':
+			return 'char'
+		elif atype == 'integer':
+			return 'int'
+		elif atype == 'floatant':
+			return 'float'
+		elif atype == 'string':
+			return 'std::string'
+		else:
+			raise RuntimeError('\'{0}\' is not a base abstlract type'.format(atype))
 
 
 class EnumsHeader(object):
@@ -252,6 +323,23 @@ class ClassHeader(object):
 		self._class = translator.translate_class(_class)
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
+		self.internalIncludes = []
+		self.exteranlIncludes = []
+		self.update_includes(_class)
+	
+	def update_includes(self, _class):
+		internalInc = set()
+		externalInc = set()
+		for method in _class.classMethods:
+			if method.returnType.isobject:
+				externalInc.add('memory')
+				internalInc.add('_'.join(method.returnType.type.words))
+		self.internalIncludes = []
+		self.externalIncludes = []
+		for include in internalInc:
+			self.internalIncludes.append({'name': include})
+		for include in externalInc:
+			self.externalIncludes.append({'name': include})
 	
 	@staticmethod
 	def _class_name_to_define(className):
