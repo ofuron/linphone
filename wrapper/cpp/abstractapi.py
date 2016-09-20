@@ -14,22 +14,28 @@ class Name(object):
 		copy.words += other.words
 		return copy
 	
-	def from_c_class_name(self, className, prefix=''):
+	def from_c_class_name(self, className, namespace=None):
+		prefixWords = [] if namespace is None else namespace._full_word_list()
 		words = re.findall('[A-Z][^A-Z]*', className)
-		prefixWords = re.findall('[A-Z][^A-Z]*', prefix)
+		
+		i = 0
+		while i < len(words):
+			words[i] = words[i].lower()
+			i += 1
+		
 		while len(prefixWords) > 0 and len(words) > 0 and prefixWords[0] == words[0]:
 			del prefixWords[0]
 			del words[0]
 		
 		if len(words) == 0:
-			raise RuntimeError('cannot find out the abstract name of "{0}" with "{1}" as prefix'.format(className, prefix))
+			raise RuntimeError('cannot find out the abstract name of "{0}" with {1} as namespace'.format(className, namespace))
 		
 		self.words = []
 		for word in words:
-			self.words.append(word.lower())
-			
+			self.words.append(word)
 
-	def from_c_func_name(self, funcName, prefix=''):
+	def from_c_func_name(self, funcName, namespace=None):
+		prefix = '' if namespace is None else (namespace._full_c_function_name() + '_')
 		if funcName.startswith(prefix):
 			funcName = funcName[len(prefix):]
 			self.words = funcName.split('_')
@@ -99,6 +105,12 @@ class Object(object):
 		for name in fullName:
 			res.append(name.to_c_function_name())
 		return '_'.join(res)
+	
+	def _full_word_list(self):
+		res = []
+		for name in self._full_name():
+			res += name.words
+		return res
 
 
 class Namespace(Object):
@@ -117,9 +129,8 @@ class Namespace(Object):
 class EnumValue(Object):
 	def set_from_c(self, cEnumValue, namespace=None):
 		Object.set_from_c(self, cEnumValue, namespace=namespace)
-		prefix = '' if namespace is None else namespace._full_c_class_name()
 		aname = Name()
-		aname.from_c_class_name(cEnumValue.name, prefix=prefix)
+		aname.from_c_class_name(cEnumValue.name, namespace=namespace)
 		self.name = aname
 
 
@@ -140,9 +151,8 @@ class Enum(Object):
 		else:
 			name = cEnum.name
 		
-		prefix = '' if namespace is None else namespace._full_c_class_name()
 		aname = Name()
-		aname.from_c_class_name(name, prefix=prefix)
+		aname.from_c_class_name(name, namespace=namespace)
 		self.name = aname
 		
 		for cEnumValue in cEnum.values:
@@ -170,8 +180,7 @@ class Type(Object):
 			self.type = 'floatant'
 		else:
 			self.type = Name()
-			prefix = namespace._full_c_class_name() if namespace is not None else ''
-			self.type.from_c_class_name(cType.ctype, prefix=prefix)
+			self.type.from_c_class_name(cType.ctype, namespace=namespace)
 			self.isobject = True
 		
 		if '*' in cType.completeType:
@@ -200,9 +209,8 @@ class Method(Object):
 	
 	def set_from_c(self, cFunction, namespace=None, type=Type.Instance):
 		Object.set_from_c(self,cFunction, namespace=namespace)
-		prefix = '' if namespace is None else (namespace._full_c_function_name() + '_')
 		self.name = Name()
-		self.name.from_c_func_name(cFunction.name, prefix=prefix)
+		self.name.from_c_func_name(cFunction.name, namespace=namespace)
 		self.type = type
 		if cFunction.returnArgument.ctype != 'void':
 			self.returnType = Type()
@@ -217,9 +225,8 @@ class Class(Object):
 	
 	def set_from_c(self, cClass, namespace=None):
 		Object.set_from_c(self, cClass, namespace=namespace)
-		prefix = '' if namespace is None else namespace._full_c_class_name()
 		self.name = Name()
-		self.name.from_c_class_name(cClass.name, prefix=prefix)
+		self.name.from_c_class_name(cClass.name, namespace=namespace)
 		for cMethod in cClass.instanceMethods.values():
 			method = Method()
 			method.set_from_c(cMethod, namespace=self)
