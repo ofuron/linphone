@@ -9,24 +9,24 @@ import abstractapi as AbsApi
 class CppTranslator(object):
 	def translate_enum(self, enum):
 		enumDict = {}
-		enumDict['name'] = enum.name.to_class_name()
+		enumDict['name'] = enum.name.translate(self)
 		enumDict['values'] = []
 		i = 0
 		for enumValue in enum.values:
-			enumValDict = self.translate_enum_value(enumValue, last=(i == len(enum.values)-1))
+			enumValDict = enumValue.translate(self)
+			enumValDict['notLast'] = (i != len(enum.values)-1)
 			enumDict['values'].append(enumValDict)
 			i += 1
 		return enumDict
 	
-	def translate_enum_value(self, enumValue, last=False):
+	def translate_enum_value(self, enumValue):
 		enumValueDict = {}
-		enumValueDict['name'] = enumValue.name.to_class_name()
-		enumValueDict['notLast'] = not last
+		enumValueDict['name'] = enumValue.name.translate(self)
 		return enumValueDict
 	
 	def translate_class(self, _class):
 		classDict = {}
-		classDict['name'] = _class.name.to_class_name()
+		classDict['name'] = _class.name.translate(self)
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
 		for method in _class.instanceMethods:
@@ -39,7 +39,7 @@ class CppTranslator(object):
 	
 	def translate_method(self, method):
 		methodDict = {}
-		methodDict['prototype'] = '{0} {1}();'.format(self.translate_type(method.returnType), method.name.to_method_name())
+		methodDict['prototype'] = '{0} {1}();'.format(self.translate_type(method.returnType), method.name.translate(self))
 		if method.type == AbsApi.Method.Type.Class:
 			methodDict['prototype'] = 'static ' + methodDict['prototype'];
 		return methodDict
@@ -50,7 +50,7 @@ class CppTranslator(object):
 			if type.isobject:
 				if type.isconst:
 					res += 'const '
-				res += type.type.to_c_class_name()
+				res += type.type.translate(self)
 				res = 'std::shared_ptr<{0}>'.format(res)
 				return res
 			else:
@@ -62,6 +62,29 @@ class CppTranslator(object):
 				return res
 		else:
 			return 'void'
+	
+	def translate_class_name(self, name):
+		res = ''
+		for word in name.words:
+			res += word.title()
+		return res
+	
+	def translate_enum_name(self, name):
+		return CppTranslator.translate_class_name(self, name)
+	
+	def translate_enum_value_name(self, name):
+		return CppTranslator.translate_class_name(self, name)
+	
+	def translate_method_name(self, name):
+		res = ''
+		first = True
+		for word in name.words:
+			if first:
+				first = False
+				res += word
+			else:
+				res += word.title()
+		return res
 	
 	@staticmethod
 	def __abstract_base_type_to_cpp(atype):
@@ -85,12 +108,12 @@ class EnumsHeader(object):
 		self.enums = []
 	
 	def add_enum(self, enum):
-		self.enums.append(self.translator.translate_enum(enum))
+		self.enums.append(enum.translate(translator))
 
 
 class ClassHeader(object):
 	def __init__(self, _class, translator):
-		self._class = translator.translate_class(_class)
+		self._class = _class.translate(translator)
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
 		self.internalIncludes = []
@@ -162,5 +185,5 @@ if __name__ == '__main__':
 			header = ClassHeader(aClass, translator)
 			with open('include/' + header.filename, mode='w') as f:
 				f.write(renderer.render(header))
-		except RuntimeError as e:
+		except Exception as e:
 			print('Ignoring "{0}". {1}'.format(cClass.name, e.args[0]))

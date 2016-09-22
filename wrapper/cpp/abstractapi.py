@@ -1,72 +1,62 @@
 import re
+import genapixml as CApi
 
 class Name(object):
-	def __init__(self):
+	def __init__(self, prev = None, cname = None):
 		self.words = []
+		self.prev = prev
+		if cname is not None:
+			self.set_from_c(cname)
 	
-	def clone(self):
-		copy = Name()
-		copy.words = list(self.words)
-		return copy
-	
-	def __add__(self, other):
-		copy = self.clone()
-		copy.words += other.words
-		return copy
-	
-	def from_c_class_name(self, className, namespace=None):
-		prefixWords = [] if namespace is None else namespace._full_word_list()
-		words = re.findall('[A-Z][^A-Z]*', className)
-		
+	def get_prefix_as_word_list(self):
+		if self.prev is None:
+			return []
+		else:
+			return self.prev.get_prefix_as_word_list() + list(self.prev.words)
+
+
+class ClassName(Name):
+	def set_from_c(self, cname):
+		self.words = re.findall('[A-Z][a-z0-9]*', cname)
 		i = 0
-		while i < len(words):
-			words[i] = words[i].lower()
+		while i < len(self.words):
+			self.words[i] = self.words[i].lower()
 			i += 1
 		
-		while len(prefixWords) > 0 and len(words) > 0 and prefixWords[0] == words[0]:
-			del prefixWords[0]
-			del words[0]
+		prefix = self.get_prefix_as_word_list()
+		while len(prefix) > 0 and len(self.words) > 0 and prefix[0] == self.words[0]:
+			del prefix[0]
+			del self.words[0]
 		
-		if len(words) == 0:
-			raise RuntimeError('cannot find out the abstract name of "{0}" with {1} as namespace'.format(className, namespace))
-		
-		self.words = []
-		for word in words:
-			self.words.append(word)
+		if len(self.words) == 0:
+			raise ValueError('Could not parse C class name \'{0}\' with {1} as prefix'.format(cname, prefix))
+	
+	def translate(self, translator):
+		return translator.translate_class_name(self)
 
-	def from_c_func_name(self, funcName, namespace=None):
-		prefix = '' if namespace is None else (namespace._full_c_function_name() + '_')
-		if funcName.startswith(prefix):
-			funcName = funcName[len(prefix):]
-			self.words = funcName.split('_')
-		else:
-			raise RuntimeError('cannot find out the abstract name of "{0}" with "{1}" as prefix'.format(funcName, prefix))
-	
-	def to_class_name(self):
-		res = ''
-		for word in self.words:
-			res += word.title()
-		return res
 
-	def to_method_name(self):
-		res = ''
-		first = True
-		for word in self.words:
-			if first:
-				res += word
-				first = False
-			else:
-				res += word.title()
-		return res
+class EnumName(ClassName):
+	def translate(self, translator):
+		return translator.translate_enum_name(self)
+
+
+class EnumValueName(ClassName):
+	def translate(self, translator):
+		return translator.translate_enum_value_name(self)
+
+
+class MethodName(Name):
+	def set_from_c(self, cname):
+		self.words = cname.split('_')
+		prefix = self.get_prefix_as_word_list()
+		while len(prefix) > 0 and len(self.words) > 0 and prefix[0] == self.words[0]:
+			del prefix[0]
+			del self.words[0]
+		if len(self.words) == 0:
+			raise ValueError('Could not parse C function name \'{0}\' with {1} as prefix'.format(cname, prefix))
 	
-	def to_namespace_name(self):
-		return ''.join(self.words)
-	
-	def to_c_class_name(self):
-		return self.to_class_name()
-	
-	def to_c_function_name(self):
-		return '_'.join(self.words)
+	def translate(self, translator):
+		return translator.translate_method_name(self)
 
 
 class Object(object):
@@ -83,34 +73,6 @@ class Object(object):
 		self.detailedDescription = cObject.detailedDescription
 		self.deprecated = cObject.deprecated
 		self.parent = namespace
-	
-	def _full_name(self):
-		if self.parent is None:
-			return [self.name.clone()]
-		else:
-			res = self.parent._full_name()
-			res.append(self.name.clone())
-			return res
-	
-	def _full_c_class_name(self):
-		res = ''
-		fullName = self._full_name()
-		for name in fullName:
-			res += name.to_c_class_name()
-		return res
-	
-	def _full_c_function_name(self):
-		res = []
-		fullName = self._full_name()
-		for name in fullName:
-			res.append(name.to_c_function_name())
-		return '_'.join(res)
-	
-	def _full_word_list(self):
-		res = []
-		for name in self._full_name():
-			res += name.words
-		return res
 
 
 class Namespace(Object):
@@ -129,9 +91,12 @@ class Namespace(Object):
 class EnumValue(Object):
 	def set_from_c(self, cEnumValue, namespace=None):
 		Object.set_from_c(self, cEnumValue, namespace=namespace)
-		aname = Name()
-		aname.from_c_class_name(cEnumValue.name, namespace=namespace)
-		self.name = aname
+		self.name = EnumValueName()
+		self.name.prev = None if namespace is None else namespace.name
+		self.name.set_from_c(cEnumValue.name)
+	
+	def translate(self, translator):
+		return translator.translate_enum_value(self)
 
 
 class Enum(Object):
@@ -151,14 +116,17 @@ class Enum(Object):
 		else:
 			name = cEnum.name
 		
-		aname = Name()
-		aname.from_c_class_name(name, namespace=namespace)
-		self.name = aname
+		self.name = EnumName()
+		self.name.prev = None if namespace is None else namespace.name
+		self.name.set_from_c(name)
 		
 		for cEnumValue in cEnum.values:
 			aEnumValue = EnumValue()
 			aEnumValue.set_from_c(cEnumValue, namespace=self)
 			self.add_value(aEnumValue)
+	
+	def translate(self, translator):
+		return translator.translate_enum(self)
 
 
 class Type(Object):
@@ -179,8 +147,9 @@ class Type(Object):
 		elif cType.ctype in ('float', 'double'):
 			self.type = 'floatant'
 		else:
-			self.type = Name()
-			self.type.from_c_class_name(cType.ctype, namespace=namespace)
+			self.type = ClassName()
+			self.type.prev = None if namespace is None else namespace.name
+			self.type.set_from_c(cType.ctype)
 			self.isobject = True
 		
 		if '*' in cType.completeType:
@@ -192,6 +161,9 @@ class Type(Object):
 		
 		if 'const' in cType.completeType:
 			self.isconst = True
+	
+	def translate(self, translator):
+		return translator.translate_type(self)
 
 
 class Method(Object):
@@ -209,12 +181,16 @@ class Method(Object):
 	
 	def set_from_c(self, cFunction, namespace=None, type=Type.Instance):
 		Object.set_from_c(self,cFunction, namespace=namespace)
-		self.name = Name()
-		self.name.from_c_func_name(cFunction.name, namespace=namespace)
+		self.name = MethodName()
+		self.name.prev = None if namespace is None else namespace.name
+		self.name.set_from_c(cFunction.name)
 		self.type = type
 		if cFunction.returnArgument.ctype != 'void':
 			self.returnType = Type()
 			self.returnType.set_from_c(cFunction.returnArgument, namespace=namespace.parent)
+	
+	def translate(self, translator):
+		return translator.translate_method(self)
 
 
 class Class(Object):
@@ -225,8 +201,9 @@ class Class(Object):
 	
 	def set_from_c(self, cClass, namespace=None):
 		Object.set_from_c(self, cClass, namespace=namespace)
-		self.name = Name()
-		self.name.from_c_class_name(cClass.name, namespace=namespace)
+		self.name = ClassName()
+		self.name.prev = None if namespace is None else namespace.name
+		self.name.set_from_c(cClass.name)
 		for cMethod in cClass.instanceMethods.values():
 			method = Method()
 			method.set_from_c(cMethod, namespace=self)
@@ -235,3 +212,6 @@ class Class(Object):
 			method = Method()
 			method.set_from_c(cMethod, namespace=self, type=Method.Type.Class)
 			self.classMethods.append(method)
+	
+	def translate(self, translator):
+		return translator.translate_class(self)
