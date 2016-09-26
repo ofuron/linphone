@@ -38,30 +38,57 @@ class CppTranslator(object):
 		return classDict
 	
 	def translate_method(self, method):
+		try:
+			returnType = 'void' if method.returnType is None else method.returnType.translate(self)
+		except RuntimeError as e:
+			print('Cannot translate the return type of {0}: {1}'.format(method.name.format_as_c() + '()', e.args[0]))
+			returnType = None
+		
+		methodName = method.name.translate(self)
 		methodDict = {}
-		methodDict['prototype'] = '{0} {1}();'.format(self.translate_type(method.returnType), method.name.translate(self))
+		methodDict['prototype'] = '{0} {1}();'.format(returnType, methodName)
 		if method.type == AbsApi.Method.Type.Class:
 			methodDict['prototype'] = 'static ' + methodDict['prototype'];
 		return methodDict
 	
-	def translate_type(self, type):
-		if type is not None:
-			res = ''
-			if type.isobject:
-				if type.isconst:
-					res += 'const '
-				res += type.type.translate(self)
-				res = 'std::shared_ptr<{0}>'.format(res)
-				return res
-			else:
-				if type.isconst:
-					res += 'const '
-				res += CppTranslator.__abstract_base_type_to_cpp(type.type)
-				if type.isreference:
-					res += ' &'
-				return res
+	def translate_base_type(self, type):
+		if type.name == 'boolean':
+			res = 'bool'
+		elif type.name == 'character':
+			res = 'char'
+		elif type.name == 'integer':
+			res = 'int'
+		elif type.name == 'floatant':
+			res = 'double'
+		elif type.name == 'string':
+			res = 'std::string'
 		else:
-			return 'void'
+			raise RuntimeError('\'{0}\' is not a base abstract type'.format(type.name))
+		
+		if type.isconst:
+			res = 'const ' + res
+		if type.isref:
+			res += ' &'
+		return res
+	
+	def translate_enum_type(self, type):
+		return self.translate_full_name(type.desc.name)
+	
+	def translate_class_type(self, type):
+		if type.desc is None:
+			raise RuntimeError('{0} has not been fixed'.format(type))
+		
+		res = self.translate_full_name(type.desc.name)
+		print(res)
+		if type.isconst:
+			res = 'const ' + res
+		return 'std::shared_ptr<{0}>'.format(res)
+	
+	def translate_full_name(self, name):
+		if name.prev is None:
+			return name.translate(self)
+		else:
+			return self.translate_full_name(name.prev) + '::' + name.translate(self)
 	
 	def translate_class_name(self, name):
 		res = ''
@@ -86,20 +113,8 @@ class CppTranslator(object):
 				res += word.title()
 		return res
 	
-	@staticmethod
-	def __abstract_base_type_to_cpp(atype):
-		if atype == 'boolean':
-			return 'bool'
-		elif atype == 'character':
-			return 'char'
-		elif atype == 'integer':
-			return 'int'
-		elif atype == 'floatant':
-			return 'float'
-		elif atype == 'string':
-			return 'std::string'
-		else:
-			raise RuntimeError('\'{0}\' is not a base abstlract type'.format(atype))
+	def translate_namespace_name(self, name):
+		return ''.join(name.words)
 
 
 class EnumsHeader(object):
@@ -124,7 +139,7 @@ class ClassHeader(object):
 		internalInc = set()
 		externalInc = set()
 		for method in _class.classMethods:
-			if method.returnType.isobject:
+			if method.returnType is AbsApi.ClassType:
 				externalInc.add('memory')
 				internalInc.add('_'.join(method.returnType.type.words))
 		self.internalIncludes = []
@@ -165,25 +180,19 @@ if __name__ == '__main__':
 	project.check()
 	
 	translator = CppTranslator()
+	parser = AbsApi.CParser(project)
+	parser.parse_all()
+	renderer = pystache.Renderer()	
 	
 	header = EnumsHeader(translator)
+	for enum in parser.enumsIndex.itervalues():
+		header.add_enum(enum)
 	
-	linphoneNs = AbsApi.Namespace(name='linphone')
-	for cEnum in project.enums:
-		aEnum = AbsApi.Enum()
-		aEnum.set_from_c(cEnum, namespace=linphoneNs)
-		header.add_enum(aEnum)
-	
-	renderer = pystache.Renderer()	
 	with open('include/enums.hh', mode='w') as f:
 		f.write(renderer.render(header))
 	
-	for cClass in project.classes:
-		try:
-			aClass = AbsApi.Class()
-			aClass.set_from_c(cClass, namespace=linphoneNs)
-			header = ClassHeader(aClass, translator)
+	for _class in parser.classesIndex.itervalues():
+		if _class is not None:
+			header = ClassHeader(_class, translator)
 			with open('include/' + header.filename, mode='w') as f:
 				f.write(renderer.render(header))
-		except Exception as e:
-			print('Ignoring "{0}". {1}'.format(cClass.name, e.args[0]))

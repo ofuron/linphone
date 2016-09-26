@@ -13,6 +13,11 @@ class Name(object):
 			return []
 		else:
 			return self.prev.get_prefix_as_word_list() + list(self.prev.words)
+	
+	def get_full_name_as_word_list(self):
+		fullName = self.get_prefix_as_word_list()
+		fullName += self.words
+		return fullName
 
 
 class ClassName(Name):
@@ -30,6 +35,13 @@ class ClassName(Name):
 		
 		if len(self.words) == 0:
 			raise ValueError('Could not parse C class name \'{0}\' with {1} as prefix'.format(cname, prefix))
+	
+	def format_as_c(self):
+		res = ''
+		words = self.get_full_name_as_word_list()
+		for word in words:
+			res += word.title()
+		return res
 	
 	def translate(self, translator):
 		return translator.translate_class_name(self)
@@ -57,6 +69,55 @@ class MethodName(Name):
 	
 	def translate(self, translator):
 		return translator.translate_method_name(self)
+	
+	def format_as_c(self):
+		fullName = self.get_full_name_as_word_list()
+		return '_'.join(fullName)
+
+
+class NamespaceName(Name):
+	def __init__(self, name, prev=None):
+		Name.__init__(self, prev=prev)
+		self.words = [name]
+	
+	def translate(self, translator):
+		return translator.translate_namespace_name(self)
+
+
+class Type(object):
+	pass
+
+
+class BaseType(Type):
+	def __init__(self, name, isconst=False, isref=False):
+		Type.__init__(self)
+		self.name = name
+		self.isconst = isconst
+		self.isref = isref
+	
+	def translate(self, translator):
+		return translator.translate_base_type(self)
+
+
+class EnumType(Type):
+	def __init__(self, name, enumDesc):
+		Type.__init__(self)
+		self.name = name
+		self.desc = enumDesc
+	
+	def translate(self, translator):
+		return translator.translate_enum_type(self)
+
+
+class ClassType(Type):
+	def __init__(self, name, classDesc, isconst=False):
+		Type.__init__(self)
+		self.name = name
+		self.desc = classDesc
+		self.isconst = isconst
+	
+	def translate(self, translator):
+		return translator.translate_class_type(self)
 
 
 class Object(object):
@@ -78,8 +139,7 @@ class Object(object):
 class Namespace(Object):
 	def __init__(self, name, parent=None):
 		Object()
-		self.name = Name()
-		self.name.words = [name]
+		self.name = NamespaceName(name, prev=parent)
 		self.parent = parent
 		self.children = []
 	
@@ -129,43 +189,6 @@ class Enum(Object):
 		return translator.translate_enum(self)
 
 
-class Type(Object):
-	def __init__(self):
-		Object.__init__(self)
-		self.type = None
-		self.isconst = False
-		self.isobject = False
-		self.isreference = False
-	
-	def set_from_c(self, cType, namespace=None):
-		if cType.ctype == 'char':
-			self.type = 'character'
-		elif cType.ctype == 'bool_t':
-			self.type = 'boolean'
-		elif cType.ctype == 'int':
-			self.type = 'integer'
-		elif cType.ctype in ('float', 'double'):
-			self.type = 'floatant'
-		else:
-			self.type = ClassName()
-			self.type.prev = None if namespace is None else namespace.name
-			self.type.set_from_c(cType.ctype)
-			self.isobject = True
-		
-		if '*' in cType.completeType:
-			if not self.isobject:
-				if self.type == 'character':
-					self.type == 'string'
-			else:
-				self.isreference = True
-		
-		if 'const' in cType.completeType:
-			self.isconst = True
-	
-	def translate(self, translator):
-		return translator.translate_type(self)
-
-
 class Method(Object):
 	class Type:
 		Instance = 0,
@@ -179,15 +202,14 @@ class Method(Object):
 		self.optArgs = None
 		self.returnType = None
 	
-	def set_from_c(self, cFunction, namespace=None, type=Type.Instance):
+	def set_from_c(self, cFunction, parser, namespace=None, type=Type.Instance):
 		Object.set_from_c(self,cFunction, namespace=namespace)
 		self.name = MethodName()
 		self.name.prev = None if namespace is None else namespace.name
 		self.name.set_from_c(cFunction.name)
 		self.type = type
 		if cFunction.returnArgument.ctype != 'void':
-			self.returnType = Type()
-			self.returnType.set_from_c(cFunction.returnArgument, namespace=namespace.parent)
+			self.returnType = parser.parse_type(cFunction.returnArgument)
 	
 	def translate(self, translator):
 		return translator.translate_method(self)
@@ -199,19 +221,114 @@ class Class(Object):
 		self.instanceMethods = []
 		self.classMethods = []
 	
-	def set_from_c(self, cClass, namespace=None):
+	def set_from_c(self, cClass, parser, namespace=None):
 		Object.set_from_c(self, cClass, namespace=namespace)
 		self.name = ClassName()
 		self.name.prev = None if namespace is None else namespace.name
 		self.name.set_from_c(cClass.name)
 		for cMethod in cClass.instanceMethods.values():
 			method = Method()
-			method.set_from_c(cMethod, namespace=self)
+			method.set_from_c(cMethod, parser, namespace=self)
 			self.instanceMethods.append(method)
 		for cMethod in cClass.classMethods.values():
 			method = Method()
-			method.set_from_c(cMethod, namespace=self, type=Method.Type.Class)
+			method.set_from_c(cMethod, parser, namespace=self, type=Method.Type.Class)
 			self.classMethods.append(method)
 	
 	def translate(self, translator):
 		return translator.translate_class(self)
+
+class CParser(object):
+	def __init__(self, cProject):
+		self.cProject = cProject
+		
+		self.enumsIndex = {}
+		for enum in self.cProject.enums:
+			if enum.associatedTypedef is None:
+				self.enumsIndex[enum.name] = None
+			else:
+				self.enumsIndex[enum.associatedTypedef.name] = None
+		
+		self.classesIndex = {}
+		for _class in self.cProject.classes:
+			self.classesIndex[_class.name] = None
+		
+		self.cBaseType = ['bool_t', 'char', 'short', 'int', 'long', 'float', 'double']
+		self.namespace = Namespace('linphone')
+	
+	def parse_type(self, cType):
+		if cType.ctype in self.cBaseType:
+			return CParser._parse_as_base_type(self, cType)
+		elif cType.ctype in self.enumsIndex:
+			return EnumType(cType.ctype, self.enumsIndex[cType.ctype])
+		elif cType.ctype in self.classesIndex:
+			return ClassType(cType.ctype, self.classesIndex[cType.ctype])
+		else:
+			raise RuntimeError('Unknown C type \'{0}\''.format(cType.ctype))
+	
+	def parse_enum(self, cenum):
+		enum = Enum()
+		enum.set_from_c(cenum, namespace=self.namespace)
+		if cenum.associatedTypedef is None:
+			self.enumsIndex[cenum.name] = enum
+		else:
+			self.enumsIndex[cenum.associatedTypedef.name] = enum
+		return enum
+	
+	def parse_class(self, cclass):
+		_class = Class()
+		_class.set_from_c(cclass, self, namespace=self.namespace)
+		self.classesIndex[cclass.name] = _class
+		return _class
+	
+	def parse_all(self):
+		for enum in self.cProject.enums:
+			self.parse_enum(enum)
+		for _class in self.cProject.classes:
+			try:
+				self.parse_class(_class)
+			except RuntimeError as e:
+				print('Could not parse \'{0}\' class: {1}'.format(_class.name, e.args[0]))
+		self.fix_all_types()
+		
+	def fix_type(self, type):
+		if isinstance(type, EnumType) and type.desc is None:
+			type.desc = self.enumsIndex[type.name]
+		elif isinstance(type, ClassType) and type.desc is None:
+			type.desc = self.classesIndex[type.name]
+	
+	def fix_all_types(self):
+		for _class in self.classesIndex.itervalues():
+			if _class is not None:
+				for method in _class.instanceMethods:
+					self.fix_type(method.returnType)
+				for method in _class.classMethods:
+					self.fix_type(method.returnType)
+	
+	def _parse_as_base_type(self, cType):
+		param = {}
+		
+		if cType.ctype == 'char':
+			if '*' in cType.completeType:
+				name = 'string'
+			else:
+				name = 'character'
+		else:
+			if cType.ctype == 'bool_t':
+				name = 'boolean'
+			elif cType.ctype in ['short', 'int', 'long']:
+				name = 'integer'
+			elif cType.ctype in ['float', 'double']:
+				name = 'floatant'
+			else:
+				raise RuntimeError('{0} is not a basic C type'.format(cType.ctype))
+			
+			if '*' in cType.completeType:
+				param['isref'] = True
+		
+		if 'const' in cType.completeType:
+			param['isconst'] = True
+		
+		return BaseType(name, **param)
+	
+	
