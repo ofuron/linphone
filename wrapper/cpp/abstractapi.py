@@ -8,6 +8,34 @@ class Name(object):
 		if cname is not None:
 			self.set_from_c(cname)
 	
+	def copy(self):
+		nameType = type(self)
+		name = nameType()
+		name.words = list(self.words)
+		name.prev = None if self.prev is None else self.prev.copy()
+		return name
+	
+	def __eq__(self, name):
+		return self.words == name.words and (
+			(self.prev is None and name.prev is None) or
+			(self.prev is not None and name.prev is not None and self.prev == name.prev)
+		)
+	
+	def __ne__(self, name):
+		return not self == name
+	
+	def delete_prefix(self, prefix):
+		it = self
+		_next = None
+		while it is not None and it.words != prefix.words:
+			_next = it
+			it = it.prev
+		
+		if it is None or it != prefix:
+			raise RuntimeError('no common prefix')
+		elif _next is not None:
+			_next.prev = None
+	
 	def get_prefix_as_word_list(self):
 		if self.prev is None:
 			return []
@@ -18,6 +46,42 @@ class Name(object):
 		fullName = self.get_prefix_as_word_list()
 		fullName += self.words
 		return fullName
+	
+	def get_name_path(self):
+		res = [self]
+		it = self
+		while it.prev is not None:
+			it = it.prev
+			res.append(it)
+		res.reverse()
+		return res
+	
+	#@staticmethod
+	#def find_common_parent(name1, name2):
+		#print('name1={0}, name2={1}'.format(name1.format_as_c(), name2.format_as_c()))
+		#path1 = name1.get_name_path()
+		#path2 = name2.get_name_path()
+		#i = 0
+		#while i < len(path1) and i < len(path2) and path1[i] is path2[i]:
+			#i += 1
+		#if i < len(path1) and i < len(path2) and i > 0:
+			#print('return={0}'.format(path1[i-1].format_as_c()))
+			#return path1[i-1]
+		#else:
+			#raise RuntimeError('{0} and {1} have no common parent'.format(name1, name2))
+	
+	@staticmethod
+	def find_common_parent(name1, name2):
+		if name1.prev is None or name2.prev is None:
+			return None
+		elif name1.prev is name2.prev:
+			return name1.prev
+		else:
+			commonParent = Name.find_common_parent(name1.prev, name2)
+			if commonParent is not None:
+				return commonParent
+			else:
+				return Name.find_common_parent(name1, name2.prev)
 
 
 class ClassName(Name):
@@ -76,16 +140,17 @@ class MethodName(Name):
 
 
 class NamespaceName(Name):
-	def __init__(self, name, prev=None):
+	def __init__(self, name=None, prev=None):
 		Name.__init__(self, prev=prev)
-		self.words = [name]
+		self.words = [name] if name is not None else []
 	
 	def translate(self, translator):
 		return translator.translate_namespace_name(self)
 
 
 class Type(object):
-	pass
+	def __init__(self):
+		self.parent = None
 
 
 class BaseType(Type):
@@ -134,6 +199,14 @@ class Object(object):
 		self.detailedDescription = cObject.detailedDescription
 		self.deprecated = cObject.deprecated
 		self.parent = namespace
+	
+	def get_namespace_object(self):
+		if isinstance(self, (Namespace,Enum,Class)):
+			return self
+		elif self.parent is None:
+			raise RuntimeError('{0} is not attached to a namespace object'.format(self))
+		else:
+			return self.parent.get_namespace_object()
 
 
 class Namespace(Object):
@@ -201,6 +274,10 @@ class Method(Object):
 		self.mandArgs = None
 		self.optArgs = None
 		self.returnType = None
+		
+	def set_return_type(self, returnType):
+		self.returnType = returnType
+		returnType.parent = self
 	
 	def set_from_c(self, cFunction, parser, namespace=None, type=Type.Instance):
 		Object.set_from_c(self,cFunction, namespace=namespace)
@@ -209,7 +286,7 @@ class Method(Object):
 		self.name.set_from_c(cFunction.name)
 		self.type = type
 		if cFunction.returnArgument.ctype != 'void':
-			self.returnType = parser.parse_type(cFunction.returnArgument)
+			self.set_return_type(parser.parse_type(cFunction.returnArgument))
 	
 	def translate(self, translator):
 		return translator.translate_method(self)
@@ -237,6 +314,7 @@ class Class(Object):
 	
 	def translate(self, translator):
 		return translator.translate_class(self)
+
 
 class CParser(object):
 	def __init__(self, cProject):

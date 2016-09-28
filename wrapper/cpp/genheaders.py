@@ -72,14 +72,18 @@ class CppTranslator(object):
 		return res
 	
 	def translate_enum_type(self, type):
-		return self.translate_full_name(type.desc.name)
+		if type.desc is None:
+			raise RuntimeError('{0} has not been fixed'.format(type))
+		
+		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
+		return self.translate_relative_name(type.desc.name, commonParentName)
 	
 	def translate_class_type(self, type):
 		if type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
 		
-		res = self.translate_full_name(type.desc.name)
-		print(res)
+		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
+		res = self.translate_relative_name(type.desc.name, commonParentName)
 		if type.isconst:
 			res = 'const ' + res
 		return 'std::shared_ptr<{0}>'.format(res)
@@ -89,6 +93,11 @@ class CppTranslator(object):
 			return name.translate(self)
 		else:
 			return self.translate_full_name(name.prev) + '::' + name.translate(self)
+	
+	def translate_relative_name(self, name, prefix):
+		copy = name.copy()
+		copy.delete_prefix(prefix)
+		return self.translate_full_name(copy)
 	
 	def translate_class_name(self, name):
 		res = ''
