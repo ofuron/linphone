@@ -147,10 +147,13 @@ class ClassHeader(object):
 	def update_includes(self, _class):
 		internalInc = set()
 		externalInc = set()
-		for method in _class.classMethods:
-			if method.returnType is AbsApi.ClassType:
+		for method in (_class.classMethods + _class.instanceMethods):
+			if isinstance(method.returnType, AbsApi.ClassType):
 				externalInc.add('memory')
-				internalInc.add('_'.join(method.returnType.type.words))
+				internalInc.add('_'.join(method.returnType.desc.name.words))
+			elif isinstance(method.returnType, AbsApi.EnumType):
+				internalInc.add('enums')
+		
 		self.internalIncludes = []
 		self.externalIncludes = []
 		for include in internalInc:
