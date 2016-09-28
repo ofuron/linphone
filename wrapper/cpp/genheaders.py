@@ -45,6 +45,8 @@ class CppTranslator(object):
 			returnType = None
 		
 		methodName = method.name.translate(self)
+		if methodName == 'new':
+			methodName = '_new'
 		methodDict = {}
 		methodDict['prototype'] = '{0} {1}();'.format(returnType, methodName)
 		if method.type == AbsApi.Method.Type.Class:
@@ -150,7 +152,8 @@ class ClassHeader(object):
 		for method in (_class.classMethods + _class.instanceMethods):
 			if isinstance(method.returnType, AbsApi.ClassType):
 				externalInc.add('memory')
-				internalInc.add('_'.join(method.returnType.desc.name.words))
+				if method.returnType.desc.name != _class.name:
+					internalInc.add('_'.join(method.returnType.desc.name.words))
 			elif isinstance(method.returnType, AbsApi.EnumType):
 				internalInc.add('enums')
 		
