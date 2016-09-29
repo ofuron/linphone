@@ -173,6 +173,16 @@ class ClassType(Type):
 		return translator.translate_class_type(self)
 
 
+class ListType(Type):
+	def __init__(self, containedType=None):
+		Type.__init__(self)
+		self.containedType = containedType
+		self.containedTypeDesc = None
+	
+	def translate(self, translator):
+		return translator.translate_list_type(self)
+
+
 class Object(object):
 	def __init__(self):
 		self.name = None
@@ -305,8 +315,6 @@ class Class(Object):
 
 
 class CParser(object):
-	regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
-	
 	def __init__(self, cProject):
 		self.cProject = cProject
 		
@@ -322,15 +330,19 @@ class CParser(object):
 			self.classesIndex[_class.name] = None
 		
 		self.cBaseType = ['bool_t', 'char', 'short', 'int', 'long', 'float', 'double']
+		self.cListType = 'bctbx_list_t'
+		self.regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
 		self.namespace = Namespace('linphone')
 	
 	def parse_type(self, cType):
-		if cType.ctype in self.cBaseType or re.match(CParser.regexFixedSizeInteger, cType.ctype):
+		if cType.ctype in self.cBaseType or re.match(self.regexFixedSizeInteger, cType.ctype):
 			return CParser._parse_as_base_type(self, cType)
 		elif cType.ctype in self.enumsIndex:
 			return EnumType(cType.ctype, self.enumsIndex[cType.ctype])
 		elif cType.ctype in self.classesIndex:
 			return ClassType(cType.ctype, self.classesIndex[cType.ctype])
+		elif cType.ctype == self.cListType:
+			return ListType(cType.containedType)
 		else:
 			raise RuntimeError('Unknown C type \'{0}\''.format(cType.ctype))
 	
@@ -364,6 +376,8 @@ class CParser(object):
 			type.desc = self.enumsIndex[type.name]
 		elif isinstance(type, ClassType) and type.desc is None:
 			type.desc = self.classesIndex[type.name]
+		elif isinstance(type, ListType) and type.containedTypeDesc is None:
+			type.containedTypeDesc = self.classesIndex[type.containedType]
 	
 	def fix_all_types(self):
 		for _class in self.classesIndex.itervalues():
@@ -395,7 +409,7 @@ class CParser(object):
 				if cType.ctype == 'double':
 					param['size'] = 'double'
 			else:
-				match = re.match(CParser.regexFixedSizeInteger, cType.ctype)
+				match = re.match(self.regexFixedSizeInteger, cType.ctype)
 				if match is not None:
 					name = 'integer'
 					if match.group(1) == 'u':

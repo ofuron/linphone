@@ -104,6 +104,14 @@ class CppTranslator(object):
 			res = 'const ' + res
 		return 'std::shared_ptr<{0}>'.format(res)
 	
+	def translate_list_type(self, type):
+		if type.containedTypeDesc is None:
+			raise RuntimeError('{0} has not been fixed'.format(type))
+		
+		commonParentName = AbsApi.Name.find_common_parent(type.containedTypeDesc.name, type.parent.name)
+		res = self.translate_relative_name(type.containedTypeDesc.name, commonParentName)
+		return 'std::list<std::shared_ptr<{0}> >'.format(res)
+	
 	def translate_full_name(self, name):
 		if name.prev is None:
 			return name.translate(self)
@@ -166,7 +174,7 @@ class ClassHeader(object):
 		for method in (_class.classMethods + _class.instanceMethods):
 			if isinstance(method.returnType, AbsApi.ClassType):
 				externalInc.add('memory')
-				if method.returnType.desc.name != _class.name:
+				if method.returnType.desc is not None and method.returnType.desc.name != _class.name:
 					internalInc.add('_'.join(method.returnType.desc.name.words))
 			elif isinstance(method.returnType, AbsApi.EnumType):
 				internalInc.add('enums')
