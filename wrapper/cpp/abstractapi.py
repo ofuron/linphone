@@ -56,20 +56,6 @@ class Name(object):
 		res.reverse()
 		return res
 	
-	#@staticmethod
-	#def find_common_parent(name1, name2):
-		#print('name1={0}, name2={1}'.format(name1.format_as_c(), name2.format_as_c()))
-		#path1 = name1.get_name_path()
-		#path2 = name2.get_name_path()
-		#i = 0
-		#while i < len(path1) and i < len(path2) and path1[i] is path2[i]:
-			#i += 1
-		#if i < len(path1) and i < len(path2) and i > 0:
-			#print('return={0}'.format(path1[i-1].format_as_c()))
-			#return path1[i-1]
-		#else:
-			#raise RuntimeError('{0} and {1} have no common parent'.format(name1, name2))
-	
 	@staticmethod
 	def find_common_parent(name1, name2):
 		if name1.prev is None or name2.prev is None:
@@ -154,11 +140,13 @@ class Type(object):
 
 
 class BaseType(Type):
-	def __init__(self, name, isconst=False, isref=False):
+	def __init__(self, name, isconst=False, isref=False, intSize=None, isUnsigned=False):
 		Type.__init__(self)
 		self.name = name
 		self.isconst = isconst
 		self.isref = isref
+		self.intSize = intSize
+		self.isUnsigned = isUnsigned
 	
 	def translate(self, translator):
 		return translator.translate_base_type(self)
@@ -317,6 +305,8 @@ class Class(Object):
 
 
 class CParser(object):
+	regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
+	
 	def __init__(self, cProject):
 		self.cProject = cProject
 		
@@ -335,7 +325,7 @@ class CParser(object):
 		self.namespace = Namespace('linphone')
 	
 	def parse_type(self, cType):
-		if cType.ctype in self.cBaseType:
+		if cType.ctype in self.cBaseType or re.match(CParser.regexFixedSizeInteger, cType.ctype):
 			return CParser._parse_as_base_type(self, cType)
 		elif cType.ctype in self.enumsIndex:
 			return EnumType(cType.ctype, self.enumsIndex[cType.ctype])
@@ -396,15 +386,28 @@ class CParser(object):
 				name = 'boolean'
 			elif cType.ctype in ['short', 'int', 'long']:
 				name = 'integer'
+				if cType.ctype in ['short', 'long']:
+					param['intSize'] = cType.ctype
+				if 'unsigned' in cType.completeType:
+					param['isUnsigned'] = True
 			elif cType.ctype in ['float', 'double']:
 				name = 'floatant'
 			else:
-				raise RuntimeError('{0} is not a basic C type'.format(cType.ctype))
+				match = re.match(CParser.regexFixedSizeInteger, cType.ctype)
+				if match is not None:
+					name = 'integer'
+					if match.group(1) == 'u':
+						param['isUnsigned'] = True
+					param['intSize'] = int(match.group(2))
+					if param['intSize'] not in [8, 16, 32, 64]:
+						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cType.type, param['intSize']))
+				else:
+					raise RuntimeError('{0} is not a basic C type'.format(cType.ctype))
 			
 			if '*' in cType.completeType:
 				param['isref'] = True
 		
-		if 'const' in cType.completeType:
+		if 'const' in cType.completeType and name != 'string':
 			param['isconst'] = True
 		
 		return BaseType(name, **param)

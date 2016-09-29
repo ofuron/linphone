@@ -2,6 +2,7 @@
 
 
 import pystache
+import re
 import genapixml as CApi
 import abstractapi as AbsApi
 
@@ -59,7 +60,12 @@ class CppTranslator(object):
 		elif type.name == 'character':
 			res = 'char'
 		elif type.name == 'integer':
-			res = 'int'
+			if type.intSize is None:
+				res = 'int'
+			elif isinstance(type.intSize, str):
+				res = type.intSize
+			else:
+				res = 'int{0}_t'.format(type.intSize)
 		elif type.name == 'floatant':
 			res = 'double'
 		elif type.name == 'string':
@@ -67,6 +73,11 @@ class CppTranslator(object):
 		else:
 			raise RuntimeError('\'{0}\' is not a base abstract type'.format(type.name))
 		
+		if type.isUnsigned:
+			if type.name == 'integer' and isinstance(type.intSize, int):
+				res = 'u' + res
+			else:
+				res = 'unsigned ' + res
 		if type.isconst:
 			res = 'const ' + res
 		if type.isref:
@@ -156,6 +167,9 @@ class ClassHeader(object):
 					internalInc.add('_'.join(method.returnType.desc.name.words))
 			elif isinstance(method.returnType, AbsApi.EnumType):
 				internalInc.add('enums')
+			elif isinstance(method.returnType, AbsApi.BaseType):
+				if method.returnType.name == 'integer' and isinstance(method.returnType.intSize, int):
+					externalInc.add('cstdint')
 		
 		self.internalIncludes = []
 		self.externalIncludes = []
