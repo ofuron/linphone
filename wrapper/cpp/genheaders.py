@@ -60,21 +60,24 @@ class CppTranslator(object):
 		elif type.name == 'character':
 			res = 'char'
 		elif type.name == 'integer':
-			if type.intSize is None:
+			if type.size is None:
 				res = 'int'
-			elif isinstance(type.intSize, str):
-				res = type.intSize
+			elif isinstance(type.size, str):
+				res = type.size
 			else:
-				res = 'int{0}_t'.format(type.intSize)
+				res = 'int{0}_t'.format(type.size)
 		elif type.name == 'floatant':
-			res = 'double'
+			if type.size is not None and type.size == 'double':
+				res = 'double'
+			else:
+				res = 'float'
 		elif type.name == 'string':
 			res = 'std::string'
 		else:
 			raise RuntimeError('\'{0}\' is not a base abstract type'.format(type.name))
 		
 		if type.isUnsigned:
-			if type.name == 'integer' and isinstance(type.intSize, int):
+			if type.name == 'integer' and isinstance(type.size, int):
 				res = 'u' + res
 			else:
 				res = 'unsigned ' + res
@@ -168,7 +171,7 @@ class ClassHeader(object):
 			elif isinstance(method.returnType, AbsApi.EnumType):
 				internalInc.add('enums')
 			elif isinstance(method.returnType, AbsApi.BaseType):
-				if method.returnType.name == 'integer' and isinstance(method.returnType.intSize, int):
+				if method.returnType.name == 'integer' and isinstance(method.returnType.size, int):
 					externalInc.add('cstdint')
 		
 		self.internalIncludes = []

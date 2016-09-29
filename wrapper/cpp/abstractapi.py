@@ -140,12 +140,12 @@ class Type(object):
 
 
 class BaseType(Type):
-	def __init__(self, name, isconst=False, isref=False, intSize=None, isUnsigned=False):
+	def __init__(self, name, isconst=False, isref=False, size=None, isUnsigned=False):
 		Type.__init__(self)
 		self.name = name
 		self.isconst = isconst
 		self.isref = isref
-		self.intSize = intSize
+		self.size = size
 		self.isUnsigned = isUnsigned
 	
 	def translate(self, translator):
@@ -387,20 +387,22 @@ class CParser(object):
 			elif cType.ctype in ['short', 'int', 'long']:
 				name = 'integer'
 				if cType.ctype in ['short', 'long']:
-					param['intSize'] = cType.ctype
+					param['size'] = cType.ctype
 				if 'unsigned' in cType.completeType:
 					param['isUnsigned'] = True
 			elif cType.ctype in ['float', 'double']:
 				name = 'floatant'
+				if cType.ctype == 'double':
+					param['size'] = 'double'
 			else:
 				match = re.match(CParser.regexFixedSizeInteger, cType.ctype)
 				if match is not None:
 					name = 'integer'
 					if match.group(1) == 'u':
 						param['isUnsigned'] = True
-					param['intSize'] = int(match.group(2))
-					if param['intSize'] not in [8, 16, 32, 64]:
-						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cType.type, param['intSize']))
+					param['size'] = int(match.group(2))
+					if param['size'] not in [8, 16, 32, 64]:
+						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cType.type, param['size']))
 				else:
 					raise RuntimeError('{0} is not a basic C type'.format(cType.ctype))
 			
