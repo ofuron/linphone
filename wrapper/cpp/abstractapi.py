@@ -302,13 +302,20 @@ class Class(Object):
 		self.name.prev = None if namespace is None else namespace.name
 		self.name.set_from_c(cClass.name)
 		for cMethod in cClass.instanceMethods.values():
-			method = Method()
-			method.set_from_c(cMethod, parser, namespace=self)
-			self.instanceMethods.append(method)
+			try:
+				method = Method()
+				method.set_from_c(cMethod, parser, namespace=self)
+				self.instanceMethods.append(method)
+			except RuntimeError as e:
+				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 		for cMethod in cClass.classMethods.values():
-			method = Method()
-			method.set_from_c(cMethod, parser, namespace=self, type=Method.Type.Class)
-			self.classMethods.append(method)
+			try:
+				method = Method()
+				method.set_from_c(cMethod, parser, namespace=self, type=Method.Type.Class)
+				self.classMethods.append(method)
+			except RuntimeError as e:
+				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
+		
 	
 	def translate(self, translator):
 		return translator.translate_class(self)
@@ -377,7 +384,12 @@ class CParser(object):
 		elif isinstance(type, ClassType) and type.desc is None:
 			type.desc = self.classesIndex[type.name]
 		elif isinstance(type, ListType) and type.containedTypeDesc is None:
-			type.containedTypeDesc = self.classesIndex[type.containedType]
+			if type.containedType in self.classesIndex:
+				type.containedTypeDesc = ClassType(type.containedType, self.classesIndex[type.containedType])
+			elif type.containedType in self.enumsIndex:
+				type.containedTypeDesc = EnumType(type.containedType, desc=self.enumIndex[type.containedType])
+			else:
+				type.containedTypeDesc = self.parse_c_type(type.containedType)
 	
 	def fix_all_types(self):
 		for _class in self.classesIndex.itervalues():
@@ -428,4 +440,48 @@ class CParser(object):
 		
 		return BaseType(name, **param)
 	
-	
+	def parse_c_type(self, cDecl):
+		declElems = cDecl.split(' ')
+		param = {}
+		name = None
+		for elem in declElems:
+			if elem == 'const':
+				if name is not None:
+					param['isconst'] = True
+			elif elem == 'unisigned':
+				param['isUnsigned'] = True
+			elif elem == 'char':
+				name = 'character'
+			elif elem in ['short', 'long']:
+				param['size'] = elem
+			elif elem == 'int':
+				name = 'integer'
+			elif elem == 'float':
+				name = 'floatant'
+				param['size'] = 'float'
+			elif elem == 'double':
+				name = 'floatant'
+				if 'size' in param and param['size'] == 'long':
+					param['size'] = 'long double'
+				else:
+					param['size'] = 'double'
+			elif elem == '*':
+				if name is not None:
+					if name == 'character':
+						name = 'string'
+					else:
+						param['isRef'] = True
+			else:
+				matchCtx = re.match(self.regexFixedSizeInteger, elem)
+				if matchCtx:
+					if matchCtx.group(1) == 'u':
+						param['isUnsigned'] = True
+					
+					param['size'] = int(matchCtx.group(2))
+					if param['size'] not in [8, 16, 32, 64]:
+						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cDecl, param['size']))
+				else:
+					raise RuntimeError('{0} is not a basic C type'.format(cDecl))
+		
+		return BaseType(name, **param)
+				

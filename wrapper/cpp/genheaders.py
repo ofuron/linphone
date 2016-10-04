@@ -107,9 +107,11 @@ class CppTranslator(object):
 	def translate_list_type(self, type):
 		if type.containedTypeDesc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
-		
-		commonParentName = AbsApi.Name.find_common_parent(type.containedTypeDesc.name, type.parent.name)
-		res = self.translate_relative_name(type.containedTypeDesc.name, commonParentName)
+		elif isinstance(type.containedTypeDesc, AbsApi.BaseType):
+			res = self.translate_base_type(type.containedTypeDesc)
+		else:
+			commonParentName = AbsApi.Name.find_common_parent(type.containedTypeDesc.desc.name, type.parent.name)
+			res = self.translate_relative_name(type.containedTypeDesc.desc.name, commonParentName)
 		return 'std::list<std::shared_ptr<{0}> >'.format(res)
 	
 	def translate_full_name(self, name):
@@ -156,7 +158,7 @@ class EnumsHeader(object):
 		self.enums = []
 	
 	def add_enum(self, enum):
-		self.enums.append(enum.translate(translator))
+		self.enums.append(enum.translate(self.translator))
 
 
 class ClassHeader(object):
@@ -164,30 +166,42 @@ class ClassHeader(object):
 		self._class = _class.translate(translator)
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
-		self.internalIncludes = []
-		self.exteranlIncludes = []
+		self.includes = {'internal': [], 'external': []}
 		self.update_includes(_class)
 	
 	def update_includes(self, _class):
-		internalInc = set()
-		externalInc = set()
+		includes = {'internal': set(), 'external': set()}
 		for method in (_class.classMethods + _class.instanceMethods):
-			if isinstance(method.returnType, AbsApi.ClassType):
-				externalInc.add('memory')
-				if method.returnType.desc is not None and method.returnType.desc.name != _class.name:
-					internalInc.add('_'.join(method.returnType.desc.name.words))
-			elif isinstance(method.returnType, AbsApi.EnumType):
-				internalInc.add('enums')
-			elif isinstance(method.returnType, AbsApi.BaseType):
-				if method.returnType.name == 'integer' and isinstance(method.returnType.size, int):
-					externalInc.add('cstdint')
+			retIncludes = self._needed_includes_from_type(method.returnType, _class)
+			includes['internal'] |= retIncludes['internal']
+			includes['external'] |= retIncludes['external']
 		
 		self.internalIncludes = []
 		self.externalIncludes = []
-		for include in internalInc:
-			self.internalIncludes.append({'name': include})
-		for include in externalInc:
-			self.externalIncludes.append({'name': include})
+		for include in includes['internal']:
+			self.includes['internal'].append({'name': include})
+		for include in includes['external']:
+			self.includes['external'].append({'name': include})
+	
+	def _needed_includes_from_type(self, type, currentClass):
+		res = {'internal': set(), 'external': set()}
+		if isinstance(type, AbsApi.ClassType):
+			res['external'].add('memory')
+			if type.desc is not None and type.desc is not currentClass:
+				res['internal'].add('_'.join(type.desc.name.words))
+		elif isinstance(type, AbsApi.EnumType):
+			res['internal'].add('enums')
+		elif isinstance(type, AbsApi.BaseType):
+			if type.name == 'integer' and isinstance(type.size, int):
+				res['external'].add('cstdint')
+			elif type.name == 'string':
+				res['external'].add('string')
+		elif isinstance(type, AbsApi.ListType):
+			res['external'].add('list')
+			retIncludes = self._needed_includes_from_type(type.containedType, currentClass)
+			res['external'] |= retIncludes['external']
+			res['internal'] = retIncludes['internal']
+		return res
 	
 	@staticmethod
 	def _class_name_to_define(className):
@@ -214,7 +228,7 @@ class ClassHeader(object):
 		return res
 
 
-if __name__ == '__main__':
+def main():
 	project = CApi.Project()
 	project.initFromDir('../../work/coreapi/help/doc/xml')
 	project.check()
@@ -236,3 +250,7 @@ if __name__ == '__main__':
 			header = ClassHeader(_class, translator)
 			with open('include/' + header.filename, mode='w') as f:
 				f.write(renderer.render(header))
+
+
+if __name__ == '__main__':
+	main()

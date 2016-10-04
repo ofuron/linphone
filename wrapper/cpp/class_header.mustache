@@ -1,12 +1,16 @@
 #ifndef {{define}}
 #define {{define}}
 
-{{#externalIncludes}}
+{{#includes}}
+
+{{#external}}
 #include <{{name}}>
-{{/externalIncludes}}
-{{#internalIncludes}}
+{{/external}}
+{{#internal}}
 #include "{{name}}.hh"
-{{/internalIncludes}}
+{{/internal}}
+
+{{/includes}}
 
 namespace linphone {
 
