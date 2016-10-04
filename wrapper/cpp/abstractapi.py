@@ -92,19 +92,14 @@ class ClassName(Name):
 		for word in words:
 			res += word.title()
 		return res
-	
-	def translate(self, translator):
-		return translator.translate_class_name(self)
 
 
 class EnumName(ClassName):
-	def translate(self, translator):
-		return translator.translate_enum_name(self)
+	pass
 
 
 class EnumValueName(ClassName):
-	def translate(self, translator):
-		return translator.translate_enum_value_name(self)
+	pass
 
 
 class MethodName(Name):
@@ -117,9 +112,6 @@ class MethodName(Name):
 		if len(self.words) == 0:
 			raise ValueError('Could not parse C function name \'{0}\' with {1} as prefix'.format(cname, prefix))
 	
-	def translate(self, translator):
-		return translator.translate_method_name(self)
-	
 	def format_as_c(self):
 		fullName = self.get_full_name_as_word_list()
 		return '_'.join(fullName)
@@ -129,9 +121,6 @@ class NamespaceName(Name):
 	def __init__(self, name=None, prev=None):
 		Name.__init__(self, prev=prev)
 		self.words = [name] if name is not None else []
-	
-	def translate(self, translator):
-		return translator.translate_namespace_name(self)
 
 
 class Type(object):
@@ -147,9 +136,6 @@ class BaseType(Type):
 		self.isref = isref
 		self.size = size
 		self.isUnsigned = isUnsigned
-	
-	def translate(self, translator):
-		return translator.translate_base_type(self)
 
 
 class EnumType(Type):
@@ -157,9 +143,6 @@ class EnumType(Type):
 		Type.__init__(self)
 		self.name = name
 		self.desc = enumDesc
-	
-	def translate(self, translator):
-		return translator.translate_enum_type(self)
 
 
 class ClassType(Type):
@@ -168,9 +151,6 @@ class ClassType(Type):
 		self.name = name
 		self.desc = classDesc
 		self.isconst = isconst
-	
-	def translate(self, translator):
-		return translator.translate_class_type(self)
 
 
 class ListType(Type):
@@ -178,9 +158,6 @@ class ListType(Type):
 		Type.__init__(self)
 		self.containedType = containedType
 		self.containedTypeDesc = None
-	
-	def translate(self, translator):
-		return translator.translate_list_type(self)
 
 
 class Object(object):
@@ -225,9 +202,6 @@ class EnumValue(Object):
 		self.name = EnumValueName()
 		self.name.prev = None if namespace is None else namespace.name
 		self.name.set_from_c(cEnumValue.name)
-	
-	def translate(self, translator):
-		return translator.translate_enum_value(self)
 
 
 class Enum(Object):
@@ -255,9 +229,6 @@ class Enum(Object):
 			aEnumValue = EnumValue()
 			aEnumValue.set_from_c(cEnumValue, namespace=self)
 			self.add_value(aEnumValue)
-	
-	def translate(self, translator):
-		return translator.translate_enum(self)
 
 
 class Method(Object):
@@ -285,9 +256,6 @@ class Method(Object):
 		self.type = type
 		if cFunction.returnArgument.ctype != 'void':
 			self.set_return_type(parser.parse_type(cFunction.returnArgument))
-	
-	def translate(self, translator):
-		return translator.translate_method(self)
 
 
 class Class(Object):
@@ -315,10 +283,6 @@ class Class(Object):
 				self.classMethods.append(method)
 			except RuntimeError as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
-		
-	
-	def translate(self, translator):
-		return translator.translate_class(self)
 
 
 class CParser(object):
@@ -484,4 +448,57 @@ class CParser(object):
 					raise RuntimeError('{0} is not a basic C type'.format(cDecl))
 		
 		return BaseType(name, **param)
-				
+
+
+class Translator(object):
+	def translate(self, obj):
+		if isinstance(obj, Object):
+			return self._translate_object(obj)
+		elif isinstance(obj, Name):
+			return self._translate_name(obj)
+		elif isinstance(obj, Type):
+			return self._translate_type(obj)
+		else:
+			Translator.fail(obj)
+	
+	def _translate_object(self, aObject):
+		if type(aObject) is Enum:
+			return self._translate_enum(aObject)
+		elif type(aObject) is EnumValue:
+			return self._translate_enum_value(aObject)
+		elif type(aObject) is Class:
+			return self._translate_class(aObject)
+		elif type(aObject) is Method:
+			return self._translate_method(aObject)
+		else:
+			Translator.fail(aObject)
+	
+	def _translate_type(self, aType):
+		if type(aType) is BaseType:
+			return self._translate_base_type(aType)
+		elif type(aType) is EnumType:
+			return self._translate_enum_type(aType)
+		elif type(aType) is ClassType:
+			return self._translate_class_type(aType)
+		elif type(aType) is ListType:
+			return self._translate_list_type(aType)
+		else:
+			Translator.fail(aType)
+	
+	def _translate_name(self, aName):
+		if type(aName) is EnumName:
+			return self._translate_enum_name(aName)
+		elif type(aName) is EnumValueName:
+			return self._translate_enum_value_name(aName)
+		elif type(aName) is MethodName:
+			return self._translate_method_name(aName)
+		elif type(aName) is NamespaceName:
+			return self._translate_namespace_name(aName)
+		elif type(aName) is ClassName:
+			return self._translate_class_name(aName)
+		else:
+			Translator.fail(aName)
+	
+	@staticmethod
+	def fail(obj):
+		raise RuntimeError('Cannot translate {0} type'.format(type(obj)))

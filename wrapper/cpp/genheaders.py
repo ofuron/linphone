@@ -7,45 +7,45 @@ import genapixml as CApi
 import abstractapi as AbsApi
 
 
-class CppTranslator(object):
-	def translate_enum(self, enum):
+class CppTranslator(AbsApi.Translator):
+	def _translate_enum(self, enum):
 		enumDict = {}
-		enumDict['name'] = enum.name.translate(self)
+		enumDict['name'] = self.translate(enum.name)
 		enumDict['values'] = []
 		i = 0
 		for enumValue in enum.values:
-			enumValDict = enumValue.translate(self)
+			enumValDict = self.translate(enumValue)
 			enumValDict['notLast'] = (i != len(enum.values)-1)
 			enumDict['values'].append(enumValDict)
 			i += 1
 		return enumDict
 	
-	def translate_enum_value(self, enumValue):
+	def _translate_enum_value(self, enumValue):
 		enumValueDict = {}
-		enumValueDict['name'] = enumValue.name.translate(self)
+		enumValueDict['name'] = self.translate(enumValue.name)
 		return enumValueDict
 	
-	def translate_class(self, _class):
+	def _translate_class(self, _class):
 		classDict = {}
-		classDict['name'] = _class.name.translate(self)
+		classDict['name'] = self.translate(_class.name)
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
 		for method in _class.instanceMethods:
-			methodDict = self.translate_method(method)
+			methodDict = self.translate(method)
 			classDict['methods'].append(methodDict)
 		for method in _class.classMethods:
-			methodDict = self.translate_method(method)
+			methodDict = self.translate(method)
 			classDict['staticMethods'].append(methodDict)
 		return classDict
 	
-	def translate_method(self, method):
+	def _translate_method(self, method):
 		try:
-			returnType = 'void' if method.returnType is None else method.returnType.translate(self)
+			returnType = 'void' if method.returnType is None else self.translate(method.returnType)
 		except RuntimeError as e:
 			print('Cannot translate the return type of {0}: {1}'.format(method.name.format_as_c() + '()', e.args[0]))
 			returnType = None
 		
-		methodName = method.name.translate(self)
+		methodName = self.translate(method.name)
 		if methodName == 'new':
 			methodName = '_new'
 		methodDict = {}
@@ -54,7 +54,7 @@ class CppTranslator(object):
 			methodDict['prototype'] = 'static ' + methodDict['prototype'];
 		return methodDict
 	
-	def translate_base_type(self, type):
+	def _translate_base_type(self, type):
 		if type.name == 'boolean':
 			res = 'bool'
 		elif type.name == 'character':
@@ -87,57 +87,57 @@ class CppTranslator(object):
 			res += ' &'
 		return res
 	
-	def translate_enum_type(self, type):
+	def _translate_enum_type(self, type):
 		if type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
 		
 		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
-		return self.translate_relative_name(type.desc.name, commonParentName)
+		return self._translate_relative_name(type.desc.name, commonParentName)
 	
-	def translate_class_type(self, type):
+	def _translate_class_type(self, type):
 		if type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
 		
 		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
-		res = self.translate_relative_name(type.desc.name, commonParentName)
+		res = self._translate_relative_name(type.desc.name, commonParentName)
 		if type.isconst:
 			res = 'const ' + res
 		return 'std::shared_ptr<{0}>'.format(res)
 	
-	def translate_list_type(self, type):
+	def _translate_list_type(self, type):
 		if type.containedTypeDesc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
 		elif isinstance(type.containedTypeDesc, AbsApi.BaseType):
-			res = self.translate_base_type(type.containedTypeDesc)
+			res = self.translate(type.containedTypeDesc)
 		else:
 			commonParentName = AbsApi.Name.find_common_parent(type.containedTypeDesc.desc.name, type.parent.name)
-			res = self.translate_relative_name(type.containedTypeDesc.desc.name, commonParentName)
+			res = self._translate_relative_name(type.containedTypeDesc.desc.name, commonParentName)
 		return 'std::list<std::shared_ptr<{0}> >'.format(res)
 	
-	def translate_full_name(self, name):
+	def _translate_full_name(self, name):
 		if name.prev is None:
-			return name.translate(self)
+			return self.translate(name)
 		else:
-			return self.translate_full_name(name.prev) + '::' + name.translate(self)
+			return self._translate_full_name(name.prev) + '::' + self.translate(name)
 	
-	def translate_relative_name(self, name, prefix):
+	def _translate_relative_name(self, name, prefix):
 		copy = name.copy()
 		copy.delete_prefix(prefix)
-		return self.translate_full_name(copy)
+		return self._translate_full_name(copy)
 	
-	def translate_class_name(self, name):
+	def _translate_class_name(self, name):
 		res = ''
 		for word in name.words:
 			res += word.title()
 		return res
 	
-	def translate_enum_name(self, name):
-		return CppTranslator.translate_class_name(self, name)
+	def _translate_enum_name(self, name):
+		return CppTranslator._translate_class_name(self, name)
 	
-	def translate_enum_value_name(self, name):
-		return CppTranslator.translate_class_name(self, name)
+	def _translate_enum_value_name(self, name):
+		return CppTranslator._translate_class_name(self, name)
 	
-	def translate_method_name(self, name):
+	def _translate_method_name(self, name):
 		res = ''
 		first = True
 		for word in name.words:
@@ -148,7 +148,7 @@ class CppTranslator(object):
 				res += word.title()
 		return res
 	
-	def translate_namespace_name(self, name):
+	def _translate_namespace_name(self, name):
 		return ''.join(name.words)
 
 
@@ -158,12 +158,12 @@ class EnumsHeader(object):
 		self.enums = []
 	
 	def add_enum(self, enum):
-		self.enums.append(enum.translate(self.translator))
+		self.enums.append(self.translator.translate(enum))
 
 
 class ClassHeader(object):
 	def __init__(self, _class, translator):
-		self._class = _class.translate(translator)
+		self._class = translator.translate(_class)
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
 		self.includes = {'internal': [], 'external': []}
