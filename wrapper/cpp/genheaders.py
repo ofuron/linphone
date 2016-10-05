@@ -39,26 +39,45 @@ class CppTranslator(AbsApi.Translator):
 		return classDict
 	
 	def _translate_method(self, method):
+		methodElems = {}
 		try:
-			returnType = 'void' if method.returnType is None else self.translate(method.returnType)
+			methodElems['return'] = self.translate(method.returnType)
 		except RuntimeError as e:
 			print('Cannot translate the return type of {0}: {1}'.format(method.name.format_as_c() + '()', e.args[0]))
-			returnType = None
+			methodElems['return'] = None
 		
-		methodName = self.translate(method.name)
-		if methodName == 'new':
-			methodName = '_new'
+		methodElems['name'] = self.translate(method.name)
+		if methodElems['name'] == 'new':
+			methodElems['name'] = '_new'
+		
+		methodElems['params'] = ''
+		for arg in method.args:
+			if arg is not method.args[0]:
+				methodElems['params'] += ', '
+			methodElems['params'] += self.translate(arg)
+		
+		methodElems['const'] = ' const' if method.constMethod else ''
+		
 		methodDict = {}
-		methodDict['prototype'] = '{0} {1}();'.format(returnType, methodName)
+		methodDict['prototype'] = '{return} {name}({params}){const};'.format(**methodElems)
 		if method.type == AbsApi.Method.Type.Class:
 			methodDict['prototype'] = 'static ' + methodDict['prototype'];
 		return methodDict
 	
+	def _translate_argument(self, arg):
+		return '{0} {1}'.format(self.translate(arg.type), arg.name)
+	
 	def _translate_base_type(self, type):
-		if type.name == 'boolean':
+		if type.name == 'void':
+			return 'void'
+		elif type.name == 'boolean':
 			res = 'bool'
 		elif type.name == 'character':
 			res = 'char'
+		elif type.name == 'size':
+			res = 'size_t'
+		elif type.name == 'time':
+			res = 'time_t'
 		elif type.name == 'integer':
 			if type.size is None:
 				res = 'int'
@@ -91,17 +110,33 @@ class CppTranslator(AbsApi.Translator):
 		if type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
 		
-		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
-		return self._translate_relative_name(type.desc.name, commonParentName)
+		nsCtx = type.parent
+		while not (nsCtx is None or (isinstance(nsCtx, AbsApi.Object) and isinstance(nsCtx.name, AbsApi.Name))):
+			nsCtx = nsCtx.parent
+		
+		if nsCtx is None:
+			return self._translate_full_name(type.desc.name)
+		else:
+			commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
+			return self._translate_relative_name(type.desc.name, commonParentName)
 	
 	def _translate_class_type(self, type):
 		if type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(type))
 		
-		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, type.parent.name)
-		res = self._translate_relative_name(type.desc.name, commonParentName)
+		nsCtx = type.parent
+		while not (nsCtx is None or (isinstance(nsCtx, AbsApi.Object) and isinstance(nsCtx.name, AbsApi.Name))):
+			nsCtx = nsCtx.parent
+		
+		if nsCtx is None:
+			res = self._translate_full_name(type.desc.name)
+		else:
+			commonParentName = AbsApi.Name.find_common_parent(type.desc.name, nsCtx.name)
+			res = self._translate_relative_name(type.desc.name, commonParentName)
+		
 		if type.isconst:
 			res = 'const ' + res
+		
 		return 'std::shared_ptr<{0}>'.format(res)
 	
 	def _translate_list_type(self, type):

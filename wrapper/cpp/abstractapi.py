@@ -167,7 +167,6 @@ class Object(object):
 		self.detailedDescription = None
 		self.deprecated = None
 		self.parent = None
-		self.translator = None
 	
 	def set_from_c(self, cObject, namespace=None):
 		self.briefDescription = cObject.briefDescription
@@ -231,6 +230,15 @@ class Enum(Object):
 			self.add_value(aEnumValue)
 
 
+class Argument(Object):
+	def __init__(self, argType, optional=False, default=None):
+		Object.__init__(self)
+		self.type = argType
+		argType.parent = self
+		self.optional = optional
+		self.default = default
+
+
 class Method(Object):
 	class Type:
 		Instance = 0,
@@ -240,13 +248,16 @@ class Method(Object):
 		Object.__init__(self)
 		self.type = Method.Type.Instance
 		self.constMethod = False
-		self.mandArgs = None
-		self.optArgs = None
+		self.args = []
 		self.returnType = None
 		
 	def set_return_type(self, returnType):
 		self.returnType = returnType
 		returnType.parent = self
+	
+	def add_arguments(self, arg):
+		self.args.append(arg)
+		arg.parent = self
 	
 	def set_from_c(self, cFunction, parser, namespace=None, type=Type.Instance):
 		Object.set_from_c(self,cFunction, namespace=namespace)
@@ -254,9 +265,16 @@ class Method(Object):
 		self.name.prev = None if namespace is None else namespace.name
 		self.name.set_from_c(cFunction.name)
 		self.type = type
-		if cFunction.returnArgument.ctype != 'void':
-			self.set_return_type(parser.parse_type(cFunction.returnArgument))
-
+		self.set_return_type(parser.parse_type(cFunction.returnArgument))
+		
+		for arg in cFunction.arguments:
+			if type == Method.Type.Instance and arg is cFunction.arguments[0]:
+				self.isconst = ('const' in arg.completeType.split(' '))
+			else:
+				aType = parser.parse_type(arg)
+				argName = Argument(aType)
+				argName.name = arg.name
+				self.args.append(argName)
 
 class Class(Object):
 	def __init__(self):
@@ -300,14 +318,14 @@ class CParser(object):
 		for _class in self.cProject.classes:
 			self.classesIndex[_class.name] = None
 		
-		self.cBaseType = ['bool_t', 'char', 'short', 'int', 'long', 'float', 'double']
+		self.cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
 		self.cListType = 'bctbx_list_t'
 		self.regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
 		self.namespace = Namespace('linphone')
 	
 	def parse_type(self, cType):
 		if cType.ctype in self.cBaseType or re.match(self.regexFixedSizeInteger, cType.ctype):
-			return CParser._parse_as_base_type(self, cType)
+			return CParser.parse_c_base_type(self, cType.completeType)
 		elif cType.ctype in self.enumsIndex:
 			return EnumType(cType.ctype, self.enumsIndex[cType.ctype])
 		elif cType.ctype in self.classesIndex:
@@ -353,69 +371,32 @@ class CParser(object):
 			elif type.containedType in self.enumsIndex:
 				type.containedTypeDesc = EnumType(type.containedType, desc=self.enumIndex[type.containedType])
 			else:
-				type.containedTypeDesc = self.parse_c_type(type.containedType)
+				type.containedTypeDesc = self.parse_c_base_type(type.containedType)
 	
 	def fix_all_types(self):
 		for _class in self.classesIndex.itervalues():
 			if _class is not None:
-				for method in _class.instanceMethods:
+				for method in (_class.instanceMethods + _class.classMethods):
 					self.fix_type(method.returnType)
-				for method in _class.classMethods:
-					self.fix_type(method.returnType)
+					for arg in method.args:
+						self.fix_type(arg.type)
 	
-	def _parse_as_base_type(self, cType):
-		param = {}
-		
-		if cType.ctype == 'char':
-			if '*' in cType.completeType:
-				name = 'string'
-			else:
-				name = 'character'
-		else:
-			if cType.ctype == 'bool_t':
-				name = 'boolean'
-			elif cType.ctype in ['short', 'int', 'long']:
-				name = 'integer'
-				if cType.ctype in ['short', 'long']:
-					param['size'] = cType.ctype
-				if 'unsigned' in cType.completeType:
-					param['isUnsigned'] = True
-			elif cType.ctype in ['float', 'double']:
-				name = 'floatant'
-				if cType.ctype == 'double':
-					param['size'] = 'double'
-			else:
-				match = re.match(self.regexFixedSizeInteger, cType.ctype)
-				if match is not None:
-					name = 'integer'
-					if match.group(1) == 'u':
-						param['isUnsigned'] = True
-					param['size'] = int(match.group(2))
-					if param['size'] not in [8, 16, 32, 64]:
-						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cType.type, param['size']))
-				else:
-					raise RuntimeError('{0} is not a basic C type'.format(cType.ctype))
-			
-			if '*' in cType.completeType:
-				param['isref'] = True
-		
-		if 'const' in cType.completeType and name != 'string':
-			param['isconst'] = True
-		
-		return BaseType(name, **param)
-	
-	def parse_c_type(self, cDecl):
+	def parse_c_base_type(self, cDecl):
 		declElems = cDecl.split(' ')
 		param = {}
 		name = None
 		for elem in declElems:
 			if elem == 'const':
-				if name is not None:
+				if name is None:
 					param['isconst'] = True
 			elif elem == 'unisigned':
 				param['isUnsigned'] = True
 			elif elem == 'char':
 				name = 'character'
+			elif elem == 'void':
+				name = 'void'
+			elif elem == 'bool_t':
+				name = 'boolean'
 			elif elem in ['short', 'long']:
 				param['size'] = elem
 			elif elem == 'int':
@@ -423,6 +404,10 @@ class CParser(object):
 			elif elem == 'float':
 				name = 'floatant'
 				param['size'] = 'float'
+			elif elem == 'size_t':
+				name = 'size'
+			elif elem == 'time_t':
+				name = 'time'
 			elif elem == 'double':
 				name = 'floatant'
 				if 'size' in param and param['size'] == 'long':
@@ -434,10 +419,11 @@ class CParser(object):
 					if name == 'character':
 						name = 'string'
 					else:
-						param['isRef'] = True
+						param['isref'] = True
 			else:
 				matchCtx = re.match(self.regexFixedSizeInteger, elem)
 				if matchCtx:
+					name = 'integer'
 					if matchCtx.group(1) == 'u':
 						param['isUnsigned'] = True
 					
@@ -447,7 +433,10 @@ class CParser(object):
 				else:
 					raise RuntimeError('{0} is not a basic C type'.format(cDecl))
 		
-		return BaseType(name, **param)
+		if name is not None:
+			return BaseType(name, **param)
+		else:
+			raise RuntimeError('Could not find type in {0}'.format(cDecl))
 
 
 class Translator(object):
@@ -470,6 +459,8 @@ class Translator(object):
 			return self._translate_class(aObject)
 		elif type(aObject) is Method:
 			return self._translate_method(aObject)
+		elif type(aObject) is Argument:
+			return self._translate_argument(aObject)
 		else:
 			Translator.fail(aObject)
 	
