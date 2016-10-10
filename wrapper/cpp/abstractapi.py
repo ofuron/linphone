@@ -1,12 +1,14 @@
 import re
 import genapixml as CApi
 
+
 class Name(object):
-	def __init__(self, prev = None, cname = None):
+	camelCaseParsingRegex = re.compile('[A-Z][a-z]*')
+	lowerCamelCaseSplitingRegex = re.compile('([a-z]+)([A-Z][a-z]*)')
+	
+	def __init__(self):
 		self.words = []
-		self.prev = prev
-		if cname is not None:
-			self.set_from_c(cname)
+		self.prev = None
 	
 	def copy(self):
 		nameType = type(self)
@@ -14,15 +16,6 @@ class Name(object):
 		name.words = list(self.words)
 		name.prev = None if self.prev is None else self.prev.copy()
 		return name
-	
-	def __eq__(self, name):
-		return self.words == name.words and (
-			(self.prev is None and name.prev is None) or
-			(self.prev is not None and name.prev is not None and self.prev == name.prev)
-		)
-	
-	def __ne__(self, name):
-		return not self == name
 	
 	def delete_prefix(self, prefix):
 		it = self
@@ -36,25 +29,74 @@ class Name(object):
 		elif _next is not None:
 			_next.prev = None
 	
-	def get_prefix_as_word_list(self):
-		if self.prev is None:
-			return []
+	def _set_namespace(self, namespace):
+		self.prev = namespace
+		if self.prev is not None:
+			prefix = namespace.to_word_list()
+			i = 0
+			while i<len(self.words) and i<len(prefix) and self.words[i] == prefix[i]:
+				i += 1
+			if i == len(self.words):
+				raise RuntimeError('name equal to namespace \'{0}\'', self.words)
+			else:
+				self.words = self.words[i:]
+	
+	def _lower_all_words(self):
+		i = 0
+		while i<len(self.words):
+			self.words[i] = self.words[i].lower()
+			i += 1
+	
+	def from_snake_case(self, name, namespace=None):
+		self.words = name.split('_')
+		Name._set_namespace(self, namespace)
+	
+	def from_camel_case(self, name, islowercased=False, namespace=None):
+		if not islowercased:
+			self.words = Name.camelCaseParsingRegex.findall(name)
 		else:
-			return self.prev.get_prefix_as_word_list() + list(self.prev.words)
+			match = Name.lowerCamelCaseSplitingRegex.match(name)
+			self.words = [match.group(1)]
+			self.words += Name.camelCaseParsingRegex.findall(match.group(2))
+		
+		Name._lower_all_words(self)
+		Name._set_namespace(self, namespace)
 	
-	def get_full_name_as_word_list(self):
-		fullName = self.get_prefix_as_word_list()
-		fullName += self.words
-		return fullName
+	def to_snake_case(self, fullName=False):
+		if self.prev is None or not fullName:
+			return '_'.join(self.words)
+		else:
+			return Name.to_snake_case(self.prev, fullName=True) + '_' + Name.to_snake_case(self)
 	
-	def get_name_path(self):
-		res = [self]
-		it = self
-		while it.prev is not None:
-			it = it.prev
-			res.append(it)
-		res.reverse()
-		return res
+	def to_camel_case(self, lower=False, fullName=False):
+		if self.prev is None or not fullName:
+			res = ''
+			for elem in self.words:
+				if elem is self.words[0] and lower:
+					res += elem
+				else:
+					res += elem.title()
+			return res
+		else:
+			return Name.to_camel_case(self.prev, fullName=True, lower=lower) + Name.to_camel_case(self)
+	
+	def concatenate(self, upper=False, fullName=False):
+		if self.prev is None or not fullName:
+			res = ''
+			for elem in self.words:
+				if upper:
+					res += elem.upper()
+				else:
+					res += elem
+			return res
+		else:
+			return Name.concatenate(self.prev, upper=upper, fullName=True) + Name.concatenate(self, upper=upper)
+	
+	def to_word_list(self):
+		if self.prev is None:
+			return list(self.words)
+		else:
+			return Name.to_word_list(self.prev) + self.words
 	
 	@staticmethod
 	def find_common_parent(name1, name2):
@@ -71,27 +113,7 @@ class Name(object):
 
 
 class ClassName(Name):
-	def set_from_c(self, cname):
-		self.words = re.findall('[A-Z][a-z0-9]*', cname)
-		i = 0
-		while i < len(self.words):
-			self.words[i] = self.words[i].lower()
-			i += 1
-		
-		prefix = self.get_prefix_as_word_list()
-		while len(prefix) > 0 and len(self.words) > 0 and prefix[0] == self.words[0]:
-			del prefix[0]
-			del self.words[0]
-		
-		if len(self.words) == 0:
-			raise ValueError('Could not parse C class name \'{0}\' with {1} as prefix'.format(cname, prefix))
-	
-	def format_as_c(self):
-		res = ''
-		words = self.get_full_name_as_word_list()
-		for word in words:
-			res += word.title()
-		return res
+	pass
 
 
 class EnumName(ClassName):
@@ -103,70 +125,71 @@ class EnumValueName(ClassName):
 
 
 class MethodName(Name):
-	def set_from_c(self, cname):
-		self.words = cname.split('_')
-		prefix = self.get_prefix_as_word_list()
-		while len(prefix) > 0 and len(self.words) > 0 and prefix[0] == self.words[0]:
-			del prefix[0]
-			del self.words[0]
-		if len(self.words) == 0:
-			raise ValueError('Could not parse C function name \'{0}\' with {1} as prefix'.format(cname, prefix))
-	
-	def format_as_c(self):
-		fullName = self.get_full_name_as_word_list()
-		return '_'.join(fullName)
+	pass
+
+
+class ArgName(Name):
+	pass
 
 
 class NamespaceName(Name):
-	def __init__(self, name=None, prev=None):
-		Name.__init__(self, prev=prev)
-		self.words = [name] if name is not None else []
+	def __init__(self, *params):
+		Name.__init__(self)
+		if len(params) > 0:
+			self.words = params[0]
 
 
-class Type(object):
-	def __init__(self):
-		self.parent = None
+class Object(object):
+	def __init__(self, name, parent=None):
+		self.name = name
+		self.parent = parent
+	
+	def find_first_ancestor_by_type(self, _type):
+		ancestor = self.parent
+		while ancestor is not None and type(ancestor) is not _type:
+			ancestor = ancestor.parent
+		return ancestor
+
+
+class Type(Object):
+	def __init__(self, name, parent=None, isconst=False, isref=False):
+		Object.__init__(self, name, parent=parent)
+		self.isconst = isconst
+		self.isref = isref
 
 
 class BaseType(Type):
-	def __init__(self, name, isconst=False, isref=False, size=None, isUnsigned=False):
-		Type.__init__(self)
-		self.name = name
-		self.isconst = isconst
-		self.isref = isref
+	def __init__(self, name, parent=None, isconst=False, isref=False, size=None, isUnsigned=False):
+		Type.__init__(self, name, parent=parent, isconst=isconst, isref=isref)
 		self.size = size
 		self.isUnsigned = isUnsigned
 
 
 class EnumType(Type):
-	def __init__(self, name, enumDesc):
-		Type.__init__(self)
-		self.name = name
+	def __init__(self, name, parent=None, isconst=False, isref=False, enumDesc=None):
+		Type.__init__(self, name, parent=parent, isconst=isconst, isref=isref)
 		self.desc = enumDesc
 
 
 class ClassType(Type):
-	def __init__(self, name, classDesc, isconst=False):
-		Type.__init__(self)
-		self.name = name
+	def __init__(self, name, parent=None, isconst=False, isref=False, classDesc=None):
+		Type.__init__(self, name, parent=parent, isconst=isconst, isref=isref)
 		self.desc = classDesc
-		self.isconst = isconst
 
 
 class ListType(Type):
-	def __init__(self, containedType=None):
-		Type.__init__(self)
-		self.containedType = containedType
+	def __init__(self, containedTypeName, parent=None, isconst=False, isref=False):
+		Type.__init__(self, 'list', parent=parent, isconst=isconst, isref=isref)
+		self.containedTypeName = containedTypeName
 		self.containedTypeDesc = None
 
 
-class Object(object):
-	def __init__(self):
-		self.name = None
+class DocumentableObject(Object):
+	def __init__(self, name, parent=None):
+		Object.__init__(self, name, parent=parent)
 		self.briefDescription = None
 		self.detailedDescription = None
 		self.deprecated = None
-		self.parent = None
 	
 	def set_from_c(self, cObject, namespace=None):
 		self.briefDescription = cObject.briefDescription
@@ -183,11 +206,9 @@ class Object(object):
 			return self.parent.get_namespace_object()
 
 
-class Namespace(Object):
+class Namespace(DocumentableObject):
 	def __init__(self, name, parent=None):
-		Object()
-		self.name = NamespaceName(name, prev=parent)
-		self.parent = parent
+		DocumentableObject.__init__(self, name, parent=None)
 		self.children = []
 	
 	def add_child(self, child):
@@ -195,17 +216,13 @@ class Namespace(Object):
 		child.parent = self
 
 
-class EnumValue(Object):
-	def set_from_c(self, cEnumValue, namespace=None):
-		Object.set_from_c(self, cEnumValue, namespace=namespace)
-		self.name = EnumValueName()
-		self.name.prev = None if namespace is None else namespace.name
-		self.name.set_from_c(cEnumValue.name)
+class EnumValue(DocumentableObject):
+	pass
 
 
-class Enum(Object):
-	def __init__(self):
-		Object.__init__(self)
+class Enum(DocumentableObject):
+	def __init__(self, name, parent=None):
+		DocumentableObject.__init__(self, name, parent=parent)
 		self.values = []
 	
 	def add_value(self, value):
@@ -230,22 +247,22 @@ class Enum(Object):
 			self.add_value(aEnumValue)
 
 
-class Argument(Object):
-	def __init__(self, argType, optional=False, default=None):
-		Object.__init__(self)
+class Argument(DocumentableObject):
+	def __init__(self, name, argType, parent=None, optional=False, default=None):
+		DocumentableObject.__init__(self, name, parent=parent)
 		self.type = argType
 		argType.parent = self
 		self.optional = optional
 		self.default = default
 
 
-class Method(Object):
+class Method(DocumentableObject):
 	class Type:
 		Instance = 0,
 		Class = 1
 	
-	def __init__(self):
-		Object.__init__(self)
+	def __init__(self, name, parent=None, type=Type.Instance):
+		DocumentableObject.__init__(self, name, parent=parent)
 		self.type = Method.Type.Instance
 		self.constMethod = False
 		self.args = []
@@ -258,49 +275,21 @@ class Method(Object):
 	def add_arguments(self, arg):
 		self.args.append(arg)
 		arg.parent = self
-	
-	def set_from_c(self, cFunction, parser, namespace=None, type=Type.Instance):
-		Object.set_from_c(self,cFunction, namespace=namespace)
-		self.name = MethodName()
-		self.name.prev = None if namespace is None else namespace.name
-		self.name.set_from_c(cFunction.name)
-		self.type = type
-		self.set_return_type(parser.parse_type(cFunction.returnArgument))
-		
-		for arg in cFunction.arguments:
-			if type == Method.Type.Instance and arg is cFunction.arguments[0]:
-				self.isconst = ('const' in arg.completeType.split(' '))
-			else:
-				aType = parser.parse_type(arg)
-				argName = Argument(aType)
-				argName.name = arg.name
-				self.args.append(argName)
 
-class Class(Object):
-	def __init__(self):
-		Object.__init__(self)
+
+class Class(DocumentableObject):
+	def __init__(self, name, parent=None):
+		DocumentableObject.__init__(self, name, parent=parent)
 		self.instanceMethods = []
 		self.classMethods = []
 	
-	def set_from_c(self, cClass, parser, namespace=None):
-		Object.set_from_c(self, cClass, namespace=namespace)
-		self.name = ClassName()
-		self.name.prev = None if namespace is None else namespace.name
-		self.name.set_from_c(cClass.name)
-		for cMethod in cClass.instanceMethods.values():
-			try:
-				method = Method()
-				method.set_from_c(cMethod, parser, namespace=self)
-				self.instanceMethods.append(method)
-			except RuntimeError as e:
-				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
-		for cMethod in cClass.classMethods.values():
-			try:
-				method = Method()
-				method.set_from_c(cMethod, parser, namespace=self, type=Method.Type.Class)
-				self.classMethods.append(method)
-			except RuntimeError as e:
-				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
+	def add_instance_method(self, method):
+		self.instanceMethods.append(method)
+		method.parent = self
+	
+	def add_class_method(self, method):
+		self.classMethods.append(method)
+		method.parent = self
 
 
 class CParser(object):
@@ -321,7 +310,10 @@ class CParser(object):
 		self.cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
 		self.cListType = 'bctbx_list_t'
 		self.regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
-		self.namespace = Namespace('linphone')
+		
+		name = NamespaceName()
+		name.from_snake_case('linphone')
+		self.namespace = Namespace(name)
 	
 	def parse_type(self, cType):
 		if cType.ctype in self.cBaseType or re.match(self.regexFixedSizeInteger, cType.ctype):
@@ -336,19 +328,63 @@ class CParser(object):
 			raise RuntimeError('Unknown C type \'{0}\''.format(cType.ctype))
 	
 	def parse_enum(self, cenum):
-		enum = Enum()
-		enum.set_from_c(cenum, namespace=self.namespace)
-		if cenum.associatedTypedef is None:
-			self.enumsIndex[cenum.name] = enum
+		if 'associatedTypedef' in dir(cenum):
+			nameStr = cenum.associatedTypedef.name
 		else:
-			self.enumsIndex[cenum.associatedTypedef.name] = enum
+			nameStr = cenum.name
+		
+		name = EnumName()
+		name.from_camel_case(nameStr, namespace=self.namespace.name)
+		enum = Enum(name)
+		
+		for cEnumValue in cenum.values:
+			valueName = EnumValueName()
+			valueName.from_camel_case(cEnumValue.name, namespace=name)
+			aEnumValue = EnumValue(valueName)
+			enum.add_value(aEnumValue)
+		
+		self.enumsIndex[enum.name.to_camel_case(fullName=True)] = enum
 		return enum
 	
 	def parse_class(self, cclass):
-		_class = Class()
-		_class.set_from_c(cclass, self, namespace=self.namespace)
-		self.classesIndex[cclass.name] = _class
+		name = ClassName()
+		name.from_camel_case(cclass.name, namespace=self.namespace.name)
+		_class = Class(name)
+		
+		for cMethod in cclass.instanceMethods.values():
+			try:
+				method = CParser.parse_method(self, cMethod, namespace=name)
+				_class.add_instance_method(method)
+			except RuntimeError as e:
+				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
+				
+		for cMethod in cclass.classMethods.values():
+			try:
+				method = CParser.parse_method(self, cMethod, namespace=name)
+				_class.add_instance_method(method)
+			except RuntimeError as e:
+				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
+		
+		self.classesIndex[_class.name.to_camel_case(fullName=True)] = _class
 		return _class
+	
+	def parse_method(self, cfunction, namespace, type=Method.Type.Instance):
+		name = MethodName()
+		name.from_snake_case(cfunction.name, namespace=namespace)
+		method = Method(name, type=type)
+		method.set_return_type(CParser.parse_type(self, cfunction.returnArgument))
+		
+		for arg in cfunction.arguments:
+			if type == Method.Type.Instance and arg is cfunction.arguments[0]:
+				self.isconst = ('const' in arg.completeType.split(' '))
+			else:
+				aType = CParser.parse_type(self, arg)
+				argName = ArgName()
+				argName.from_snake_case(arg.name)
+				absArg = Argument(argName, aType)
+				method.add_arguments(absArg)
+		
+		return method
 	
 	def parse_all(self):
 		for enum in self.cProject.enums:
@@ -366,12 +402,12 @@ class CParser(object):
 		elif isinstance(type, ClassType) and type.desc is None:
 			type.desc = self.classesIndex[type.name]
 		elif isinstance(type, ListType) and type.containedTypeDesc is None:
-			if type.containedType in self.classesIndex:
-				type.containedTypeDesc = ClassType(type.containedType, self.classesIndex[type.containedType])
-			elif type.containedType in self.enumsIndex:
-				type.containedTypeDesc = EnumType(type.containedType, desc=self.enumIndex[type.containedType])
+			if type.containedTypeName in self.classesIndex:
+				type.containedTypeDesc = ClassType(type.containedTypeName, classDesc=self.classesIndex[type.containedTypeName])
+			elif type.containedTypeName in self.enumsIndex:
+				type.containedTypeDesc = EnumType(type.containedTypeName, enumDesc=self.enumsIndex[type.containedTypeName])
 			else:
-				type.containedTypeDesc = self.parse_c_base_type(type.containedType)
+				type.containedTypeDesc = self.parse_c_base_type(type.containedTypeName)
 	
 	def fix_all_types(self):
 		for _class in self.classesIndex.itervalues():
@@ -389,7 +425,7 @@ class CParser(object):
 			if elem == 'const':
 				if name is None:
 					param['isconst'] = True
-			elif elem == 'unisigned':
+			elif elem == 'unsigned':
 				param['isUnsigned'] = True
 			elif elem == 'char':
 				name = 'character'
@@ -430,8 +466,7 @@ class CParser(object):
 					param['size'] = int(matchCtx.group(2))
 					if param['size'] not in [8, 16, 32, 64]:
 						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cDecl, param['size']))
-				else:
-					raise RuntimeError('{0} is not a basic C type'.format(cDecl))
+		
 		
 		if name is not None:
 			return BaseType(name, **param)
@@ -440,13 +475,13 @@ class CParser(object):
 
 
 class Translator(object):
-	def translate(self, obj):
-		if isinstance(obj, Object):
-			return self._translate_object(obj)
-		elif isinstance(obj, Name):
-			return self._translate_name(obj)
+	def translate(self, obj, **params):
+		if isinstance(obj, DocumentableObject):
+			return Translator._translate_object(self, obj)
 		elif isinstance(obj, Type):
-			return self._translate_type(obj)
+			return Translator._translate_type(self, obj)
+		elif isinstance(obj, Name):
+			return Translator._translate_name(self, obj, **params)
 		else:
 			Translator.fail(obj)
 	
@@ -476,17 +511,19 @@ class Translator(object):
 		else:
 			Translator.fail(aType)
 	
-	def _translate_name(self, aName):
-		if type(aName) is EnumName:
-			return self._translate_enum_name(aName)
+	def _translate_name(self, aName, **params):
+		if type(aName) is ClassName:
+			return self._translate_class_name(aName, **params)
+		elif type(aName) is EnumName:
+			return self._translate_enum_name(aName, **params)
 		elif type(aName) is EnumValueName:
-			return self._translate_enum_value_name(aName)
+			return self._translate_enum_value_name(aName, **params)
 		elif type(aName) is MethodName:
-			return self._translate_method_name(aName)
+			return self._translate_method_name(aName, **params)
+		elif type(aName) is ArgName:
+			return self._translate_argument_name(aName, **params)
 		elif type(aName) is NamespaceName:
-			return self._translate_namespace_name(aName)
-		elif type(aName) is ClassName:
-			return self._translate_class_name(aName)
+			return self._translate_namespace_name(aName, **params)
 		else:
 			Translator.fail(aName)
 	
