@@ -140,9 +140,9 @@ class NamespaceName(Name):
 
 
 class Object(object):
-	def __init__(self, name, parent=None):
+	def __init__(self, name):
 		self.name = name
-		self.parent = parent
+		self.parent = None
 	
 	def find_first_ancestor_by_type(self, _type):
 		ancestor = self.parent
@@ -152,41 +152,41 @@ class Object(object):
 
 
 class Type(Object):
-	def __init__(self, name, parent=None, isconst=False, isref=False):
-		Object.__init__(self, name, parent=parent)
+	def __init__(self, name, isconst=False, isref=False):
+		Object.__init__(self, name)
 		self.isconst = isconst
 		self.isref = isref
 
 
 class BaseType(Type):
-	def __init__(self, name, parent=None, isconst=False, isref=False, size=None, isUnsigned=False):
-		Type.__init__(self, name, parent=parent, isconst=isconst, isref=isref)
+	def __init__(self, name, isconst=False, isref=False, size=None, isUnsigned=False):
+		Type.__init__(self, name, isconst=isconst, isref=isref)
 		self.size = size
 		self.isUnsigned = isUnsigned
 
 
 class EnumType(Type):
-	def __init__(self, name, parent=None, isconst=False, isref=False, enumDesc=None):
-		Type.__init__(self, name, parent=parent, isconst=isconst, isref=isref)
+	def __init__(self, name, isconst=False, isref=False, enumDesc=None):
+		Type.__init__(self, name, isconst=isconst, isref=isref)
 		self.desc = enumDesc
 
 
 class ClassType(Type):
-	def __init__(self, name, parent=None, isconst=False, isref=False, classDesc=None):
-		Type.__init__(self, name, parent=parent, isconst=isconst, isref=isref)
+	def __init__(self, name, isconst=False, isref=False, classDesc=None):
+		Type.__init__(self, name, isconst=isconst, isref=isref)
 		self.desc = classDesc
 
 
 class ListType(Type):
-	def __init__(self, containedTypeName, parent=None, isconst=False, isref=False):
-		Type.__init__(self, 'list', parent=parent, isconst=isconst, isref=isref)
+	def __init__(self, containedTypeName, isconst=False, isref=False):
+		Type.__init__(self, 'list', isconst=isconst, isref=isref)
 		self.containedTypeName = containedTypeName
 		self.containedTypeDesc = None
 
 
 class DocumentableObject(Object):
-	def __init__(self, name, parent=None):
-		Object.__init__(self, name, parent=parent)
+	def __init__(self, name):
+		Object.__init__(self, name)
 		self.briefDescription = None
 		self.detailedDescription = None
 		self.deprecated = None
@@ -207,8 +207,8 @@ class DocumentableObject(Object):
 
 
 class Namespace(DocumentableObject):
-	def __init__(self, name, parent=None):
-		DocumentableObject.__init__(self, name, parent=None)
+	def __init__(self, name):
+		DocumentableObject.__init__(self, name)
 		self.children = []
 	
 	def add_child(self, child):
@@ -221,8 +221,8 @@ class EnumValue(DocumentableObject):
 
 
 class Enum(DocumentableObject):
-	def __init__(self, name, parent=None):
-		DocumentableObject.__init__(self, name, parent=parent)
+	def __init__(self, name):
+		DocumentableObject.__init__(self, name)
 		self.values = []
 	
 	def add_value(self, value):
@@ -248,8 +248,8 @@ class Enum(DocumentableObject):
 
 
 class Argument(DocumentableObject):
-	def __init__(self, name, argType, parent=None, optional=False, default=None):
-		DocumentableObject.__init__(self, name, parent=parent)
+	def __init__(self, name, argType, optional=False, default=None):
+		DocumentableObject.__init__(self, name)
 		self.type = argType
 		argType.parent = self
 		self.optional = optional
@@ -261,8 +261,8 @@ class Method(DocumentableObject):
 		Instance = 0,
 		Class = 1
 	
-	def __init__(self, name, parent=None, type=Type.Instance):
-		DocumentableObject.__init__(self, name, parent=parent)
+	def __init__(self, name, type=Type.Instance):
+		DocumentableObject.__init__(self, name)
 		self.type = Method.Type.Instance
 		self.constMethod = False
 		self.args = []
@@ -277,9 +277,13 @@ class Method(DocumentableObject):
 		arg.parent = self
 
 
+class Property(DocumentableObject):
+	pass
+
+
 class Class(DocumentableObject):
-	def __init__(self, name, parent=None):
-		DocumentableObject.__init__(self, name, parent=parent)
+	def __init__(self, name):
+		DocumentableObject.__init__(self, name)
 		self.instanceMethods = []
 		self.classMethods = []
 	
