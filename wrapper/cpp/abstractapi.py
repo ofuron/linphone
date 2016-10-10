@@ -132,6 +132,10 @@ class ArgName(Name):
 	pass
 
 
+class PropertyName(Name):
+	pass
+
+
 class NamespaceName(Name):
 	def __init__(self, *params):
 		Name.__init__(self)
@@ -278,14 +282,39 @@ class Method(DocumentableObject):
 
 
 class Property(DocumentableObject):
-	pass
+	def __init__(self, name):
+		DocumentableObject.__init__(self, name)
+		self._setter = None
+		self._getter = None
+	
+	def set_setter(self, setter):
+		self._setter = setter
+		setter.parent = self
+	
+	def get_setter(self):
+		return self._setter
+	
+	def set_getter(self, getter):
+		self._getter = getter
+		getter.parent = self
+	
+	def get_getter(self):
+		return self._getter
+	
+	setter = property(fset=set_setter, fget=get_setter)
+	getter = property(fset=set_getter, fget=get_getter)
 
 
 class Class(DocumentableObject):
 	def __init__(self, name):
 		DocumentableObject.__init__(self, name)
+		self.properties = []
 		self.instanceMethods = []
 		self.classMethods = []
+	
+	def add_property(self, property):
+		self.properties.append(property)
+		property.parent = self
 	
 	def add_instance_method(self, method):
 		self.instanceMethods.append(method)
@@ -355,6 +384,21 @@ class CParser(object):
 		name.from_camel_case(cclass.name, namespace=self.namespace.name)
 		_class = Class(name)
 		
+		for property in cclass.properties.values():
+			try:
+				pname = PropertyName()
+				pname.from_snake_case(property.name)
+				absProperty = Property(pname)
+				if property.setter is not None:
+					method = CParser.parse_method(self, property.setter, namespace=name)
+					absProperty.setter = method
+				if property.getter is not None:
+					method = CParser.parse_method(self, property.getter, namespace=name)
+					absProperty.getter = method
+				_class.add_property(absProperty)
+			except RuntimeError as e:
+				print('Could not parse {0} property in {1}: {2}'.format(property.name, cclass.name, e.args[0]))
+		
 		for cMethod in cclass.instanceMethods.values():
 			try:
 				method = CParser.parse_method(self, cMethod, namespace=name)
@@ -398,9 +442,9 @@ class CParser(object):
 				self.parse_class(_class)
 			except RuntimeError as e:
 				print('Could not parse \'{0}\' class: {1}'.format(_class.name, e.args[0]))
-		self.fix_all_types()
+		CParser._fix_all_types(self)
 		
-	def fix_type(self, type):
+	def _fix_type(self, type):
 		if isinstance(type, EnumType) and type.desc is None:
 			type.desc = self.enumsIndex[type.name]
 		elif isinstance(type, ClassType) and type.desc is None:
@@ -411,15 +455,33 @@ class CParser(object):
 			elif type.containedTypeName in self.enumsIndex:
 				type.containedTypeDesc = EnumType(type.containedTypeName, enumDesc=self.enumsIndex[type.containedTypeName])
 			else:
-				type.containedTypeDesc = self.parse_c_base_type(type.containedTypeName)
+				if type.containedTypeName is not None:
+					type.containedTypeDesc = self.parse_c_base_type(type.containedTypeName)
+				else:
+					raise RuntimeError('bctbx_list_t type without specified contained type')
 	
-	def fix_all_types(self):
+	def _fix_all_types_in_method(self, method):
+		try:
+			CParser._fix_type(self, method.returnType)
+			for arg in method.args:
+				CParser._fix_type(self, arg.type)
+		except RuntimeError as e:
+			print('warning: some types could not be fixed in {0}() function: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
+	
+	def _fix_all_types_in_class(self, _class):
+		for property in _class.properties:
+			if property.setter is not None:
+				CParser._fix_all_types_in_method(self, property.setter)
+			if property.getter is not None:
+				CParser._fix_all_types_in_method(self, property.getter)
+		
+		for method in (_class.instanceMethods + _class.classMethods):
+			CParser._fix_all_types_in_method(self, method)
+	
+	def _fix_all_types(self):
 		for _class in self.classesIndex.itervalues():
 			if _class is not None:
-				for method in (_class.instanceMethods + _class.classMethods):
-					self.fix_type(method.returnType)
-					for arg in method.args:
-						self.fix_type(arg.type)
+				CParser._fix_all_types_in_class(self, _class)
 	
 	def parse_c_base_type(self, cDecl):
 		declElems = cDecl.split(' ')
@@ -500,6 +562,8 @@ class Translator(object):
 			return self._translate_method(aObject)
 		elif type(aObject) is Argument:
 			return self._translate_argument(aObject)
+		elif type(aObject) is Property:
+			return self._translate_property(aObject)
 		else:
 			Translator.fail(aObject)
 	
@@ -528,6 +592,8 @@ class Translator(object):
 			return self._translate_argument_name(aName, **params)
 		elif type(aName) is NamespaceName:
 			return self._translate_namespace_name(aName, **params)
+		elif type(aName) is PropertyName:
+			return self._translate_property_name(aName, **params)
 		else:
 			Translator.fail(aName)
 	

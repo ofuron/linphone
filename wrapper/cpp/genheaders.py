@@ -30,12 +30,19 @@ class CppTranslator(AbsApi.Translator):
 		classDict['name'] = self.translate(_class.name)
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
+		for property in _class.properties:
+			try:
+				classDict['methods'] += self.translate(property)
+			except RuntimeError as e:
+				print('error while translating {0} property: {1}'.format(property.name.to_snake_case(), e.args[0]))
+		
 		for method in _class.instanceMethods:
 			try:
 				methodDict = self.translate(method)
 				classDict['methods'].append(methodDict)
 			except RuntimeError as e:
 				print('Could not translate {0}: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
+				
 		for method in _class.classMethods:
 			try:
 				methodDict = self.translate(method)
@@ -44,6 +51,14 @@ class CppTranslator(AbsApi.Translator):
 				print('Could not translate {0}: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
 		
 		return classDict
+	
+	def _translate_property(self, property):
+		res = []
+		if property.getter is not None:
+			res.append(self.translate(property.getter))
+		if property.setter is not None:
+			res.append(self.translate(property.setter))
+		return res
 	
 	def _translate_method(self, method):
 		methodElems = {}
@@ -117,7 +132,7 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_enum_type(self, type):
 		if type.desc is None:
-			raise RuntimeError('{0} has not been fixed'.format(type))
+			raise RuntimeError('{0} has not been fixed'.format(type.name))
 		
 		nsCtx = type.find_first_ancestor_by_type(AbsApi.Method)
 		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, nsCtx.name) if nsCtx is not None else None
@@ -125,7 +140,7 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_class_type(self, type):
 		if type.desc is None:
-			raise RuntimeError('{0} has not been fixed'.format(type))
+			raise RuntimeError('{0} has not been fixed'.format(type.name))
 		
 		nsCtx = type.find_first_ancestor_by_type(AbsApi.Method)
 		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, nsCtx.name) if nsCtx is not None else None
@@ -177,6 +192,9 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_argument_name(self, name):
 		return name.to_camel_case(lower=True)
+	
+	def _translate_property_name(self, name):
+		CppTranslator._translate_argument_name(self, name)
 
 
 class EnumsHeader(object):
