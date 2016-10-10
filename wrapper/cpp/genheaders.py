@@ -74,42 +74,44 @@ class CppTranslator(AbsApi.Translator):
 	def _translate_argument(self, arg):
 		return '{0} {1}'.format(self.translate(arg.type), self.translate(arg.name))
 	
-	def _translate_base_type(self, type):
-		if type.name == 'void':
+	def _translate_base_type(self, _type):
+		if _type.name == 'void':
 			return 'void'
-		elif type.name == 'boolean':
+		elif _type.name == 'boolean':
 			res = 'bool'
-		elif type.name == 'character':
+		elif _type.name == 'character':
 			res = 'char'
-		elif type.name == 'size':
+		elif _type.name == 'size':
 			res = 'size_t'
-		elif type.name == 'time':
+		elif _type.name == 'time':
 			res = 'time_t'
-		elif type.name == 'integer':
-			if type.size is None:
+		elif _type.name == 'integer':
+			if _type.size is None:
 				res = 'int'
-			elif isinstance(type.size, str):
-				res = type.size
+			elif isinstance(_type.size, str):
+				res = _type.size
 			else:
-				res = 'int{0}_t'.format(type.size)
-		elif type.name == 'floatant':
-			if type.size is not None and type.size == 'double':
+				res = 'int{0}_t'.format(_type.size)
+		elif _type.name == 'floatant':
+			if _type.size is not None and _type.size == 'double':
 				res = 'double'
 			else:
 				res = 'float'
-		elif type.name == 'string':
+		elif _type.name == 'string':
 			res = 'std::string'
+			if type(_type.parent) is AbsApi.Argument:
+				res += ' &'
 		else:
-			raise RuntimeError('\'{0}\' is not a base abstract type'.format(type.name))
+			raise RuntimeError('\'{0}\' is not a base abstract type'.format(_type.name))
 		
-		if type.isUnsigned:
-			if type.name == 'integer' and isinstance(type.size, int):
+		if _type.isUnsigned:
+			if _type.name == 'integer' and isinstance(_type.size, int):
 				res = 'u' + res
 			else:
 				res = 'unsigned ' + res
-		if type.isconst:
+		if _type.isconst:
 			res = 'const ' + res
-		if type.isref:
+		if _type.isref:
 			res += ' &'
 		return res
 	
