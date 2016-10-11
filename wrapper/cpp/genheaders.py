@@ -127,8 +127,12 @@ class CppTranslator(AbsApi.Translator):
 				res = 'u' + res
 			else:
 				res = 'unsigned ' + res
+		
 		if _type.isconst:
 			res = 'const ' + res
+			if type(_type.parent) is AbsApi.Method:
+				res += ' &'
+		
 		if _type.isref:
 			res += ' &'
 		return res
