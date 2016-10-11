@@ -219,14 +219,29 @@ class ClassHeader(object):
 	
 	def update_includes(self, _class):
 		includes = {'internal': set(), 'external': set()}
+		
+		for property in _class.properties:
+			if property.setter is not None:
+				tmp = ClassHeader._needed_includes_from_method(self, property.setter)
+				includes['internal'] |= tmp['internal']
+				includes['external'] |= tmp['external']
+			if property.getter is not None:
+				tmp = ClassHeader._needed_includes_from_method(self, property.getter)
+				includes['internal'] |= tmp['internal']
+				includes['external'] |= tmp['external']
+		
 		for method in (_class.classMethods + _class.instanceMethods):
-			tmp = ClassHeader._needed_includes_from_type(self, method.returnType, _class)
+			tmp = ClassHeader._needed_includes_from_type(self, method.returnType)
 			includes['internal'] |= tmp['internal']
 			includes['external'] |= tmp['external']
 			for arg in method.args:
-				tmp = ClassHeader._needed_includes_from_type(self, arg.type, _class)
+				tmp = ClassHeader._needed_includes_from_type(self, arg.type)
 				includes['internal'] |= tmp['internal']
 				includes['external'] |= tmp['external']
+		
+		currentClassInclude = _class.name.to_snake_case()
+		if currentClassInclude in includes['internal']:
+			includes['internal'].remove(currentClassInclude)
 		
 		for include in includes['internal']:
 			self.includes['internal'].append({'name': include})
@@ -234,22 +249,30 @@ class ClassHeader(object):
 		for include in includes['external']:
 			self.includes['external'].append({'name': include})
 	
-	def _needed_includes_from_type(self, type, currentClass):
+	def _needed_includes_from_method(self, method):
+		includes = ClassHeader._needed_includes_from_type(self, method.returnType)
+		for arg in method.args:
+			tmp = ClassHeader._needed_includes_from_type(self, arg.type)
+			includes['internal'] |= tmp['internal']
+			includes['external'] |= tmp['external']
+		return includes
+	
+	def _needed_includes_from_type(self, _type):
 		res = {'internal': set(), 'external': set()}
-		if isinstance(type, AbsApi.ClassType):
+		if isinstance(_type, AbsApi.ClassType):
 			res['external'].add('memory')
-			if type.desc is not None and type.desc is not currentClass:
-				res['internal'].add('_'.join(type.desc.name.words))
-		elif isinstance(type, AbsApi.EnumType):
+			if _type.desc is not None:
+				res['internal'].add('_'.join(_type.desc.name.words))
+		elif isinstance(_type, AbsApi.EnumType):
 			res['internal'].add('enums')
-		elif isinstance(type, AbsApi.BaseType):
-			if type.name == 'integer' and isinstance(type.size, int):
+		elif isinstance(_type, AbsApi.BaseType):
+			if _type.name == 'integer' and isinstance(_type.size, int):
 				res['external'].add('cstdint')
-			elif type.name == 'string':
+			elif _type.name == 'string':
 				res['external'].add('string')
-		elif isinstance(type, AbsApi.ListType):
+		elif isinstance(_type, AbsApi.ListType):
 			res['external'].add('list')
-			retIncludes = self._needed_includes_from_type(type.containedTypeDesc, currentClass)
+			retIncludes = self._needed_includes_from_type(_type.containedTypeDesc)
 			res['external'] |= retIncludes['external']
 			res['internal'] = retIncludes['internal']
 		return res
