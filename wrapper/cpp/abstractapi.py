@@ -436,10 +436,10 @@ class CParser(object):
 	
 	def parse_all(self):
 		for enum in self.cProject.enums:
-			self.parse_enum(enum)
+			CParser.parse_enum(self, enum)
 		for _class in self.cProject.classes:
 			try:
-				self.parse_class(_class)
+				CParser.parse_class(self, _class)
 			except RuntimeError as e:
 				print('Could not parse \'{0}\' class: {1}'.format(_class.name, e.args[0]))
 		CParser._fix_all_types(self)
@@ -537,7 +537,7 @@ class CParser(object):
 		if name is not None:
 			return BaseType(name, **param)
 		else:
-			raise RuntimeError('Could not find type in {0}'.format(cDecl))
+			raise RuntimeError('could not find type in \'{0}\''.format(cDecl))
 
 
 class Translator(object):

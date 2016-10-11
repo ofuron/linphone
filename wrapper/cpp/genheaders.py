@@ -76,7 +76,7 @@ class CppTranslator(AbsApi.Translator):
 		for arg in method.args:
 			if arg is not method.args[0]:
 				methodElems['params'] += ', '
-			methodElems['params'] += self.translate(arg)
+			methodElems['params'] += CppTranslator._translate_argument(self, arg)
 		
 		methodElems['const'] = ' const' if method.constMethod else ''
 		
@@ -91,7 +91,10 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_base_type(self, _type):
 		if _type.name == 'void':
-			return 'void'
+			if _type.isref:
+				return 'void *'
+			else:
+				return 'void'
 		elif _type.name == 'boolean':
 			res = 'bool'
 		elif _type.name == 'character':
