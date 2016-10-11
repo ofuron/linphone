@@ -352,9 +352,9 @@ class CParser(object):
 		if cType.ctype in self.cBaseType or re.match(self.regexFixedSizeInteger, cType.ctype):
 			return CParser.parse_c_base_type(self, cType.completeType)
 		elif cType.ctype in self.enumsIndex:
-			return EnumType(cType.ctype, self.enumsIndex[cType.ctype])
+			return EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
 		elif cType.ctype in self.classesIndex:
-			return ClassType(cType.ctype, self.classesIndex[cType.ctype])
+			return ClassType(cType.ctype, classDesc=self.classesIndex[cType.ctype])
 		elif cType.ctype == self.cListType:
 			return ListType(cType.containedType)
 		else:
@@ -376,7 +376,7 @@ class CParser(object):
 			aEnumValue = EnumValue(valueName)
 			enum.add_value(aEnumValue)
 		
-		self.enumsIndex[enum.name.to_camel_case(fullName=True)] = enum
+		self.enumsIndex[nameStr] = enum
 		return enum
 	
 	def parse_class(self, cclass):
@@ -413,7 +413,7 @@ class CParser(object):
 			except RuntimeError as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 		
-		self.classesIndex[_class.name.to_camel_case(fullName=True)] = _class
+		self.classesIndex[cclass.name] = _class
 		return _class
 	
 	def parse_method(self, cfunction, namespace, type=Method.Type.Instance):
@@ -424,7 +424,7 @@ class CParser(object):
 		
 		for arg in cfunction.arguments:
 			if type == Method.Type.Instance and arg is cfunction.arguments[0]:
-				self.isconst = ('const' in arg.completeType.split(' '))
+				method.isconst = ('const' in arg.completeType.split(' '))
 			else:
 				aType = CParser.parse_type(self, arg)
 				argName = ArgName()

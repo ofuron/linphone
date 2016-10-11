@@ -133,35 +133,35 @@ class CppTranslator(AbsApi.Translator):
 			res += ' &'
 		return res
 	
-	def _translate_enum_type(self, type):
-		if type.desc is None:
-			raise RuntimeError('{0} has not been fixed'.format(type.name))
+	def _translate_enum_type(self, _type):
+		if _type.desc is None:
+			raise RuntimeError('{0} has not been fixed'.format(_type.name))
 		
-		nsCtx = type.find_first_ancestor_by_type(AbsApi.Method)
-		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, nsCtx.name) if nsCtx is not None else None
-		return self.translate(type.desc.name, recursive=True, topAncestor=commonParentName)
+		nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method)
+		commonParentName = AbsApi.Name.find_common_parent(_type.desc.name, nsCtx.name) if nsCtx is not None else None
+		return self.translate(_type.desc.name, recursive=True, topAncestor=commonParentName)
 	
-	def _translate_class_type(self, type):
-		if type.desc is None:
-			raise RuntimeError('{0} has not been fixed'.format(type.name))
+	def _translate_class_type(self, _type):
+		if _type.desc is None:
+			raise RuntimeError('{0} has not been fixed'.format(_type.name))
 		
-		nsCtx = type.find_first_ancestor_by_type(AbsApi.Method)
-		commonParentName = AbsApi.Name.find_common_parent(type.desc.name, nsCtx.name) if nsCtx is not None else None
-		res = self.translate(type.desc.name, recursive=True, topAncestor=commonParentName)
+		nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method)
+		commonParentName = AbsApi.Name.find_common_parent(_type.desc.name, nsCtx.name) if nsCtx is not None else None
+		res = self.translate(_type.desc.name, recursive=True, topAncestor=commonParentName)
 		
-		if type.isconst:
+		if _type.isconst:
 			res = 'const ' + res
 		
 		return 'std::shared_ptr<{0}>'.format(res)
 	
-	def _translate_list_type(self, type):
-		if type.containedTypeDesc is None:
-			raise RuntimeError('{0} has not been fixed'.format(type))
-		elif isinstance(type.containedTypeDesc, AbsApi.BaseType):
-			res = self.translate(type.containedTypeDesc)
+	def _translate_list_type(self, _type):
+		if _type.containedTypeDesc is None:
+			raise RuntimeError('{0} has not been fixed'.format(_type))
+		elif isinstance(_type.containedTypeDesc, AbsApi.BaseType):
+			res = self.translate(_type.containedTypeDesc)
 		else:
-			commonParentName = AbsApi.Name.find_common_parent(type.containedTypeDesc.desc.name, type.parent.name)
-			res = self.translate(type.containedTypeDesc.desc.name, recursive=True, topAncestor=commonParentName)
+			commonParentName = AbsApi.Name.find_common_parent(_type.containedTypeDesc.desc.name, _type.parent.name)
+			res = self.translate(_type.containedTypeDesc.desc.name, recursive=True, topAncestor=commonParentName)
 		return 'std::list<std::shared_ptr<{0}> >'.format(res)
 	
 	def _translate_class_name(self, name, recursive=False, topAncestor=None):
@@ -313,8 +313,11 @@ def main():
 	renderer = pystache.Renderer()	
 	
 	header = EnumsHeader(translator)
-	for enum in parser.enumsIndex.itervalues():
-		header.add_enum(enum)
+	for item in parser.enumsIndex.items():
+		if item[1] is not None:
+			header.add_enum(item[1])
+		else:
+			print('warning: {0} enum won\'t be translated because of parsing errors'.format(item[0]))
 	
 	with open('include/enums.hh', mode='w') as f:
 		f.write(renderer.render(header))
