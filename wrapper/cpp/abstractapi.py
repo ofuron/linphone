@@ -424,7 +424,7 @@ class CParser(object):
 		
 		for arg in cfunction.arguments:
 			if type == Method.Type.Instance and arg is cfunction.arguments[0]:
-				method.isconst = ('const' in arg.completeType.split(' '))
+				method.constMethod = ('const' in arg.completeType.split(' '))
 			else:
 				aType = CParser.parse_type(self, arg)
 				argName = ArgName()
