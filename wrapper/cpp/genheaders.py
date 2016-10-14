@@ -102,7 +102,7 @@ class CppTranslator(AbsApi.Translator):
 		args = []
 		if method.type == AbsApi.Method.Type.Instance:
 			_class = method.find_first_ancestor_by_type(AbsApi.Class)
-			argStr = '({0} *)mPrivPtr'.format(_class.name.to_camel_case(fullName=True))
+			argStr = '(::{0} *)mPrivPtr'.format(_class.name.to_camel_case(fullName=True))
 			args.append(argStr)
 		
 		for arg in method.args:
@@ -378,7 +378,7 @@ class ClassImpl(object):
 		self.filename = parsedClass.name.to_snake_case() + '.cc'
 		self.internalIncludes = []
 		self.internalIncludes.append({'name': parsedClass.name.to_snake_case() + '.hh'})
-		self.internalIncludes.append({'name': 'coreapi/' + parsedClass.name.to_snake_case() + '.h'})
+		self.internalIncludes.append({'name': 'coreapi/linphonecore.h'})
 		
 		namespace = parsedClass.find_first_ancestor_by_type(AbsApi.Namespace)
 		self.namespace = namespace.name.concatenate(fullName=True) if namespace is not None else None
