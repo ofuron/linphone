@@ -1,0 +1,18 @@
+{{#internalIncludes}}
+#include "{{name}}"
+{{/internalIncludes}}
+
+{{#_class}}
+{{#methods}}
+{{{implPrototype}}} {
+	{{{sourceCode}}}
+}
+
+{{/methods}}
+{{#staticmethods}}
+{{{implPrototype}}} {
+	{{{sourceCode}}}
+}
+
+{{/staticmethods}}
+{{/_class}}

@@ -64,30 +64,74 @@ class CppTranslator(AbsApi.Translator):
 		methodElems = {}
 		try:
 			methodElems['return'] = self.translate(method.returnType)
+			methodElems['implReturn'] = self.translate(method.returnType, globalCtx=True)
 		except RuntimeError as e:
 			print('Cannot translate the return type of {0}: {1}'.format(method.name.to_snake_case(fullName=True) + '()', e.args[0]))
 			methodElems['return'] = None
+			methodElems['implReturn'] = None
 		
 		methodElems['name'] = self.translate(method.name)
-		if methodElems['name'] == 'new':
-			methodElems['name'] = '_new'
+		methodElems['longname'] = self.translate(method.name, recursive=True)
 		
 		methodElems['params'] = ''
+		methodElems['implParams'] = ''
 		for arg in method.args:
 			if arg is not method.args[0]:
 				methodElems['params'] += ', '
+				methodElems['implParams'] += ', '
 			methodElems['params'] += CppTranslator._translate_argument(self, arg)
+			methodElems['implParams'] += CppTranslator._translate_argument(self, arg, globalCtx=True)
 		
 		methodElems['const'] = ' const' if method.constMethod else ''
+		methodElems['static'] = 'static ' if method.type == AbsApi.Method.Type.Class else ''
 		
 		methodDict = {}
-		methodDict['prototype'] = '{return} {name}({params}){const};'.format(**methodElems)
-		if method.type == AbsApi.Method.Type.Class:
-			methodDict['prototype'] = 'static ' + methodDict['prototype'];
+		methodDict['prototype'] = '{static}{return} {name}({params}){const};'.format(**methodElems)
+		methodDict['implPrototype'] = '{implReturn} {longname}({implParams}){const}'.format(**methodElems)
+		methodDict['sourceCode' ] = CppTranslator._generate_source_code(self, method)
 		return methodDict
 	
-	def _translate_argument(self, arg):
-		return '{0} {1}'.format(self.translate(arg.type), self.translate(arg.name))
+	def _generate_source_code(self, method):
+		params = {}
+		params['functionName'] = method.name.to_snake_case(fullName=True)
+		
+		args = []
+		if method.type == AbsApi.Method.Type.Instance:
+			_class = method.find_first_ancestor_by_type(AbsApi.Class)
+			argStr = '({0} *)mPrivPtr'.format(_class.name.to_camel_case(fullName=True))
+			args.append(argStr)
+		
+		for arg in method.args:
+			paramName = arg.name.to_camel_case(lower=True)
+			if type(arg.type) is AbsApi.BaseType and arg.type.name == 'string':
+				cppExpr = paramName + '.c_str()'
+			elif type(arg.type) is AbsApi.EnumType:
+				cppExpr = '(::{0}){1}'.format(arg.type.desc.name.to_camel_case(fullName=True), paramName)
+			elif type(arg.type) is AbsApi.ClassType:
+				cppExpr = '(::{0} *)sharedPtrToCPtr({1})'.format(arg.type.desc.name.to_camel_case(fullName=True), paramName)
+			else:
+				cppExpr = paramName
+			args.append(cppExpr)
+			
+		params['args'] = ', '.join(args)
+		params['trailingBrackets'] = ''
+		
+		if type(method.returnType) is AbsApi.BaseType and method.returnType.name == 'void' and not method.returnType.isref:
+			params['return'] = ''
+		elif type(method.returnType) is AbsApi.EnumType:
+			cppEnumName = CppTranslator._translate_enum_name(self, method.returnType.desc.name, recursive=True)
+			params['return'] = 'return ({0})'.format(cppEnumName)
+		elif type(method.returnType) is AbsApi.ClassType:
+			cppReturnType = CppTranslator._translate_class_name(self, method.returnType.desc.name, recursive=True)
+			params['return'] = 'return cPtrToSharedPtr<{0}>((belle_sip_object_t *)'.format(cppReturnType)
+			params['trailingBrackets'] = ')'
+		else:
+			params['return'] = 'return '
+		
+		return '{return}{functionName}({args}){trailingBrackets};'.format(**params)
+	
+	def _translate_argument(self, arg, globalCtx=False):
+		return '{0} {1}'.format(self.translate(arg.type, globalCtx=globalCtx), self.translate(arg.name))
 	
 	def _translate_base_type(self, _type):
 		if _type.name == 'void':
@@ -136,19 +180,19 @@ class CppTranslator(AbsApi.Translator):
 			res += ' &'
 		return res
 	
-	def _translate_enum_type(self, _type):
+	def _translate_enum_type(self, _type, globalCtx=False):
 		if _type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(_type.name))
 		
-		nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method)
+		nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method) if not globalCtx else None
 		commonParentName = AbsApi.Name.find_common_parent(_type.desc.name, nsCtx.name) if nsCtx is not None else None
 		return self.translate(_type.desc.name, recursive=True, topAncestor=commonParentName)
 	
-	def _translate_class_type(self, _type):
+	def _translate_class_type(self, _type, globalCtx=False):
 		if _type.desc is None:
 			raise RuntimeError('{0} has not been fixed'.format(_type.name))
 		
-		nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method)
+		nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method) if not globalCtx else None
 		commonParentName = AbsApi.Name.find_common_parent(_type.desc.name, nsCtx.name) if nsCtx is not None else None
 		res = self.translate(_type.desc.name, recursive=True, topAncestor=commonParentName)
 		
@@ -157,13 +201,14 @@ class CppTranslator(AbsApi.Translator):
 		
 		return 'std::shared_ptr<{0}>'.format(res)
 	
-	def _translate_list_type(self, _type):
+	def _translate_list_type(self, _type, globalCtx=False):
 		if _type.containedTypeDesc is None:
 			raise RuntimeError('{0} has not been fixed'.format(_type))
 		elif isinstance(_type.containedTypeDesc, AbsApi.BaseType):
 			res = self.translate(_type.containedTypeDesc)
 		else:
-			commonParentName = AbsApi.Name.find_common_parent(_type.containedTypeDesc.desc.name, _type.parent.name)
+			nsCtx = _type.find_first_ancestor_by_type(AbsApi.Method) if not globalCtx else None
+			commonParentName = AbsApi.Name.find_common_parent(_type.containedTypeDesc.desc.name, nsCtx.name) if nsCtx is not None else None
 			res = self.translate(_type.containedTypeDesc.desc.name, recursive=True, topAncestor=commonParentName)
 		return 'std::list<std::shared_ptr<{0}> >'.format(res)
 	
@@ -183,11 +228,15 @@ class CppTranslator(AbsApi.Translator):
 		return CppTranslator._translate_class_name(self, name, **params)
 	
 	def _translate_method_name(self, name, recursive=False, topAncestor=None):
+		translatedName = name.to_camel_case(lower=True)
+		if translatedName == 'new':
+			translatedName = '_new'
+			
 		if name.prev is None or not recursive or name.prev is topAncestor:
-			return name.to_camel_case(lower=True)
+			return translatedName
 		else:
 			params = {'recursive': recursive, 'topAncestor': topAncestor}
-			return self.translate(name.prev, **params) + '::' + name.to_camel_case(lower=True)
+			return self.translate(name.prev, **params) + '::' + translatedName
 	
 	def _translate_namespace_name(self, name, recursive=False, topAncestor=None):
 		if name.prev is None or not recursive or name.prev is topAncestor:
@@ -218,6 +267,7 @@ class ClassHeader(object):
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
 		self.includes = {'internal': [], 'external': []}
+		self.private_type = _class.name.to_camel_case(fullName=True)
 		self.update_includes(_class)
 	
 	def update_includes(self, _class):
@@ -305,6 +355,15 @@ class ClassHeader(object):
 		return res
 
 
+class ClassImpl(object):
+	def __init__(self, parsedClass, translatedClass):
+		self._class = translatedClass
+		self.filename = parsedClass.name.to_snake_case() + '.cc'
+		self.internalIncludes = []
+		self.internalIncludes.append({'name': parsedClass.name.to_snake_case() + '.hh'})
+		self.internalIncludes.append({'name': 'coreapi/' + parsedClass.name.to_snake_case() + '.h'})
+
+
 def main():
 	project = CApi.Project()
 	project.initFromDir('../../work/coreapi/help/doc/xml')
@@ -328,8 +387,11 @@ def main():
 	for _class in parser.classesIndex.itervalues():
 		if _class is not None:
 			header = ClassHeader(_class, translator)
+			impl = ClassImpl(_class, header._class)
 			with open('include/' + header.filename, mode='w') as f:
 				f.write(renderer.render(header))
+			with open('src/' + impl.filename, mode='w') as f:
+				f.write(renderer.render(impl))
 
 
 if __name__ == '__main__':

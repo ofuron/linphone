@@ -2,33 +2,28 @@
 #define {{define}}
 
 {{#includes}}
-
 {{#external}}
 #include <{{name}}>
 {{/external}}
 {{#internal}}
 #include "{{name}}.hh"
 {{/internal}}
-
 {{/includes}}
+#include "object.hh"
 
 namespace linphone {
 
 	{{#_class}}
-	class {{name}} {
+	class {{name}}: Object {
 		public:
 			{{#methods}}
 			{{{prototype}}}
 			
 			{{/methods}}
-			
 			{{#staticMethods}}
 			{{{prototype}}}
 			
 			{{/staticMethods}}
-			
-		private:
-			void *m_privPtr;
 	};
 	{{/_class}}
 

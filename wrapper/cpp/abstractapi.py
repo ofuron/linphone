@@ -267,7 +267,7 @@ class Method(DocumentableObject):
 	
 	def __init__(self, name, type=Type.Instance):
 		DocumentableObject.__init__(self, name)
-		self.type = Method.Type.Instance
+		self.type = type
 		self.constMethod = False
 		self.args = []
 		self.returnType = None
@@ -408,7 +408,7 @@ class CParser(object):
 				
 		for cMethod in cclass.classMethods.values():
 			try:
-				method = CParser.parse_method(self, cMethod, namespace=name)
+				method = CParser.parse_method(self, cMethod, type=Method.Type.Class, namespace=name)
 				_class.add_instance_method(method)
 			except RuntimeError as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
@@ -543,9 +543,9 @@ class CParser(object):
 class Translator(object):
 	def translate(self, obj, **params):
 		if isinstance(obj, DocumentableObject):
-			return Translator._translate_object(self, obj)
+			return Translator._translate_object(self, obj, **params)
 		elif isinstance(obj, Type):
-			return Translator._translate_type(self, obj)
+			return Translator._translate_type(self, obj, **params)
 		elif isinstance(obj, Name):
 			return Translator._translate_name(self, obj, **params)
 		else:
@@ -567,15 +567,15 @@ class Translator(object):
 		else:
 			Translator.fail(aObject)
 	
-	def _translate_type(self, aType):
+	def _translate_type(self, aType, **params):
 		if type(aType) is BaseType:
 			return self._translate_base_type(aType)
 		elif type(aType) is EnumType:
-			return self._translate_enum_type(aType)
+			return self._translate_enum_type(aType, **params)
 		elif type(aType) is ClassType:
-			return self._translate_class_type(aType)
+			return self._translate_class_type(aType, **params)
 		elif type(aType) is ListType:
-			return self._translate_list_type(aType)
+			return self._translate_list_type(aType, **params)
 		else:
 			Translator.fail(aType)
 	
