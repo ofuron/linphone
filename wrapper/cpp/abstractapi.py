@@ -185,7 +185,16 @@ class ListType(Type):
 	def __init__(self, containedTypeName, isconst=False, isref=False):
 		Type.__init__(self, 'list', isconst=isconst, isref=isref)
 		self.containedTypeName = containedTypeName
-		self.containedTypeDesc = None
+		self._containedTypeDesc = None
+	
+	def set_contained_type_desc(self, desc):
+		self._containedTypeDesc = desc
+		desc.parent = self
+	
+	def get_contained_type_desc(self):
+		return self._containedTypeDesc
+	
+	containedTypeDesc = property(fset=set_contained_type_desc, fget=get_contained_type_desc)
 
 
 class DocumentableObject(Object):
@@ -369,6 +378,7 @@ class CParser(object):
 		name = EnumName()
 		name.from_camel_case(nameStr, namespace=self.namespace.name)
 		enum = Enum(name)
+		self.namespace.add_child(enum)
 		
 		for cEnumValue in cenum.values:
 			valueName = EnumValueName()
@@ -383,6 +393,7 @@ class CParser(object):
 		name = ClassName()
 		name.from_camel_case(cclass.name, namespace=self.namespace.name)
 		_class = Class(name)
+		self.namespace.add_child(_class)
 		
 		for property in cclass.properties.values():
 			try:
