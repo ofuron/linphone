@@ -8,6 +8,9 @@ import abstractapi as AbsApi
 
 
 class CppTranslator(AbsApi.Translator):
+	def __init__(self):
+		self.ignore = []
+	
 	def _translate_enum(self, enum):
 		enumDict = {}
 		enumDict['name'] = enum.name.to_camel_case()
@@ -61,16 +64,14 @@ class CppTranslator(AbsApi.Translator):
 		return res
 	
 	def _translate_method(self, method):
+		if method.name.to_snake_case(fullName=True) in self.ignore:
+			raise RuntimeError('{0} has been escaped'.format(method.name.to_snake_case(fullName=True)))
+		
 		namespace = method.find_first_ancestor_by_type(AbsApi.Namespace)
 		
 		methodElems = {}
-		try:
-			methodElems['return'] = self.translate(method.returnType)
-			methodElems['implReturn'] = self.translate(method.returnType, namespace=namespace)
-		except RuntimeError as e:
-			print('Cannot translate the return type of {0}: {1}'.format(method.name.to_snake_case(fullName=True) + '()', e.args[0]))
-			methodElems['return'] = None
-			methodElems['implReturn'] = None
+		methodElems['return'] = self.translate(method.returnType)
+		methodElems['implReturn'] = self.translate(method.returnType, namespace=namespace)
 		
 		methodElems['name'] = self.translate(method.name)
 		methodElems['longname'] = self.translate(method.name, recursive=True, topAncestor=namespace.name)
@@ -186,7 +187,7 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_enum_type(self, _type, **params):
 		if _type.desc is None:
-			raise RuntimeError('{0} has not been fixed'.format(_type.name))
+			raise RuntimeError('{0} has not been fixed'.format(_type.name.to_camel_case(fullName=True)))
 		
 		if 'namespace' in params:
 			nsName = params['namespace'].name if params['namespace'] is not None else None
@@ -198,7 +199,7 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_class_type(self, _type, **params):
 		if _type.desc is None:
-			raise RuntimeError('{0} has not been fixed'.format(_type.name))
+			raise RuntimeError('{0} has not been fixed'.format(_type.name.to_camel_case(fullName=True)))
 		
 		if 'namespace' in params:
 			nsName = params['namespace'].name if params['namespace'] is not None else None
@@ -218,7 +219,7 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_list_type(self, _type, **params):
 		if _type.containedTypeDesc is None:
-			raise RuntimeError('{0} has not been fixed'.format(_type))
+			raise RuntimeError('{0} has not been fixed'.format(_type.containedTypeName))
 		elif isinstance(_type.containedTypeDesc, AbsApi.BaseType):
 			res = self.translate(_type.containedTypeDesc)
 		else:
@@ -242,7 +243,7 @@ class CppTranslator(AbsApi.Translator):
 	
 	def _translate_enum_value_name(self, name, recursive=False, topAncestor=None):
 		params = {'recursive': recursive, 'topAncestor': topAncestor}
-		return CppTranslator._translate_class_name(self, name, **params)
+		return CppTranslator._translate_enum_name(self, name.prev, **params) + name.to_camel_case()
 	
 	def _translate_method_name(self, name, recursive=False, topAncestor=None):
 		translatedName = name.to_camel_case(lower=True)
@@ -284,6 +285,7 @@ class ClassHeader(object):
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
 		self.includes = {'internal': [], 'external': []}
+		self.priorDeclarations = []
 		self.private_type = _class.name.to_camel_case(fullName=True)
 		self.update_includes(_class)
 	
@@ -314,7 +316,12 @@ class ClassHeader(object):
 			includes['internal'].remove(currentClassInclude)
 		
 		for include in includes['internal']:
-			self.includes['internal'].append({'name': include})
+			if _class.name.to_camel_case(fullName=True) == 'LinphoneCore':
+				className = AbsApi.ClassName()
+				className.from_snake_case(include)
+				self.priorDeclarations.append({'name': className.to_camel_case()})
+			else:
+				self.includes['internal'].append({'name': include})
 		
 		for include in includes['external']:
 			self.includes['external'].append({'name': include})
@@ -372,6 +379,15 @@ class ClassHeader(object):
 		return res
 
 
+class MainHeader(object):
+	def __init__(self):
+		self.includes = []
+		self.define = '_LINPHONE_HH'
+	
+	def add_include(self, include):
+		self.includes.append({'name': include})
+
+
 class ClassImpl(object):
 	def __init__(self, parsedClass, translatedClass):
 		self._class = translatedClass
@@ -389,9 +405,10 @@ def main():
 	project.initFromDir('../../work/coreapi/help/doc/xml')
 	project.check()
 	
-	translator = CppTranslator()
 	parser = AbsApi.CParser(project)
 	parser.parse_all()
+	translator = CppTranslator()
+	translator.ignore.append('linphone_tunnel_get_http_proxy')
 	renderer = pystache.Renderer()	
 	
 	header = EnumsHeader(translator)
@@ -404,14 +421,20 @@ def main():
 	with open('include/enums.hh', mode='w') as f:
 		f.write(renderer.render(header))
 	
+	mainHeader = MainHeader()
+	
 	for _class in parser.classesIndex.itervalues():
 		if _class is not None:
 			header = ClassHeader(_class, translator)
 			impl = ClassImpl(_class, header._class)
+			mainHeader.add_include(_class.name.to_snake_case() + '.hh')
 			with open('include/' + header.filename, mode='w') as f:
 				f.write(renderer.render(header))
 			with open('src/' + impl.filename, mode='w') as f:
 				f.write(renderer.render(impl))
+	
+	with open('include/linphone.hh', mode='w') as f:
+		f.write(renderer.render(mainHeader))
 
 
 if __name__ == '__main__':

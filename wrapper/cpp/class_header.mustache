@@ -13,6 +13,10 @@
 
 namespace linphone {
 
+	{{#priorDeclarations}}
+	class {{{name}}};
+	{{/priorDeclarations}}
+
 	{{#_class}}
 	class {{name}}: public Object {
 		public:
