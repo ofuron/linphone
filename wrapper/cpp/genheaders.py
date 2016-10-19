@@ -121,8 +121,13 @@ class CppTranslator(AbsApi.Translator):
 		
 		for arg in method.args:
 			paramName = arg.name.to_camel_case(lower=True)
-			if type(arg.type) is AbsApi.BaseType and arg.type.name == 'string':
-				cppExpr = paramName + '.c_str()'
+			if type(arg.type) is AbsApi.BaseType:
+				if arg.type.name == 'string':
+					cppExpr = paramName + '.c_str()'
+				elif arg.type not in ['void', 'string', 'string_array'] and arg.type.isref:
+					cppExpr = '&' + paramName
+				else:
+					cppExpr = paramName
 			elif type(arg.type) is AbsApi.EnumType:
 				cppExpr = '(::{0}){1}'.format(arg.type.desc.name.to_camel_case(fullName=True), paramName)
 			elif type(arg.type) is AbsApi.ClassType:
@@ -138,8 +143,7 @@ class CppTranslator(AbsApi.Translator):
 					cppExpr = 'ObjectBctbxListWrapper<{0}>({1}).c_list()'.format(ptrType, paramName)
 				else:
 					raise AbsApi.Error('translation of bctbx_list_t of enums or basic C types is not supported')
-			else:
-				cppExpr = paramName
+			
 			args.append(cppExpr)
 			
 		params['args'] = ', '.join(args)
