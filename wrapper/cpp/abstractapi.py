@@ -1,6 +1,8 @@
 import re
 import genapixml as CApi
 
+class Error(RuntimeError):
+	pass
 
 class Name(object):
 	camelCaseParsingRegex = re.compile('[A-Z][a-z]*')
@@ -25,7 +27,7 @@ class Name(object):
 			it = it.prev
 		
 		if it is None or it != prefix:
-			raise RuntimeError('no common prefix')
+			raise Error('no common prefix')
 		elif _next is not None:
 			_next.prev = None
 	
@@ -37,7 +39,7 @@ class Name(object):
 			while i<len(self.words) and i<len(prefix) and self.words[i] == prefix[i]:
 				i += 1
 			if i == len(self.words):
-				raise RuntimeError('name equal to namespace \'{0}\'', self.words)
+				raise Error('name equal to namespace \'{0}\'', self.words)
 			else:
 				self.words = self.words[i:]
 	
@@ -214,7 +216,7 @@ class DocumentableObject(Object):
 		if isinstance(self, (Namespace,Enum,Class)):
 			return self
 		elif self.parent is None:
-			raise RuntimeError('{0} is not attached to a namespace object'.format(self))
+			raise Error('{0} is not attached to a namespace object'.format(self))
 		else:
 			return self.parent.get_namespace_object()
 
@@ -363,11 +365,14 @@ class CParser(object):
 		elif cType.ctype in self.enumsIndex:
 			return EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
 		elif cType.ctype in self.classesIndex:
-			return ClassType(cType.ctype, classDesc=self.classesIndex[cType.ctype])
+			params = {'classDesc': self.classesIndex[cType.ctype]}
+			if 'const' in cType.completeType.split(' '):
+				params['isconst'] = True
+			return ClassType(cType.ctype, **params)
 		elif cType.ctype == self.cListType:
 			return ListType(cType.containedType)
 		else:
-			raise RuntimeError('Unknown C type \'{0}\''.format(cType.ctype))
+			raise Error('Unknown C type \'{0}\''.format(cType.ctype))
 	
 	def parse_enum(self, cenum):
 		if 'associatedTypedef' in dir(cenum):
@@ -399,29 +404,33 @@ class CParser(object):
 			try:
 				pname = PropertyName()
 				pname.from_snake_case(property.name)
+				if (property.setter is not None and len(property.setter.arguments) == 1) or (property.getter is not None and len(property.getter.arguments) == 0):
+					methodType = Method.Type.Class
+				else:
+					methodType = Method.Type.Instance
 				absProperty = Property(pname)
 				if property.setter is not None:
-					method = CParser.parse_method(self, property.setter, namespace=name)
+					method = CParser.parse_method(self, property.setter, namespace=name, type=methodType)
 					absProperty.setter = method
 				if property.getter is not None:
-					method = CParser.parse_method(self, property.getter, namespace=name)
+					method = CParser.parse_method(self, property.getter, namespace=name, type=methodType)
 					absProperty.getter = method
 				_class.add_property(absProperty)
-			except RuntimeError as e:
+			except Error as e:
 				print('Could not parse {0} property in {1}: {2}'.format(property.name, cclass.name, e.args[0]))
 		
 		for cMethod in cclass.instanceMethods.values():
 			try:
 				method = CParser.parse_method(self, cMethod, namespace=name)
 				_class.add_instance_method(method)
-			except RuntimeError as e:
+			except Error as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 				
 		for cMethod in cclass.classMethods.values():
 			try:
 				method = CParser.parse_method(self, cMethod, type=Method.Type.Class, namespace=name)
 				_class.add_instance_method(method)
-			except RuntimeError as e:
+			except Error as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 		
 		self.classesIndex[cclass.name] = _class
@@ -451,7 +460,7 @@ class CParser(object):
 		for _class in self.cProject.classes:
 			try:
 				CParser.parse_class(self, _class)
-			except RuntimeError as e:
+			except Error as e:
 				print('Could not parse \'{0}\' class: {1}'.format(_class.name, e.args[0]))
 		CParser._fix_all_types(self)
 		
@@ -469,14 +478,14 @@ class CParser(object):
 				if type.containedTypeName is not None:
 					type.containedTypeDesc = self.parse_c_base_type(type.containedTypeName)
 				else:
-					raise RuntimeError('bctbx_list_t type without specified contained type')
+					raise Error('bctbx_list_t type without specified contained type')
 	
 	def _fix_all_types_in_method(self, method):
 		try:
 			CParser._fix_type(self, method.returnType)
 			for arg in method.args:
 				CParser._fix_type(self, arg.type)
-		except RuntimeError as e:
+		except Error as e:
 			print('warning: some types could not be fixed in {0}() function: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
 	
 	def _fix_all_types_in_class(self, _class):
@@ -542,13 +551,13 @@ class CParser(object):
 					
 					param['size'] = int(matchCtx.group(2))
 					if param['size'] not in [8, 16, 32, 64]:
-						raise RuntimeError('{0} C basic type has an invalid size ({1})'.format(cDecl, param['size']))
+						raise Error('{0} C basic type has an invalid size ({1})'.format(cDecl, param['size']))
 		
 		
 		if name is not None:
 			return BaseType(name, **param)
 		else:
-			raise RuntimeError('could not find type in \'{0}\''.format(cDecl))
+			raise Error('could not find type in \'{0}\''.format(cDecl))
 
 
 class Translator(object):
@@ -610,4 +619,4 @@ class Translator(object):
 	
 	@staticmethod
 	def fail(obj):
-		raise RuntimeError('Cannot translate {0} type'.format(type(obj)))
+		raise Error('Cannot translate {0} type'.format(type(obj)))

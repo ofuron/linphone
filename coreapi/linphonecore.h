@@ -1680,7 +1680,7 @@ LINPHONE_PUBLIC	void* linphone_chat_message_get_user_data(const LinphoneChatMess
 /**
  *User pointer set function
  */
-LINPHONE_PUBLIC	void linphone_chat_message_set_user_data(LinphoneChatMessage* message,void*);
+LINPHONE_PUBLIC	void linphone_chat_message_set_user_data(LinphoneChatMessage* message, void *user_data);
 /**
  * Returns the chatroom this message belongs to.
 **/
