@@ -540,8 +540,12 @@ class CParser(object):
 				if name is not None:
 					if name == 'character':
 						name = 'string'
-					else:
+					elif name == 'string':
+						name = 'string_array'
+					elif 'isref' not in param or param['isref'] is False:
 						param['isref'] = True
+					else:
+						raise Error('Unhandled double-pointer')
 			else:
 				matchCtx = re.match(self.regexFixedSizeInteger, elem)
 				if matchCtx:

@@ -143,10 +143,15 @@ class CppTranslator(AbsApi.Translator):
 			args.append(cppExpr)
 			
 		params['args'] = ', '.join(args)
+		params['return'] = 'return '
 		params['trailingBrackets'] = ''
 		
-		if type(method.returnType) is AbsApi.BaseType and method.returnType.name == 'void' and not method.returnType.isref:
-			params['return'] = ''
+		if type(method.returnType) is AbsApi.BaseType:
+			if method.returnType.name == 'void' and not method.returnType.isref:
+				params['return'] = ''
+			elif method.returnType.name == 'string_array':
+				params['return'] = 'return cStringArrayToCppList('
+				params['trailingBrackets'] = ')'
 		elif type(method.returnType) is AbsApi.EnumType:
 			cppEnumName = CppTranslator._translate_enum_type(self, method.returnType, namespace=usedNamespace)
 			params['return'] = 'return ({0})'.format(cppEnumName)
@@ -204,6 +209,10 @@ class CppTranslator(AbsApi.Translator):
 			res = 'std::string'
 			if type(_type.parent) is AbsApi.Argument:
 				res += ' &'
+		elif _type.name == 'string_array':
+			res = 'std::list<std::string>'
+			if type(_type.parent) is AbsApi.Argument:
+				res += ' &'
 		else:
 			raise AbsApi.Error('\'{0}\' is not a base abstract type'.format(_type.name))
 		
@@ -214,7 +223,7 @@ class CppTranslator(AbsApi.Translator):
 				res = 'unsigned ' + res
 		
 		if _type.isconst:
-			if _type.name != 'string' or type(_type.parent) is AbsApi.Argument:
+			if _type.name not in ['string', 'string_array'] or type(_type.parent) is AbsApi.Argument:
 				res = 'const ' + res
 		
 		if _type.isref:

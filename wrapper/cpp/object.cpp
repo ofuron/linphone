@@ -77,16 +77,6 @@ list<shared_ptr<T> > Object::bctbxObjectListToCppList(const ::bctbx_list_t *bctb
 	return cppList;
 }
 
-// template <class T>
-// ::bctbx_list_t *Object::cppObjectListToBctbxList(const list<shared_ptr<T> > &cppList) {
-// 	::bctbx_list_t *bctbxList = NULL;
-// 	for(auto it=cppList.cbegin(); it!=cppList.cend(); it++) {
-// 		shared_ptr<Object> sharedPtr = static_pointer_cast<Object,T>(*it);
-// 		bctbxList = bctbx_list_append(bctbxList, sharedPtrToCPtr(sharedPtr));
-// 	}
-// 	return bctbxList;
-// }
-
 list<string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList) {
 	list<string> cppList;
 	for(const ::bctbx_list_t *it=bctbxList; it!=NULL; it=it->next) {
@@ -95,10 +85,11 @@ list<string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList) {
 	return cppList;
 }
 
-// ::bctbx_list_t *cppStringListToBctbxList(const list<string> &cppList) {
-// 	::bctbx_list_t *bctbxList = NULL;
-// 	for(auto it=cppList.cbegin(); it!=cppList.cend(); it++) {
-// 		bctbxList = bctbx_list_append(bctbxList, bctbx_strdup(it->c_str()));
-// 	}
-// 	return bctbxList;
-// }
+std::list<std::string> cStringArrayToCppList(const char **cArray) {
+	list<string> cppList;
+	int i;
+	for(i=0; cArray[i]!=NULL; i++) {
+		cppList.push_back(cArray[i]);
+	}
+	return cppList;
+}
