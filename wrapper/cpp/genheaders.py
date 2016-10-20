@@ -457,7 +457,10 @@ def main():
 	parser = AbsApi.CParser(project)
 	parser.parse_all()
 	translator = CppTranslator()
-	translator.ignore.append('linphone_tunnel_get_http_proxy')
+	translator.ignore += ['linphone_tunnel_get_http_proxy',
+					   'linphone_core_can_we_add_call',
+					   'linphone_core_get_default_proxy']
+	
 	translator.ignore.append('LinphoneBuffer')
 	renderer = pystache.Renderer()	
 	

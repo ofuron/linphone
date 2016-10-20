@@ -16,7 +16,7 @@ namespace linphone {
 		AbstractBctbxListWrapper(): mCList(NULL) {}
 		virtual ~AbstractBctbxListWrapper() {}
 		
-		const ::bctbx_list_t *c_list() const {return mCList;}
+		::bctbx_list_t *c_list() {return mCList;}
 		
 	protected:
 		::bctbx_list_t *mCList;

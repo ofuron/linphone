@@ -5,15 +5,11 @@ project(liblinphone++ LANGUAGES CXX)
 add_compile_options(-Wall -Werror -Wno-deprecated-declarations)
 include_directories(include/ ../../)
 
-set(SKIPED_SOURCES 
-	src/auth_info.cc
-	src/buffer.cc
-)
-
 set(SOURCES
 	src/account_creator_cbs.cc
 	src/account_creator.cc
 	src/address.cc
+	src/auth_info.cc
 	src/call.cc
 	src/call_log.cc
 	src/call_params.cc
@@ -26,6 +22,7 @@ set(SOURCES
 	src/chat_room.cc
 	src/conference.cc
 	src/conference_params.cc
+	src/config.cc
 	src/content.cc
 	src/core.cc
 	src/core_v_table.cc
@@ -34,9 +31,8 @@ set(SOURCES
 	src/friend.cc
 	src/friend_list_cbs.cc
 	src/friend_list.cc
-	src/l_c_sip_transports.cc
-	src/lp_config.cc
 	src/nat_policy.cc
+	src/object.cc
 	src/payload_type.cc
 	src/player.cc
 	src/presence_activity.cc
@@ -45,6 +41,7 @@ set(SOURCES
 	src/presence_person.cc
 	src/presence_service.cc
 	src/proxy_config.cc
+	src/sip_transports.cc
 	src/tunnel.cc
 	src/tunnel_config.cc
 	src/vcard.cc
