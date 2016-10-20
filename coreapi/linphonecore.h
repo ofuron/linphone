@@ -89,7 +89,7 @@ typedef struct _LinphoneCore LinphoneCore;
  * Use with #linphone_core_set_sip_transports
  * @ingroup initializing
  */
-typedef struct _LCSipTransports{
+typedef struct _LinphoneSipTransports{
 	/**
 	 * SIP/UDP port.
 	 **/
@@ -106,7 +106,10 @@ typedef struct _LCSipTransports{
 	 * SIP/TLS port
 	 * */
 	int tls_port;
-} LCSipTransports;
+} LinphoneSipTransports;
+
+/* set LCSipTransports to ensure backward compatibility */
+typedef struct _LinphoneSipTransports LCSipTransports;
 
 
 /**
@@ -3244,11 +3247,11 @@ LINPHONE_PUBLIC	void linphone_core_set_sip_port(LinphoneCore *lc, int port);
 
 LINPHONE_PUBLIC	int linphone_core_get_sip_port(LinphoneCore *lc);
 
-LINPHONE_PUBLIC	int linphone_core_set_sip_transports(LinphoneCore *lc, const LCSipTransports *transports);
+LINPHONE_PUBLIC	int linphone_core_set_sip_transports(LinphoneCore *lc, const LinphoneSipTransports *transports);
 
-LINPHONE_PUBLIC	int linphone_core_get_sip_transports(LinphoneCore *lc, LCSipTransports *transports);
+LINPHONE_PUBLIC	int linphone_core_get_sip_transports(LinphoneCore *lc, LinphoneSipTransports *transports);
 
-LINPHONE_PUBLIC void linphone_core_get_sip_transports_used(LinphoneCore *lc, LCSipTransports *tr);
+LINPHONE_PUBLIC void linphone_core_get_sip_transports_used(LinphoneCore *lc, LinphoneSipTransports *tr);
 
 LINPHONE_PUBLIC	bool_t linphone_core_sip_transport_supported(const LinphoneCore *lc, LinphoneTransportType tp);
 

@@ -2480,7 +2480,7 @@ bool_t linphone_core_sip_transport_supported(const LinphoneCore *lc, LinphoneTra
  *
  * @ingroup network_parameters
 **/
-int linphone_core_set_sip_transports(LinphoneCore *lc, const LCSipTransports * tr_config /*config to be saved*/){
+int linphone_core_set_sip_transports(LinphoneCore *lc, const LinphoneSipTransports * tr_config /*config to be saved*/){
 	LCSipTransports tr=*tr_config;
 
 	if (lp_config_get_int(lc->config,"sip","sip_random_port",0)==1) {
@@ -2520,7 +2520,7 @@ int linphone_core_set_sip_transports(LinphoneCore *lc, const LCSipTransports * t
  * is not used. A value of LC_SIP_TRANSPORT_RANDOM (-1) means the port is to be chosen randomly by the system.
  * @ingroup network_parameters
 **/
-int linphone_core_get_sip_transports(LinphoneCore *lc, LCSipTransports *tr){
+int linphone_core_get_sip_transports(LinphoneCore *lc, LinphoneSipTransports *tr){
 	memcpy(tr,&lc->sip_conf.transports,sizeof(*tr));
 	return 0;
 }
@@ -2533,7 +2533,7 @@ int linphone_core_get_sip_transports(LinphoneCore *lc, LCSipTransports *tr){
  * @param lc the LinphoneCore
  * @param tr a LCSipTransports structure.
 **/
-void linphone_core_get_sip_transports_used(LinphoneCore *lc, LCSipTransports *tr){
+void linphone_core_get_sip_transports_used(LinphoneCore *lc, LinphoneSipTransports *tr){
 	tr->udp_port=sal_get_listening_port(lc->sal,SalTransportUDP);
 	tr->tcp_port=sal_get_listening_port(lc->sal,SalTransportTCP);
 	tr->tls_port=sal_get_listening_port(lc->sal,SalTransportTLS);
