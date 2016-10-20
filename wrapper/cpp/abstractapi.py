@@ -5,8 +5,8 @@ class Error(RuntimeError):
 	pass
 
 class Name(object):
-	camelCaseParsingRegex = re.compile('[A-Z][a-z]*')
-	lowerCamelCaseSplitingRegex = re.compile('([a-z]+)([A-Z][a-z]*)')
+	camelCaseParsingRegex = re.compile('[A-Z][a-z0-9]*')
+	lowerCamelCaseSplitingRegex = re.compile('([a-z][a-z0-9]*)([A-Z][a-z0-9]*)')
 	
 	def __init__(self):
 		self.words = []
