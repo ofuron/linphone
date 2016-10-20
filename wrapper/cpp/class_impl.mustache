@@ -2,6 +2,10 @@
 #include "coreapi/linphonecore_utils.h"
 #include "linphone.hh"
 
+#if TUNNEL_ENABLED
+#include "coreapi/linphone_tunnel.h"
+#endif
+
 using namespace {{{namespace}}};
 
 {{#_class}}

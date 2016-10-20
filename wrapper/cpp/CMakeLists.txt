@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.6)
 project(liblinphone++ LANGUAGES CXX)
 
 add_compile_options(-Wall -Werror -Wno-deprecated-declarations)
+add_definitions(-DTUNNEL_ENABLED=1)
 include_directories(include/ ../../)
 
 set(SOURCES

@@ -87,7 +87,7 @@ class CppTranslator(AbsApi.Translator):
 			methodElems['implReturn'] = self.translate(method.returnType, namespace=None)
 		
 		methodElems['name'] = self.translate(method.name)
-		methodElems['longname'] = self.translate(method.name, recursive=True, topAncestor=namespace.name)
+		methodElems['longname'] = self.translate(method.name, recursive=True)
 		
 		methodElems['params'] = ''
 		methodElems['implParams'] = ''
@@ -459,7 +459,8 @@ def main():
 	translator = CppTranslator()
 	translator.ignore += ['linphone_tunnel_get_http_proxy',
 					   'linphone_core_can_we_add_call',
-					   'linphone_core_get_default_proxy']
+					   'linphone_core_get_default_proxy',
+					   'linphone_proxy_config_normalize_number']
 	
 	translator.ignore.append('LinphoneBuffer')
 	renderer = pystache.Renderer()	

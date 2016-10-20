@@ -402,7 +402,7 @@ LINPHONE_PUBLIC bool_t linphone_proxy_config_is_phone_number(LinphoneProxyConfig
  * @return TRUE if a phone number was recognized, FALSE otherwise.
  * @deprecated use linphone_proxy_config_normalize_phone_number()
  */
-LINPHONE_PUBLIC bool_t linphone_proxy_config_normalize_number(LinphoneProxyConfig *proxy, const char *username, char *result, size_t result_len);
+LINPHONE_PUBLIC LINPHONE_DEPRECATED bool_t linphone_proxy_config_normalize_number(LinphoneProxyConfig *proxy, const char *username, char *result, size_t result_len);
 
 /**
  * Normalize a human readable phone number into a basic string. 888-444-222 becomes 888444222
