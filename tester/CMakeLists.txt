@@ -66,7 +66,12 @@ set(CERTIFICATE_CN_FILES
 	certificates/cn/openssl-cn.cnf
 )
 
-set(CERTIFICATE_FILES ${CERTIFICATE_ALT_FILES} ${CERTIFICATE_CN_FILES})
+set(CERTIFICATE_CLIENT_FILES
+	certificates/client/cert.pem
+	certificates/client/key.pem
+)
+
+set(CERTIFICATE_FILES ${CERTIFICATE_ALT_FILES} ${CERTIFICATE_CN_FILES} ${CERTIFICATE_CLIENT_FILES})
 
 set(RC_FILES
 	rcfiles/carddav_rc
@@ -81,6 +86,7 @@ set(RC_FILES
 	rcfiles/marie_nat64_rc
 	rcfiles/marie_quality_reporting_rc
 	rcfiles/marie_rc
+	rcfiles/marie2_rc
 	rcfiles/marie_rc_rtcp_xr
 	rcfiles/marie_remote_404_rc
 	rcfiles/marie_remote_default_values_rc
@@ -108,6 +114,7 @@ set(RC_FILES
 	rcfiles/pauline_rc_rtcp_xr
 	rcfiles/pauline_sips_rc
 	rcfiles/pauline_tcp_rc
+	rcfiles/pauline_tls_client_rc
 	rcfiles/pauline_tunnel_verify_server_certificate_rc
 	rcfiles/pauline_v4proxy_rc
 	rcfiles/pauline_wild_rc
@@ -260,10 +267,10 @@ if (NOT ANDROID AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
 	if(IOS)
 		set_source_files_properties(${IOS_RESOURCES_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 		add_executable(liblinphone_tester MACOSX_BUNDLE ${IOS_RESOURCES_FILES} ${SOURCE_FILES_C} ${SOURCE_FILES_OBJC})
-		set_target_properties(liblinphone_tester PROPERTIES LINK_FLAGS "${LINPHONE_LDFLAGS}")
 	else()
 		add_executable(liblinphone_tester ${SOURCE_FILES_C} ${SOURCE_FILES_OBJC})
 	endif()
+	set_target_properties(liblinphone_tester PROPERTIES LINK_FLAGS "${LINPHONE_LDFLAGS}")
 	set_target_properties(liblinphone_tester PROPERTIES LINKER_LANGUAGE CXX)
 	target_include_directories(liblinphone_tester PUBLIC ${BCTOOLBOX_TESTER_INCLUDE_DIRS})
 	target_link_libraries(liblinphone_tester ${LINPHONE_LIBS_FOR_TOOLS} ${OTHER_LIBS_FOR_TESTER})
@@ -289,6 +296,7 @@ if (NOT ANDROID AND NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
 		install(FILES ${SIPP_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/sipp")
 		install(FILES ${CERTIFICATE_ALT_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/certificates/altname")
 		install(FILES ${CERTIFICATE_CN_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/certificates/cn")
+		install(FILES ${CERTIFICATE_CLIENT_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/certificates/client")
 		install(FILES ${RC_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/rcfiles")
 		install(FILES ${IMAGE_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/images")
 		install(FILES ${VCARD_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/liblinphone_tester/vcards")

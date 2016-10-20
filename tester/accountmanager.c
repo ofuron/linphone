@@ -132,11 +132,13 @@ void account_create_on_server(Account *account, const LinphoneProxyConfig *refcf
 	char *tmp;
 	LinphoneAddress *server_addr;
 	LCSipTransports tr;
+	char *chatdb;
 
 	vtable.registration_state_changed=account_created_on_server_cb;
 	// TEMPORARY CODE: remove line below when flexisip is updated, this is not needed anymore!
 	vtable.auth_info_requested=account_created_auth_requested_cb;
 	lc=configure_lc_from(&vtable,bc_tester_get_resource_dir_prefix(),NULL,account);
+	chatdb = ms_strdup(linphone_core_get_chat_database_path(lc));
 	tr.udp_port=LC_SIP_TRANSPORT_RANDOM;
 	tr.tcp_port=LC_SIP_TRANSPORT_RANDOM;
 	tr.tls_port=LC_SIP_TRANSPORT_RANDOM;
@@ -192,6 +194,8 @@ void account_create_on_server(Account *account, const LinphoneProxyConfig *refcf
 		ms_error("Account creation could not clean the registration context.");
 	}
 	linphone_core_destroy(lc);
+	unlink(chatdb);
+	ms_free(chatdb);
 }
 
 static LinphoneAddress *account_manager_check_account(AccountManager *m, LinphoneProxyConfig *cfg,const char* phone_alias){
@@ -245,9 +249,12 @@ static LinphoneAddress *account_manager_check_account(AccountManager *m, Linphon
 void linphone_core_manager_check_accounts(LinphoneCoreManager *m){
 	const bctbx_list_t *it;
 	AccountManager *am=account_manager_get();
-
+	int logmask = ortp_get_log_level_mask(NULL);
+	
+	if (!liblinphonetester_show_account_manager_logs) linphone_core_set_log_level_mask(ORTP_ERROR|ORTP_FATAL);
 	for(it=linphone_core_get_proxy_config_list(m->lc);it!=NULL;it=it->next){
 		LinphoneProxyConfig *cfg=(LinphoneProxyConfig *)it->data;
 		account_manager_check_account(am,cfg,m->phone_alias);
 	}
+	if (!liblinphonetester_show_account_manager_logs) linphone_core_set_log_level_mask(logmask);
 }

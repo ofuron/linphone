@@ -240,15 +240,41 @@ static bool_t already_a_call_with_remote_address(const LinphoneCore *lc, const L
 }
 
 
+static LinphoneCall * look_for_broken_call_to_replace(SalOp *h, LinphoneCore *lc) {
+	const bctbx_list_t *calls = linphone_core_get_calls(lc);
+	const bctbx_list_t *it = calls;
+	while (it != NULL) {
+		LinphoneCall *replaced_call = NULL;
+		LinphoneCall *call = (LinphoneCall *)bctbx_list_get_data(it);
+		SalOp *replaced_op = sal_call_get_replaces(h);
+		if (replaced_op) replaced_call = (LinphoneCall*)sal_op_get_user_pointer(replaced_op);
+		if ((call->broken && sal_call_compare_op(h, call->op))
+			|| ((replaced_call == call) && (strcmp(sal_op_get_from(h), sal_op_get_from(replaced_op)) == 0) && (strcmp(sal_op_get_to(h), sal_op_get_to(replaced_op)) == 0))) {
+			return call;
+		}
+		it = bctbx_list_next(it);
+	}
+	
+	return NULL;
+}
+
 static void call_received(SalOp *h){
 	LinphoneCore *lc=(LinphoneCore *)sal_get_user_pointer(sal_op_get_sal(h));
 	LinphoneCall *call;
+	LinphoneCall *replaced_call;
 	char *alt_contact;
 	LinphoneAddress *from_addr=NULL;
 	LinphoneAddress  *to_addr=NULL;
 	LinphoneAddress *from_address_to_search_if_me=NULL; /*address used to know if I'm the caller*/
 	SalMediaDescription *md;
 	const char * p_asserted_id;
+
+	/* Look if this INVITE is for a call that has already been notified but broken because of network failure */
+	replaced_call = look_for_broken_call_to_replace(h, lc);
+	if (replaced_call != NULL) {
+		linphone_call_replace_op(replaced_call, h);
+		return;
+	}
 
 	/* first check if we can answer successfully to this invite */
 	if (linphone_presence_model_get_basic_status(lc->presence_model) == LinphonePresenceBasicStatusClosed) {
@@ -421,8 +447,7 @@ static void call_ringing(SalOp *h){
 			/*already doing early media */
 			return;
 		}
-		if (lc->ringstream!=NULL) return;/*already ringing !*/
-		start_remote_ring(lc, call);
+		if (lc->ringstream == NULL) start_remote_ring(lc, call);
 		ms_message("Remote ringing...");
 		linphone_core_notify_display_status(lc,_("Remote ringing..."));
 		linphone_call_set_state(call,LinphoneCallOutgoingRinging,"Remote ringing");
@@ -659,6 +684,7 @@ static void call_updated(LinphoneCore *lc, LinphoneCall *call, SalOp *op, bool_t
 			break;
 		case LinphoneCallStreamsRunning:
 		case LinphoneCallConnected:
+		case LinphoneCallUpdatedByRemote: // Can happen on UAC connectivity loss
 			if (sal_media_description_has_dir(rmd,SalStreamSendOnly) || sal_media_description_has_dir(rmd,SalStreamInactive)){
 				call_paused_by_remote(lc,call);
 			}else{
@@ -672,7 +698,6 @@ static void call_updated(LinphoneCore *lc, LinphoneCall *call, SalOp *op, bool_t
 		case LinphoneCallUpdating:
 		case LinphoneCallPausing:
 		case LinphoneCallResuming:
-		case LinphoneCallUpdatedByRemote:
 			sal_call_decline(call->op,SalReasonInternalError,NULL);
 			/*no break*/
 		case LinphoneCallIdle:
@@ -918,6 +943,10 @@ static void call_failure(SalOp *op){
 			msg=_("Incompatible media parameters.");
 			linphone_core_notify_display_status(lc,msg);
 		break;
+		case SalReasonNoMatch:
+			/* Call leg does not exist response for case of section 5.5 of RFC 6141 */
+			linphone_call_reinvite_to_recover_from_connection_loss(call);
+			return; /* Do not continue... */
 		default:
 			linphone_core_notify_display_status(lc,_("Call failed."));
 	}
@@ -970,19 +999,22 @@ static void call_released(SalOp *op){
 }
 
 static void auth_failure(SalOp *op, SalAuthInfo* info) {
-	LinphoneCore *lc=(LinphoneCore *)sal_get_user_pointer(sal_op_get_sal(op));
-	LinphoneAuthInfo *ai=NULL;
+	LinphoneCore *lc = (LinphoneCore *)sal_get_user_pointer(sal_op_get_sal(op));
+	LinphoneAuthInfo *ai = NULL;
 
-	if( info != NULL ){
-		ai = (LinphoneAuthInfo*)_linphone_core_find_auth_info(lc,info->realm,info->username,info->domain, TRUE);
-
+	if (info != NULL) {
+		ai = (LinphoneAuthInfo*)_linphone_core_find_auth_info(lc, info->realm, info->username, info->domain, TRUE);
 		if (ai){
-			ms_message("%s/%s/%s authentication fails.",info->realm,info->username,info->domain);
+			LinphoneAuthMethod method = info->mode == SalAuthModeHttpDigest ? LinphoneAuthHttpDigest : LinphoneAuthTls;
+			LinphoneAuthInfo *auth_info = linphone_core_create_auth_info(lc, info->username, NULL, NULL, NULL, info->realm, info->domain);
+			ms_message("%s/%s/%s/%s authentication fails.", info->realm, info->username, info->domain, info->mode == SalAuthModeHttpDigest ? "HttpDigest" : "Tls");
 			/*ask again for password if auth info was already supplied but apparently not working*/
-			linphone_core_notify_auth_info_requested(lc,info->realm,info->username,info->domain);
+			linphone_core_notify_authentication_requested(lc, auth_info, method);
+			linphone_auth_info_destroy(auth_info);
+			// Deprecated
+			linphone_core_notify_auth_info_requested(lc, info->realm, info->username, info->domain);
 		}
 	}
-
 }
 
 static void register_success(SalOp *op, bool_t registered){
@@ -1103,7 +1135,7 @@ static bool_t is_duplicate_msg(LinphoneCore *lc, const char *msg_id){
 	}
 	if (i>=10){
 		ms_free(tail->data);
-		lc->last_recv_msg_ids=bctbx_list_remove_link(lc->last_recv_msg_ids,tail);
+		lc->last_recv_msg_ids=bctbx_list_erase_link(lc->last_recv_msg_ids,tail);
 	}
 	return is_duplicate;
 }
@@ -1171,35 +1203,55 @@ static void ping_reply(SalOp *op){
 }
 
 static bool_t fill_auth_info_with_client_certificate(LinphoneCore *lc, SalAuthInfo* sai) {
-	const char *chain_file = lp_config_get_string(lc->config,"sip","client_cert_chain", 0);
-	const char *key_file = lp_config_get_string(lc->config,"sip","client_cert_key", 0);;
+	const char *chain_file = linphone_core_get_tls_cert_path(lc);
+	const char *key_file = linphone_core_get_tls_key_path(lc);
 
+	if (key_file && chain_file) {
 #ifndef _WIN32
-	{
-	// optinal check for files
-	struct stat st;
-	if (stat(key_file,&st)) {
-		ms_warning("No client certificate key found in %s", key_file);
-		return FALSE;
-	}
-	if (stat(chain_file,&st)) {
-		ms_warning("No client certificate chain found in %s", chain_file);
-		return FALSE;
-	}
-	}
+		// optinal check for files
+		struct stat st;
+		if (stat(key_file, &st)) {
+			ms_warning("No client certificate key found in %s", key_file);
+			return FALSE;
+		}
+		if (stat(chain_file, &st)) {
+			ms_warning("No client certificate chain found in %s", chain_file);
+			return FALSE;
+		}
 #endif
-
-	sal_certificates_chain_parse_file(sai, chain_file, SAL_CERTIFICATE_RAW_FORMAT_PEM );
-	sal_signing_key_parse_file(sai, key_file, "");
+		sal_certificates_chain_parse_file(sai, chain_file, SAL_CERTIFICATE_RAW_FORMAT_PEM);
+		sal_signing_key_parse_file(sai, key_file, "");
+	} else if (lc->tls_cert && lc->tls_key) {
+		sal_certificates_chain_parse(sai, lc->tls_cert, SAL_CERTIFICATE_RAW_FORMAT_PEM);
+		sal_signing_key_parse(sai, lc->tls_key, "");
+	}
 	return sai->certificates && sai->key;
 }
 
 static bool_t fill_auth_info(LinphoneCore *lc, SalAuthInfo* sai) {
-	LinphoneAuthInfo *ai=(LinphoneAuthInfo*)_linphone_core_find_auth_info(lc,sai->realm,sai->username,sai->domain, FALSE);
+	LinphoneAuthInfo *ai = NULL;
+	if (sai->mode == SalAuthModeTls) {
+		ai = (LinphoneAuthInfo*)_linphone_core_find_tls_auth_info(lc);
+	} else {
+		ai = (LinphoneAuthInfo*)_linphone_core_find_auth_info(lc,sai->realm,sai->username,sai->domain, FALSE);
+	}
 	if (ai) {
-		sai->userid=ms_strdup(ai->userid?ai->userid:ai->username);
-		sai->password=ai->passwd?ms_strdup(ai->passwd):NULL;
-		sai->ha1=ai->ha1?ms_strdup(ai->ha1):NULL;
+		if (sai->mode == SalAuthModeHttpDigest) {
+			sai->userid = ms_strdup(ai->userid ? ai->userid : ai->username);
+			sai->password = ai->passwd?ms_strdup(ai->passwd) : NULL;
+			sai->ha1 = ai->ha1 ? ms_strdup(ai->ha1) : NULL;
+		} else if (sai->mode == SalAuthModeTls) {
+			if (ai->tls_cert && ai->tls_key) {
+				sal_certificates_chain_parse(sai, ai->tls_cert, SAL_CERTIFICATE_RAW_FORMAT_PEM);
+				sal_signing_key_parse(sai, ai->tls_key, "");
+			} else if (ai->tls_cert_path && ai->tls_key_path) {
+				sal_certificates_chain_parse_file(sai, ai->tls_cert_path, SAL_CERTIFICATE_RAW_FORMAT_PEM);
+				sal_signing_key_parse_file(sai, ai->tls_key_path, "");
+			} else {
+				fill_auth_info_with_client_certificate(lc, sai);
+			}
+		}
+		
 		if (sai->realm && !ai->realm){
 			/*if realm was not known, then set it so that ha1 may eventually be calculated and clear text password dropped*/
 			linphone_auth_info_set_realm(ai, sai->realm);
@@ -1207,26 +1259,26 @@ static bool_t fill_auth_info(LinphoneCore *lc, SalAuthInfo* sai) {
 		}
 		return TRUE;
 	} else {
+		if (sai->mode == SalAuthModeTls) {
+			return fill_auth_info_with_client_certificate(lc, sai);
+		}
 		return FALSE;
 	}
 }
 static bool_t auth_requested(Sal* sal, SalAuthInfo* sai) {
-	LinphoneCore *lc=(LinphoneCore *)sal_get_user_pointer(sal);
-	if (sai->mode == SalAuthModeHttpDigest) {
-		if (fill_auth_info(lc,sai)) {
-			return TRUE;
-		} else {
-			{
-				linphone_core_notify_auth_info_requested(lc,sai->realm,sai->username,sai->domain);
-				if (fill_auth_info(lc,sai)) {
-					return TRUE;
-				}
-			}
-			return FALSE;
-		}
-	} else if (sai->mode == SalAuthModeTls) {
-		return fill_auth_info_with_client_certificate(lc,sai);
+	LinphoneCore *lc = (LinphoneCore *)sal_get_user_pointer(sal);
+	if (fill_auth_info(lc,sai)) {
+		return TRUE;
 	} else {
+		LinphoneAuthMethod method = sai->mode == SalAuthModeHttpDigest ? LinphoneAuthHttpDigest : LinphoneAuthTls;
+		LinphoneAuthInfo *ai = linphone_core_create_auth_info(lc, sai->username, NULL, NULL, NULL, sai->realm, sai->domain);
+		linphone_core_notify_authentication_requested(lc, ai, method);
+		linphone_auth_info_destroy(ai);
+		// Deprecated
+		linphone_core_notify_auth_info_requested(lc, sai->realm, sai->username, sai->domain);
+		if (fill_auth_info(lc, sai)) {
+			return TRUE;
+		}
 		return FALSE;
 	}
 }
@@ -1292,9 +1344,8 @@ static void info_received(SalOp *op, SalBodyHandler *body_handler){
 	linphone_core_notify_info_message(lc,op,body_handler);
 }
 
-static void subscribe_response(SalOp *op, SalSubscribeStatus status){
+static void subscribe_response(SalOp *op, SalSubscribeStatus status, int will_retry){
 	LinphoneEvent *lev=(LinphoneEvent*)sal_op_get_user_pointer(op);
-	const SalErrorInfo *ei=sal_op_get_error_info(op);
 
 	if (lev==NULL) return;
 
@@ -1303,7 +1354,7 @@ static void subscribe_response(SalOp *op, SalSubscribeStatus status){
 	}else if (status==SalSubscribePending){
 		linphone_event_set_state(lev,LinphoneSubscriptionPending);
 	}else{
-		if (lev->subscription_state==LinphoneSubscriptionActive && (ei->reason==SalReasonIOError || ei->reason == SalReasonNoMatch)){
+		if (will_retry){
 			linphone_event_set_state(lev,LinphoneSubscriptionOutgoingProgress);
 		}
 		else linphone_event_set_state(lev,LinphoneSubscriptionError);

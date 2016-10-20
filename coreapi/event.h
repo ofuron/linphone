@@ -49,6 +49,7 @@ typedef enum _LinphoneSubscriptionDir LinphoneSubscriptionDir;
 
 /**
  * Enum for subscription states.
+ * LinphoneSubscriptionTerminated and LinphoneSubscriptionError are final states.
 **/
 enum _LinphoneSubscriptionState{
 	LinphoneSubscriptionNone, /**< Initial state, should not be used.**/
@@ -57,13 +58,10 @@ enum _LinphoneSubscriptionState{
 	LinphoneSubscriptionPending, /**<Subscription is pending, waiting for user approval*/
 	LinphoneSubscriptionActive, /**<Subscription is accepted.*/
 	LinphoneSubscriptionTerminated, /**<Subscription is terminated normally*/
-	LinphoneSubscriptionError, /**<Subscription encountered an error, indicated by linphone_event_get_reason()*/
+	LinphoneSubscriptionError, /**<Subscription was terminated by an error, indicated by linphone_event_get_reason().*/
 	LinphoneSubscriptionExpiring, /**<Subscription is about to expire, only sent if [sip]->refresh_generic_subscribe property is set to 0.*/
 };
-/*typo compatibility*/
-#define LinphoneSubscriptionOutoingInit LinphoneSubscriptionOutgoingInit
 
-#define LinphoneSubscriptionOutgoingInit LinphoneSubscriptionOutgoingProgress
 /**
  * Typedef for subscription state enum.
 **/
@@ -205,6 +203,19 @@ LINPHONE_PUBLIC LinphoneEvent *linphone_core_publish(LinphoneCore *lc, const Lin
  * @return the LinphoneEvent holding the context of the publish.
 **/
 LINPHONE_PUBLIC LinphoneEvent *linphone_core_create_publish(LinphoneCore *lc, const LinphoneAddress *resource, const char *event, int expires);
+
+
+/**
+ * Create a publish context for a one-shot publish.
+ * After being created, the publish must be sent using linphone_event_send_publish().
+ * The LinphoneEvent is automatically terminated when the publish transaction is finished, either with success or failure.
+ * The application must not call linphone_event_terminate() for such one-shot publish.
+ * @param lc the #LinphoneCore
+ * @param resource the resource uri for the event
+ * @param event the event name
+ * @return the LinphoneEvent holding the context of the publish.
+**/
+LINPHONE_PUBLIC LinphoneEvent *linphone_core_create_one_shot_publish(LinphoneCore *lc, const LinphoneAddress *resource, const char *event);
 
 /**
  * Send a publish created by linphone_core_create_publish().

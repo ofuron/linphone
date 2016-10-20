@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "linphonecore.h"
 #include "private.h"
 #include "liblinphone_tester.h"
@@ -56,7 +57,11 @@ const char* test_username="liblinphone_tester";
 const char* test_password="secret";
 const char* test_route="sip2.linphone.org";
 const char *userhostsfile = "tester_hosts";
-bool_t liblinphonetester_ipv6 = FALSE;
+bool_t liblinphonetester_ipv6 = TRUE;
+bool_t liblinphonetester_show_account_manager_logs = FALSE;
+int liblinphonetester_transport_timeout = 9000; /*milliseconds. it is set to such low value to workaround a problem with our Freebox v6 when connecting to Ipv6 addresses.
+			It was found that the freebox sometimes block SYN-ACK packets, which prevents connection to be succesful.
+			Thanks to the timeout, it will fallback to IPv4*/
 
 const char *liblinphone_tester_mire_id="Mire: Mire (synthetic moving picture)";
 
@@ -156,6 +161,7 @@ LinphoneCore* configure_lc_from(LinphoneCoreVTable* v_table, const char* path, c
 	chatdb = ms_strdup_printf("%s/messages-%p.db",bc_tester_get_writable_dir_prefix(),lc);
 
 	linphone_core_enable_ipv6(lc, liblinphonetester_ipv6);
+	linphone_core_set_sip_transport_timeout(lc, liblinphonetester_transport_timeout);
 
 	sal_enable_test_features(lc->sal,TRUE);
 	sal_set_dns_user_hosts_file(lc->sal, dnsuserhostspath);
@@ -402,12 +408,10 @@ void linphone_core_manager_start(LinphoneCoreManager *mgr, int check_for_proxies
 }
 
 LinphoneCoreManager* linphone_core_manager_new3(const char* rc_file, int check_for_proxies, const char* phone_alias) {
-	int old_log_level = ortp_get_log_level_mask(NULL);
 	LinphoneCoreManager *manager = ms_new0(LinphoneCoreManager, 1);
-	linphone_core_set_log_level(ORTP_ERROR);
+	
 	linphone_core_manager_init(manager, rc_file, phone_alias);
 	linphone_core_manager_start(manager, check_for_proxies);
-	linphone_core_set_log_level(old_log_level);
 	return manager;
 }
 
@@ -424,7 +428,7 @@ void linphone_core_manager_stop(LinphoneCoreManager *mgr){
 	if (mgr->lc) {
 		const char *record_file = linphone_core_get_record_file(mgr->lc);
 		char *chatdb = ms_strdup(linphone_core_get_chat_database_path(mgr->lc));
-		if (!liblinphone_tester_keep_record_files && record_file) {
+		if (!liblinphone_tester_keep_record_files && record_file && ortp_file_exist(record_file)==0) {
 			if ((bc_get_number_of_failures() - mgr->number_of_bcunit_error_at_creation)>0) {
 				ms_error("Test has failed, keeping recorded file [%s]", record_file);
 			}
@@ -434,7 +438,9 @@ void linphone_core_manager_stop(LinphoneCoreManager *mgr){
 		}
 		linphone_core_destroy(mgr->lc);
 		if (chatdb) {
-			unlink(chatdb);
+			if (unlink(chatdb) != 0){
+				ms_error("Could not delete %s: %s", chatdb, strerror(errno));
+			}
 			ms_free(chatdb);
 		}
 		mgr->lc = NULL;
@@ -476,19 +482,21 @@ void linphone_core_manager_destroy(LinphoneCoreManager* mgr) {
 }
 
 int liblinphone_tester_ipv6_available(void){
-	struct addrinfo *ai=bctbx_ip_address_to_addrinfo(AF_INET6,SOCK_STREAM,"2a01:e00::2",53);
-	if (ai){
-		struct sockaddr_storage ss;
-		struct addrinfo src;
-		socklen_t slen=sizeof(ss);
-		char localip[128];
-		int port=0;
-		belle_sip_get_src_addr_for(ai->ai_addr,(socklen_t)ai->ai_addrlen,(struct sockaddr*) &ss,&slen,4444);
-		src.ai_addr=(struct sockaddr*) &ss;
-		src.ai_addrlen=slen;
-		bctbx_addrinfo_to_ip_address(&src,localip, sizeof(localip),&port);
-		freeaddrinfo(ai);
-		return strcmp(localip,"::1")!=0;
+	if (liblinphonetester_ipv6) {
+		struct addrinfo *ai=bctbx_ip_address_to_addrinfo(AF_INET6,SOCK_STREAM,"2a01:e00::2",53);
+		if (ai){
+			struct sockaddr_storage ss;
+			struct addrinfo src;
+			socklen_t slen=sizeof(ss);
+			char localip[128];
+			int port=0;
+			belle_sip_get_src_addr_for(ai->ai_addr,(socklen_t)ai->ai_addrlen,(struct sockaddr*) &ss,&slen,4444);
+			src.ai_addr=(struct sockaddr*) &ss;
+			src.ai_addrlen=slen;
+			bctbx_addrinfo_to_ip_address(&src,localip, sizeof(localip),&port);
+			freeaddrinfo(ai);
+			return strcmp(localip,"::1")!=0;
+		}
 	}
 	return FALSE;
 }
@@ -607,8 +615,8 @@ void liblinphone_tester_before_each(void) {
 
 static char* all_leaks_buffer = NULL;
 
-int liblinphone_tester_after_each(void) {
-	int err = 0;
+void liblinphone_tester_after_each(void) {
+
 	if (!liblinphone_tester_leak_detector_disabled){
 		int leaked_objects = belle_sip_object_get_object_count() - leaked_objects_count;
 		if (leaked_objects > 0) {
@@ -632,11 +640,9 @@ int liblinphone_tester_after_each(void) {
 			// if the test is NOT marked as leaking memory and it actually is, we should make it fail
 			if (!leaks_expected && leaked_objects > 0) {
 				BC_FAIL("This test is leaking memory!");
-				err = 1;
 				// and reciprocally
 			} else if (leaks_expected && leaked_objects == 0) {
 				BC_FAIL("This test is not leaking anymore, please remove LeaksMemory tag!");
-				// err = 1; // do not force fail actually, because it can be some false positive warning
 			}
 		}
 	}
@@ -644,7 +650,6 @@ int liblinphone_tester_after_each(void) {
 	if (manager_count != 0) {
 		ms_fatal("%d Linphone core managers are still alive!", manager_count);
 	}
-	return err;
 }
 
 void liblinphone_tester_uninit(void) {
@@ -851,7 +856,7 @@ static void linphone_conference_server_registration_state_changed(LinphoneCore *
 LinphoneConferenceServer* linphone_conference_server_new(const char *rc_file, bool_t do_registration) {
 	LinphoneConferenceServer *conf_srv = (LinphoneConferenceServer *)ms_new0(LinphoneConferenceServer, 1);
 	LinphoneCoreManager *lm = (LinphoneCoreManager *)conf_srv;
-
+	LinphoneProxyConfig *proxy;
 	conf_srv->vtable = linphone_core_v_table_new();
 	conf_srv->vtable->call_state_changed = linphone_conference_server_call_state_changed;
 	conf_srv->vtable->refer_received = linphone_conference_server_refer_received;
@@ -859,13 +864,17 @@ LinphoneConferenceServer* linphone_conference_server_new(const char *rc_file, bo
 	conf_srv->vtable->user_data = conf_srv;
 	conf_srv->reg_state = LinphoneRegistrationNone;
 	linphone_core_manager_init(lm, rc_file,NULL);
+	if (!do_registration) {
+		proxy = linphone_core_get_default_proxy_config(lm->lc);
+		linphone_proxy_config_edit(proxy);
+		linphone_proxy_config_enable_register(proxy,FALSE);
+		linphone_proxy_config_done(proxy);
+	}
 	linphone_core_add_listener(lm->lc, conf_srv->vtable);
 	linphone_core_manager_start(lm, do_registration);
 	return conf_srv;
 }
 
 void linphone_conference_server_destroy(LinphoneConferenceServer *conf_srv) {
-	linphone_core_manager_uninit((LinphoneCoreManager *)conf_srv);
-	linphone_core_v_table_destroy(conf_srv->vtable);
-	ms_free(conf_srv);
+	linphone_core_manager_destroy((LinphoneCoreManager *)conf_srv);
 }

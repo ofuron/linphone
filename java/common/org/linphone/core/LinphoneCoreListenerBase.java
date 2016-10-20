@@ -13,9 +13,15 @@ public class LinphoneCoreListenerBase implements LinphoneCoreListener {
 
 	@Override
 	public void authInfoRequested(LinphoneCore lc, String realm,
-			String username, String Domain) {
+			String username, String domain) {
 		// TODO Auto-generated method stub
 
+	}
+	
+	@Override
+	public void authenticationRequested(LinphoneCore lc, 
+			LinphoneAuthInfo authInfo, LinphoneCore.AuthMethod method) {
+		// TODO Auto-generated method stub
 	}
 
 	@Override

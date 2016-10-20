@@ -28,6 +28,21 @@ This file contains SAL API functions that do not depend on the underlying implem
 
 #include <ctype.h>
 
+
+const char *sal_multicast_role_to_string(SalMulticastRole role){
+	switch(role){
+		case SalMulticastInactive:
+			return "inactive";
+		case SalMulticastReceiver:
+			return "receiver";
+		case SalMulticastSender:
+			return "sender";
+		case SalMulticastSenderReceiver:
+			return "sender-receiver";
+	}
+	return "INVALID";
+}
+
 const char* sal_transport_to_string(SalTransport transport) {
 	switch (transport) {
 		case SalTransportUDP:return "udp";
@@ -575,7 +590,10 @@ void sal_op_set_to_address(SalOp *op, const SalAddress *to){
 	sal_op_set_to(op,address_string);
 	ms_free(address_string);
 }
-
+void sal_op_set_diversion_address(SalOp *op, const SalAddress *diversion){
+	if (((SalOpBase*)op)->diversion_address) sal_address_destroy(((SalOpBase*)op)->diversion_address);
+	((SalOpBase*)op)->diversion_address=diversion?sal_address_clone(diversion):NULL;
+}
 void sal_op_set_user_pointer(SalOp *op, void *up){
 	((SalOpBase*)op)->user_pointer=up;
 }
@@ -597,6 +615,10 @@ const char *sal_op_get_to(const SalOp *op){
 
 const SalAddress *sal_op_get_to_address(const SalOp *op){
 	return ((SalOpBase*)op)->to_address;
+}
+
+const SalAddress *sal_op_get_diversion_address(const SalOp *op){
+	return ((SalOpBase*)op)->diversion_address;
 }
 
 const char *sal_op_get_remote_ua(const SalOp *op){

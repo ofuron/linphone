@@ -569,67 +569,22 @@ void linphone_core_adapt_to_network(LinphoneCore *lc, int ping_time_ms, Linphone
 	}
 }
 
-static void stun_server_resolved(LinphoneCore *lc, const char *name, struct addrinfo *addrinfo){
-	if (lc->net_conf.stun_addrinfo){
-		bctbx_freeaddrinfo(lc->net_conf.stun_addrinfo);
-		lc->net_conf.stun_addrinfo=NULL;
-	}
-	if (addrinfo){
-		ms_message("Stun server resolution successful.");
-	}else{
-		ms_warning("Stun server resolution failed.");
-	}
-	lc->net_conf.stun_addrinfo=addrinfo;
-	lc->net_conf.stun_res=NULL;
-}
 
 void linphone_core_resolve_stun_server(LinphoneCore *lc){
 	if (lc->nat_policy != NULL) {
 		linphone_nat_policy_resolve_stun_server(lc->nat_policy);
 	} else {
-		const char *server=linphone_core_get_stun_server(lc);
-		LinphoneFirewallPolicy firewall_policy = linphone_core_get_firewall_policy(lc);
-		if (lc->sal && server && !lc->net_conf.stun_res
-			&& ((firewall_policy == LinphonePolicyUseStun) || (firewall_policy == LinphonePolicyUseIce))) {
-			char host[NI_MAXHOST];
-			const char *service = "stun";
-			int port=3478;
-			int family = AF_INET;
-			linphone_parse_host_port(server,host,sizeof(host),&port);
-			if (linphone_core_ipv6_enabled(lc) == TRUE) family = AF_INET6;
-			lc->net_conf.stun_res = sal_resolve(lc->sal, service, "udp", host, port, family, (SalResolverCallback)stun_server_resolved, lc);
-		}
+		ms_error("linphone_core_resolve_stun_server(): called without nat_policy, this should not happen.");
 	}
 }
 
-/*
- * This function returns the addrinfo representation of the stun server address.
- * It is critical not to block for a long time if it can't be resolved, otherwise this stucks the main thread when making a call.
- * On the contrary, a fully asynchronous call initiation is complex to develop.
- * The compromise is then:
- * - have a cache of the stun server addrinfo
- * - this cached value is returned when it is non-null
- * - an asynchronous resolution is asked each time this function is called to ensure frequent refreshes of the cached value.
- * - if no cached value exists, block for a short time; this case must be unprobable because the resolution will be asked each time the stun server value is
- * changed.
-**/
 const struct addrinfo *linphone_core_get_stun_server_addrinfo(LinphoneCore *lc){
 	if (lc->nat_policy != NULL) {
 		return linphone_nat_policy_get_stun_server_addrinfo(lc->nat_policy);
 	} else {
-		const char *server=linphone_core_get_stun_server(lc);
-		if (server){
-			int wait_ms=0;
-			int wait_limit=1000;
-			linphone_core_resolve_stun_server(lc);
-			while (!lc->net_conf.stun_addrinfo && lc->net_conf.stun_res!=NULL && wait_ms<wait_limit){
-				sal_iterate(lc->sal);
-				ms_usleep(50000);
-				wait_ms+=50;
-			}
-		}
-		return lc->net_conf.stun_addrinfo;
+		ms_error("linphone_core_get_stun_server_addrinfo(): called without nat_policy, this should not happen.");
 	}
+	return NULL;
 }
 
 void linphone_core_enable_forced_ice_relay(LinphoneCore *lc, bool_t enable) {
@@ -726,6 +681,11 @@ static const struct addrinfo * get_preferred_stun_server_addrinfo(const struct a
 	return preferred_ai;
 }
 
+/* Return values:
+ * 1 :  STUN gathering is started
+ * 0 :  no STUN gathering is started, but it's ok to proceed with ICE anyway (with local candidates only or because STUN gathering was already done before)
+ * -1: no gathering started and something went wrong with local candidates. There is no way to start the ICE session.
+ */
 int linphone_core_gather_ice_candidates(LinphoneCore *lc, LinphoneCall *call){
 	char local_addr[64];
 	const struct addrinfo *ai = NULL;
@@ -1766,7 +1726,7 @@ void linphone_task_list_remove(LinphoneTaskList *t, LinphoneCoreIterateHook hook
 	for(elem=t->hooks;elem!=NULL;elem=elem->next){
 		Hook *h=(Hook*)elem->data;
 		if (h->fun==hook && h->data==hook_data){
-			t->hooks = bctbx_list_remove_link(t->hooks,elem);
+			t->hooks = bctbx_list_erase_link(t->hooks,elem);
 			ms_free(h);
 			return;
 		}
@@ -1862,6 +1822,7 @@ static void _create_ice_check_lists_and_parse_ice_attributes(LinphoneCall *call,
 	const char *addr = NULL;
 	int port = 0;
 	int componentID = 0;
+	int remote_family;
 	int family;
 	int i, j;
 
@@ -1910,9 +1871,12 @@ static void _create_ice_check_lists_and_parse_ice_attributes(LinphoneCall *call,
 					/* If we receive a re-invite and we finished ICE processing on our side, use the candidates given by the remote. */
 					ice_check_list_unselect_valid_pairs(cl);
 				}
-				if (strchr(remote_candidate->addr, ':') != NULL) family = AF_INET6;
+				if (strchr(remote_candidate->addr, ':') != NULL) remote_family = AF_INET6;
+				else remote_family = AF_INET;
+				if (strchr(addr, ':') != NULL) family = AF_INET6;
 				else family = AF_INET;
-				ice_add_losing_pair(cl, j + 1, family, remote_candidate->addr, remote_candidate->port, addr, port);
+				
+				ice_add_losing_pair(cl, j + 1, remote_family, remote_candidate->addr, remote_candidate->port, family, addr, port);
 				losing_pairs_added = TRUE;
 			}
 			if (losing_pairs_added == TRUE) ice_check_list_check_completed(cl);
@@ -1951,9 +1915,11 @@ void linphone_call_update_ice_from_remote_media_description(LinphoneCall *call, 
 	} else {
 		/* Response from remote does not contain mandatory ICE attributes, delete the session. */
 		linphone_call_delete_ice_session(call);
+		linphone_call_set_symmetric_rtp(call, linphone_core_symmetric_rtp_enabled(linphone_call_get_core(call)));
 		return;
 	}
 	if (ice_session_nb_check_lists(call->ice_session) == 0) {
 		linphone_call_delete_ice_session(call);
+		linphone_call_set_symmetric_rtp(call, linphone_core_symmetric_rtp_enabled(linphone_call_get_core(call)));
 	}
 }

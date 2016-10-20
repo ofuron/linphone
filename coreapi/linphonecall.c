@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "lpconfig.h"
 #include "private.h"
 #include "conference_private.h"
+
 #include <ortp/event.h>
 #include <ortp/b64.h>
 #include <math.h>
@@ -86,6 +87,14 @@ static bool_t generate_b64_crypto_key(size_t key_length, char* key_out, size_t k
 	key_out[b64_size] = '\0';
 	ms_free(tmp);
 	return TRUE;
+}
+
+static bool_t linphone_call_encryption_mandatory(LinphoneCall *call){
+	if (call->params->media_encryption==LinphoneMediaEncryptionDTLS) {
+		ms_message("Forced encryption mandatory on call [%p] due to SRTP-DTLS",call);
+		return TRUE;
+	}
+	return call->params->encryption_mandatory;
 }
 
 LinphoneCore *linphone_call_get_core(const LinphoneCall *call){
@@ -186,7 +195,7 @@ static void propagate_encryption_changed(LinphoneCall *call){
 		ms_message("All streams are encrypted key exchanged using %s", call->current_params->media_encryption==LinphoneMediaEncryptionZRTP?"ZRTP":call->current_params->media_encryption==LinphoneMediaEncryptionDTLS?"DTLS":"Unknown mechanism");
 		linphone_core_notify_call_encryption_changed(call->core, call, TRUE, call->auth_token);
 #ifdef VIDEO_ENABLED
-		if (call->current_params->encryption_mandatory && call->videostream && media_stream_started((MediaStream *)call->videostream)) {
+		if (linphone_call_encryption_mandatory(call) && call->videostream && media_stream_started((MediaStream *)call->videostream)) {
 			video_stream_send_vfu(call->videostream); /*nothing could have been sent yet so generating key frame*/
 		}
 #endif
@@ -467,6 +476,7 @@ static int setup_encryption_key(SalSrtpCryptoAlgo *crypto, MSCryptoSuite suite, 
 			keylen=30;
 		break;
 		case MS_AES_256_SHA1_80:
+		case MS_AES_CM_256_SHA1_80:
 		case MS_AES_256_SHA1_32:
 			keylen=46;
 		break;
@@ -524,7 +534,7 @@ static void setup_encryption_keys(LinphoneCall *call, SalMediaDescription *md){
 
 static void setup_zrtp_hash(LinphoneCall *call, SalMediaDescription *md) {
 	int i;
-	if (ms_zrtp_available()) { /* set the hello hash for all streams */
+	if (linphone_core_media_encryption_supported(call->core, LinphoneMediaEncryptionZRTP)) { /* set the hello hash for all streams */
 		for(i=0; i<SAL_MEDIA_DESCRIPTION_MAX_STREAMS; i++) {
 			if (!sal_stream_description_active(&md->streams[i])) continue;
 			if (call->sessions[i].zrtp_context!=NULL) {
@@ -627,11 +637,14 @@ static void transfer_already_assigned_payload_types(SalMediaDescription *old, Sa
 static const char *linphone_call_get_bind_ip_for_stream(LinphoneCall *call, int stream_index){
 	const char *bind_ip = lp_config_get_string(call->core->config,"rtp","bind_address",
 				call->af == AF_INET6 ? "::0" : "0.0.0.0");
-
-	if (stream_index<2 && call->media_ports[stream_index].multicast_ip[0]!='\0'){
+	PortConfig *pc = &call->media_ports[stream_index];
+	if (stream_index<2 && pc->multicast_ip[0]!='\0'){
 		if (call->dir==LinphoneCallOutgoing){
 			/*as multicast sender, we must decide a local interface to use to send multicast, and bind to it*/
-			bind_ip=call->media_localip;
+			linphone_core_get_local_ip_for(strchr(pc->multicast_ip,':') ? AF_INET6 : AF_INET,
+				NULL, pc->multicast_bind_ip);
+			bind_ip = pc->multicast_bind_ip;
+			
 		}
 	}
 	return bind_ip;
@@ -1035,11 +1048,36 @@ void linphone_call_create_op(LinphoneCall *call){
 **/
 static void linphone_call_outgoing_select_ip_version(LinphoneCall *call, LinphoneAddress *to, LinphoneProxyConfig *cfg){
 	if (linphone_core_ipv6_enabled(call->core)){
-		call->af=AF_INET;
 		if (sal_address_is_ipv6((SalAddress*)to)){
 			call->af=AF_INET6;
 		}else if (cfg && cfg->op){
-			call->af=sal_op_is_ipv6(cfg->op) ? AF_INET6 : AF_INET;
+			call->af=sal_op_get_address_family(cfg->op);
+		}else{
+			call->af=AF_UNSPEC;
+		}
+		if (call->af == AF_UNSPEC) {
+			char ipv4[LINPHONE_IPADDR_SIZE];
+			char ipv6[LINPHONE_IPADDR_SIZE];
+			bool_t have_ipv6 = FALSE;
+			bool_t have_ipv4 = FALSE;
+			/*check connectivity for IPv4 and IPv6*/
+			if (linphone_core_get_local_ip_for(AF_INET6, NULL, ipv6) == 0){
+				have_ipv6 = TRUE;
+			}
+			if (linphone_core_get_local_ip_for(AF_INET, NULL, ipv4) == 0){
+				have_ipv4 = TRUE;
+			}
+			if (have_ipv6){
+				if (!have_ipv4) {
+					call->af = AF_INET6;
+				}else if (lp_config_get_int(call->core->config, "rtp", "prefer_ipv6", 1)){ /*this property tells whether ipv6 is prefered if two versions are available*/
+					call->af = AF_INET6;
+				}else{
+					call->af = AF_INET;
+				}
+			}else call->af = AF_INET;
+			/*fill the media_localip default value since we have it here*/
+			strncpy(call->media_localip,call->af == AF_INET6 ? ipv6 : ipv4, LINPHONE_IPADDR_SIZE);
 		}
 	}else call->af=AF_INET;
 }
@@ -1051,7 +1089,7 @@ static void linphone_call_get_local_ip(LinphoneCall *call, const LinphoneAddress
 	const char *ip = NULL;
 	int af = call->af;
 	const char *dest = NULL;
-	
+
 	if (linphone_core_get_firewall_policy(call->core)==LinphonePolicyUseNatAddress
 		&& (ip=linphone_core_get_nat_address_resolved(call->core))!=NULL){
 		strncpy(call->media_localip,ip,LINPHONE_IPADDR_SIZE);
@@ -1097,8 +1135,11 @@ static void linphone_call_get_local_ip(LinphoneCall *call, const LinphoneAddress
 		}
 		if (res != NULL) freeaddrinfo(res);
 	}
-	/*the following cannot fail and puts result directly in media_localip*/
-	linphone_core_get_local_ip(call->core, af, dest, call->media_localip);
+
+	if (dest != NULL || call->media_localip[0] == '\0' || call->need_localip_refresh){
+		call->need_localip_refresh = FALSE;
+		linphone_core_get_local_ip(call->core, af, dest, call->media_localip);
+	}
 	return;
 found:
 	strncpy(call->media_localip,ip,LINPHONE_IPADDR_SIZE);
@@ -1114,6 +1155,7 @@ BELLE_SIP_INSTANCIATE_VPTR(LinphoneCall, belle_sip_object_t,
 	NULL, // marshal
 	FALSE
 );
+
 void linphone_call_fill_media_multicast_addr(LinphoneCall *call) {
 	if (linphone_call_params_audio_multicast_enabled(call->params)){
 		strncpy(call->media_ports[call->main_audio_stream_index].multicast_ip,
@@ -1130,20 +1172,20 @@ void linphone_call_fill_media_multicast_addr(LinphoneCall *call) {
 
 void linphone_call_check_ice_session(LinphoneCall *call, IceRole role, bool_t is_reinvite){
 	if (call->ice_session) return; /*already created*/
-	
+
 	if (!linphone_nat_policy_ice_enabled(linphone_core_get_nat_policy(call->core))){
 		return;
 	}
-		
+
 	if (is_reinvite && lp_config_get_int(call->core->config, "net", "allow_late_ice", 0) == 0) return;
-	
+
 	call->ice_session = ice_session_new();
 	/*for backward compatibility purposes, shall be enabled by default in futur*/
 	ice_session_enable_message_integrity_check(call->ice_session,lp_config_get_int(call->core->config,"net","ice_session_enable_message_integrity_check",1));
 	if (lp_config_get_int(call->core->config, "net", "dont_default_to_stun_candidates", 0)){
 		IceCandidateType types[ICT_CandidateTypeMax];
-		types[0] = ICT_RelayedCandidate;
-		types[1] = ICT_HostCandidate;
+		types[0] = ICT_HostCandidate;
+		types[1] = ICT_RelayedCandidate;
 		types[2] = ICT_CandidateInvalid;
 		ice_session_set_default_candidates_types(call->ice_session, types);
 	}
@@ -1152,7 +1194,6 @@ void linphone_call_check_ice_session(LinphoneCall *call, IceRole role, bool_t is
 
 LinphoneCall * linphone_call_new_outgoing(struct _LinphoneCore *lc, LinphoneAddress *from, LinphoneAddress *to, const LinphoneCallParams *params, LinphoneProxyConfig *cfg){
 	LinphoneCall *call = belle_sip_object_new(LinphoneCall);
-
 	call->dir=LinphoneCallOutgoing;
 	call->core=lc;
 	call->dest_proxy=cfg;
@@ -1166,7 +1207,7 @@ LinphoneCall * linphone_call_new_outgoing(struct _LinphoneCore *lc, LinphoneAddr
 	linphone_call_fill_media_multicast_addr(call);
 
 	linphone_call_check_ice_session(call, IR_Controlling, FALSE);
-	
+
 	if (linphone_core_get_firewall_policy(call->core) == LinphonePolicyUseStun) {
 		call->ping_time=linphone_core_run_stun_tests(call->core,call);
 	}
@@ -1182,7 +1223,7 @@ LinphoneCall * linphone_call_new_outgoing(struct _LinphoneCore *lc, LinphoneAddr
 	if (params->referer){
 		call->referer=linphone_call_ref(params->referer);
 	}
-	
+
 	linphone_call_create_op(call);
 	return call;
 }
@@ -1196,9 +1237,9 @@ LinphoneCall * linphone_call_new_outgoing(struct _LinphoneCore *lc, LinphoneAddr
 static void linphone_call_incoming_select_ip_version(LinphoneCall *call, LinphoneProxyConfig *cfg){
 	if (linphone_core_ipv6_enabled(call->core)){
 		if (cfg && cfg->op){
-			call->af=sal_op_is_ipv6(cfg->op) ? AF_INET6 : AF_INET;
+			call->af=sal_op_get_address_family(cfg->op);
 		}else{
-			call->af=sal_op_is_ipv6(call->op) ? AF_INET6 : AF_INET;
+			call->af=sal_op_get_address_family(call->op);
 		}
 	}else call->af=AF_INET;
 }
@@ -1214,8 +1255,8 @@ void linphone_call_set_compatible_incoming_call_parameters(LinphoneCall *call, S
 	} else {
 		call->params->avpf_rr_interval = linphone_core_get_avpf_rr_interval(call->core)*1000;
 	}
-	
-	if ((sal_media_description_has_zrtp(md) == TRUE) && (ms_zrtp_available() == TRUE)) {
+
+	if ((sal_media_description_has_zrtp(md) == TRUE) && (linphone_core_media_encryption_supported(call->core, LinphoneMediaEncryptionZRTP) == TRUE)) {
 		call->params->media_encryption = LinphoneMediaEncryptionZRTP;
 	}else if ((sal_media_description_has_dtls(md) == TRUE) && (media_stream_dtls_supported() == TRUE)) {
 		call->params->media_encryption = LinphoneMediaEncryptionDTLS;
@@ -1224,7 +1265,7 @@ void linphone_call_set_compatible_incoming_call_parameters(LinphoneCall *call, S
 	}else if (call->params->media_encryption != LinphoneMediaEncryptionZRTP){
 		call->params->media_encryption = LinphoneMediaEncryptionNone;
 	}
-	
+
 	/*in case of nat64, even ipv4 addresses are reachable from v6. Should be enhanced to manage stream by stream connectivity (I.E v6 or v4)*/
 	/*if (!sal_media_description_has_ipv6(md)){
 		ms_message("The remote SDP doesn't seem to offer any IPv6 connectivity, so disabling IPv6 for this call.");
@@ -1337,7 +1378,6 @@ LinphoneCall * linphone_call_new_incoming(LinphoneCore *lc, LinphoneAddress *fro
 	SalMediaDescription *md;
 	LinphoneNatPolicy *nat_policy = NULL;
 	int i;
-
 	call->dir=LinphoneCallIncoming;
 	sal_op_set_user_pointer(op,call);
 	call->op=op;
@@ -1345,7 +1385,7 @@ LinphoneCall * linphone_call_new_incoming(LinphoneCore *lc, LinphoneAddress *fro
 
 	call->dest_proxy = linphone_core_lookup_known_proxy(call->core, to);
 	linphone_call_incoming_select_ip_version(call, call->dest_proxy);
-	/*note that the choice of IP version for streams is later refined by 
+	/*note that the choice of IP version for streams is later refined by
 	 * linphone_call_set_compatible_incoming_call_parameters() when examining the remote offer, if any.
 	 * If the remote offer contains IPv4 addresses, we should propose IPv4 as well*/
 
@@ -1982,6 +2022,14 @@ char *linphone_call_get_remote_address_as_string(const LinphoneCall *call){
 }
 
 /**
+ * Returns the diversion address associated to this call
+ *
+**/
+const LinphoneAddress * linphone_call_get_diversion_address(const LinphoneCall *call){
+	return call->op?(const LinphoneAddress *)sal_op_get_diversion_address(call->op):NULL;
+}
+
+/**
  * Retrieves the call's current state.
 **/
 LinphoneCallState linphone_call_get_state(const LinphoneCall *call){
@@ -2127,7 +2175,7 @@ void linphone_call_enable_camera (LinphoneCall *call, bool_t enable){
 				video_stream_change_camera(call->videostream, linphone_call_get_video_device(call));
 			}
 			break;
-			
+
 		default: break;
 	}
 #endif
@@ -2326,11 +2374,13 @@ int linphone_call_prepare_ice(LinphoneCall *call, bool_t incoming_offer){
 			if (call->params->realtimetext_enabled && call->textstream->ms.state==MSStreamInitialized) {
 				text_stream_prepare_text(call->textstream);
 			}
-
-			if ((err=linphone_core_gather_ice_candidates(call->core,call))<0) {
-				/* Ice candidates gathering failed, proceed with the call anyway. */
-				linphone_call_delete_ice_session(call);
+			err = linphone_core_gather_ice_candidates(call->core,call);
+			if (err == 0) {
+				/* Ice candidates gathering wasn't started, but we can proceed with the call anyway. */
 				linphone_call_stop_media_streams_for_ice_gathering(call);
+			}else if (err == -1) {
+				linphone_call_stop_media_streams_for_ice_gathering(call);
+				linphone_call_delete_ice_session(call);
 			}
 			return err;/* 1= gathering in progress, wait; 0=proceed*/
 		}
@@ -2364,12 +2414,11 @@ static SalMulticastRole linphone_call_get_multicast_role(const LinphoneCall *cal
 		stream_desc = sal_media_description_find_best_stream(remotedesc, type);
 
 	if (stream_desc)
-		multicast_role=stream_desc->multicast_role;
-	else
-		ms_message("Cannot determine multicast role for stream type [%s] on call [%p]",sal_stream_type_to_string(type),call);
-
+		multicast_role = stream_desc->multicast_role;
 
 	end:
+	ms_message("Call [%p], stream type [%s], multicast role is [%s]",call, sal_stream_type_to_string(type), 
+		sal_multicast_role_to_string(multicast_role));
 	return multicast_role;
 
 }
@@ -2426,10 +2475,12 @@ static void setZrtpCryptoTypesParameters(MSZrtpParams *params, LinphoneCore *lc)
 					params->ciphers[params->ciphersCount++] = MS_ZRTP_CIPHER_AES1;
 					params->authTags[params->authTagsCount++] = MS_ZRTP_AUTHTAG_HS80;
 					break;
+				case MS_AES_CM_256_SHA1_80:
+				    ms_warning("Deprecated crypto suite MS_AES_CM_256_SHA1_80, use MS_AES_256_SHA1_80 instead");
 				case MS_AES_256_SHA1_80:
-					params->ciphers[params->ciphersCount++] = MS_ZRTP_CIPHER_AES3;
-					params->authTags[params->authTagsCount++] = MS_ZRTP_AUTHTAG_HS80;
-					break;
+				    params->ciphers[params->ciphersCount++] = MS_ZRTP_CIPHER_AES3;
+                    params->authTags[params->authTagsCount++] = MS_ZRTP_AUTHTAG_HS80;
+                    break;
 				case MS_AES_256_SHA1_32:
 					params->ciphers[params->ciphersCount++] = MS_ZRTP_CIPHER_AES3;
 					params->authTags[params->authTagsCount++] = MS_ZRTP_AUTHTAG_HS32;
@@ -2485,7 +2536,7 @@ void linphone_call_init_audio_stream(LinphoneCall *call){
 		setup_dtls_params(call, &audiostream->ms);
 
 		/* init zrtp even if we didn't explicitely set it, just in case peer offers it */
-		if (ms_zrtp_available()) {
+		if (linphone_core_media_encryption_supported(lc, LinphoneMediaEncryptionZRTP)) {
 			char *uri = linphone_address_as_string_uri_only((call->dir==LinphoneCallIncoming) ? call->log->from : call->log->to);
 			MSZrtpParams params;
 			memset(&params,0,sizeof(MSZrtpParams));
@@ -2598,7 +2649,7 @@ void linphone_call_init_video_stream(LinphoneCall *call){
 			rtp_session_set_symmetric_rtp(call->videostream->ms.sessions.rtp_session,linphone_core_symmetric_rtp_enabled(lc));
 			setup_dtls_params(call, &call->videostream->ms);
 			/* init zrtp even if we didn't explicitely set it, just in case peer offers it */
-			if (ms_zrtp_available()) {
+			if (linphone_core_media_encryption_supported(lc, LinphoneMediaEncryptionZRTP)) {
 				video_stream_enable_zrtp(call->videostream, call->audiostream);
 			}
 
@@ -3018,7 +3069,8 @@ static void configure_rtp_session_for_rtcp_xr(LinphoneCore *lc, LinphoneCall *ca
 	}
 	rtp_session_configure_rtcp_xr(session, &currentconfig);
 }
-void static start_dtls( MSMediaStreamSessions *sessions,  const SalStreamDescription *sd,const SalStreamDescription *remote) {
+
+static void start_dtls( MSMediaStreamSessions *sessions,  const SalStreamDescription *sd,const SalStreamDescription *remote) {
 	if (sal_stream_description_has_dtls(sd) == TRUE) {
 		/*DTLS*/
 		SalDtlsRole salRole = sd->dtls_role;
@@ -3032,7 +3084,8 @@ void static start_dtls( MSMediaStreamSessions *sessions,  const SalStreamDescrip
 		}
 	}
 }
-void static start_dtls_on_all_streams(LinphoneCall *call) {
+
+static void start_dtls_on_all_streams(LinphoneCall *call) {
 	SalMediaDescription *remote_desc = sal_call_get_remote_media_description(call->op);
 	SalMediaDescription *result_desc = sal_call_get_final_media_description(call->op);
 	if( remote_desc == NULL || result_desc == NULL ){
@@ -3057,7 +3110,7 @@ void static start_dtls_on_all_streams(LinphoneCall *call) {
 	return;
 }
 
-void static set_dtls_fingerprint( MSMediaStreamSessions *sessions,  const SalStreamDescription *sd,const SalStreamDescription *remote) {
+static void set_dtls_fingerprint( MSMediaStreamSessions *sessions,  const SalStreamDescription *sd,const SalStreamDescription *remote) {
 	if (sal_stream_description_has_dtls(sd) == TRUE) {
 		/*DTLS*/
 		SalDtlsRole salRole = sd->dtls_role;
@@ -3070,7 +3123,7 @@ void static set_dtls_fingerprint( MSMediaStreamSessions *sessions,  const SalStr
 	}
 }
 
-void static set_dtls_fingerprint_on_all_streams(LinphoneCall *call) {
+static void set_dtls_fingerprint_on_all_streams(LinphoneCall *call) {
 	SalMediaDescription *remote_desc = sal_call_get_remote_media_description(call->op);
 	SalMediaDescription *result_desc = sal_call_get_final_media_description(call->op);
 
@@ -3278,7 +3331,7 @@ static void linphone_call_start_audio_stream(LinphoneCall *call, LinphoneCallSta
 				}
 			}
 
-			ms_media_stream_sessions_set_encryption_mandatory(&call->audiostream->ms.sessions,call->current_params->encryption_mandatory);
+			ms_media_stream_sessions_set_encryption_mandatory(&call->audiostream->ms.sessions, linphone_call_encryption_mandatory(call));
 
 			if (next_state == LinphoneCallPaused && captcard == NULL && playfile != NULL){
 				int pause_time=500;
@@ -3297,7 +3350,8 @@ static void linphone_call_start_audio_stream(LinphoneCall *call, LinphoneCallSta
 			call->current_params->low_bandwidth=call->params->low_bandwidth;
 
 			/* start ZRTP engine if needed : set here or remote have a zrtp-hash attribute */
-			if (call->params->media_encryption==LinphoneMediaEncryptionZRTP || remote_stream->haveZrtpHash==1) {
+			if (linphone_core_media_encryption_supported(lc, LinphoneMediaEncryptionZRTP) &&
+				(call->params->media_encryption == LinphoneMediaEncryptionZRTP || remote_stream->haveZrtpHash==1) ){
 				audio_stream_start_zrtp(call->audiostream);
 				if (remote_stream->haveZrtpHash == 1) {
 					int retval;
@@ -3473,7 +3527,8 @@ static void linphone_call_start_video_stream(LinphoneCall *call, LinphoneCallSta
 							used_pt, &io);
 					}
 				}
-				ms_media_stream_sessions_set_encryption_mandatory(&call->videostream->ms.sessions,call->current_params->encryption_mandatory);
+				ms_media_stream_sessions_set_encryption_mandatory(&call->videostream->ms.sessions,
+					linphone_call_encryption_mandatory(call));
 				_linphone_call_set_next_video_frame_decoded_trigger(call);
 
 				/* start ZRTP engine if needed : set here or remote have a zrtp-hash attribute */
@@ -3546,14 +3601,15 @@ static void linphone_call_start_text_stream(LinphoneCall *call) {
 			text_stream_start(call->textstream, call->text_profile, rtp_addr, tstream->rtp_port, rtcp_addr, (linphone_core_rtcp_enabled(lc) && !is_multicast)  ? (tstream->rtcp_port ? tstream->rtcp_port : tstream->rtp_port + 1) : 0, used_pt);
 			ms_filter_add_notify_callback(call->textstream->rttsink, real_time_text_character_received, call, FALSE);
 
-			ms_media_stream_sessions_set_encryption_mandatory(&call->textstream->ms.sessions,call->current_params->encryption_mandatory);
+			ms_media_stream_sessions_set_encryption_mandatory(&call->textstream->ms.sessions,
+				linphone_call_encryption_mandatory(call));
 		} else ms_warning("No text stream accepted.");
 	} else {
 		ms_message("No valid text stream defined.");
 	}
 }
 
-static void linphone_call_set_symmetric_rtp(LinphoneCall *call, bool_t val){
+void linphone_call_set_symmetric_rtp(LinphoneCall *call, bool_t val){
 	int i;
 	for (i = 0; i < SAL_MEDIA_DESCRIPTION_MAX_STREAMS; ++i){
 		MSMediaStreamSessions *mss = &call->sessions[i];
@@ -3562,6 +3618,7 @@ static void linphone_call_set_symmetric_rtp(LinphoneCall *call, bool_t val){
 		}
 	}
 }
+
 
 void linphone_call_start_media_streams(LinphoneCall *call, LinphoneCallState next_state){
 	LinphoneCore *lc=call->core;
@@ -3599,11 +3656,6 @@ void linphone_call_start_media_streams(LinphoneCall *call, LinphoneCallState nex
 		/*if there is an ICE session when we are about to start streams, then ICE will conduct the media path checking and authentication properly.
 		 * Symmetric RTP must be turned off*/
 		linphone_call_set_symmetric_rtp(call, FALSE);
-	}
-
-	if (call->params->media_encryption==LinphoneMediaEncryptionDTLS) {
-		call->current_params->encryption_mandatory = TRUE;
-		ms_message("Forcing encryption mandatory on call [%p]",call);
 	}
 
 	call->nb_media_starts++;
@@ -4026,7 +4078,7 @@ float linphone_call_get_current_quality(LinphoneCall *call){
 float linphone_call_get_average_quality(LinphoneCall *call){
 	float audio_rating=-1.f;
 	float video_rating=-1.f;
-	
+
 	if (call->audiostream){
 		audio_rating = media_stream_get_average_quality_rating((MediaStream*)call->audiostream)/5.0f;
 	}
@@ -4306,6 +4358,13 @@ static void report_bandwidth(LinphoneCall *call, MediaStream *as, MediaStream *v
 	call->stats[LINPHONE_CALL_STATS_VIDEO].rtcp_upload_bandwidth=(vs_active) ? (float)(media_stream_get_rtcp_up_bw(vs)*1e-3) : 0.f;
 	call->stats[LINPHONE_CALL_STATS_TEXT].rtcp_download_bandwidth=(ts_active) ? (float)(media_stream_get_rtcp_down_bw(ts)*1e-3) : 0.f;
 	call->stats[LINPHONE_CALL_STATS_TEXT].rtcp_upload_bandwidth=(ts_active) ? (float)(media_stream_get_rtcp_up_bw(ts)*1e-3) : 0.f;
+	/* If not ipV6, it's not necessary IpV4, should be UNSPEC, TODO */
+	call->stats[LINPHONE_CALL_STATS_AUDIO].rtp_remote_family=(as_active)
+		? ((ortp_stream_is_ipv6((OrtpStream*)&(as->sessions.rtp_session->rtp.gs))) ? INET_6 : INET) : UNSPEC;
+	call->stats[LINPHONE_CALL_STATS_VIDEO].rtp_remote_family=(vs_active)
+		? ((ortp_stream_is_ipv6((OrtpStream*)&(vs->sessions.rtp_session->rtp.gs))) ? INET_6 : INET) : UNSPEC;
+	call->stats[LINPHONE_CALL_STATS_TEXT].rtp_remote_family=(ts_active)
+		? ((ortp_stream_is_ipv6((OrtpStream*)&(ts->sessions.rtp_session->rtp.gs))) ? INET_6 : INET) : UNSPEC;
 
 	if (call->core->send_call_stats_periodical_updates){
 		call->stats[LINPHONE_CALL_STATS_AUDIO].updated|=LINPHONE_CALL_STATS_PERIODICAL_UPDATE;
@@ -4553,11 +4612,11 @@ void linphone_call_handle_stream_events(LinphoneCall *call, int stream_index){
 		OrtpEventType evt=ortp_event_get_type(ev);
 		OrtpEventData *evd=ortp_event_get_data(ev);
 		int stats_index = stream_index == call->main_audio_stream_index ? LINPHONE_CALL_STATS_AUDIO : (stream_index == call->main_video_stream_index ? LINPHONE_CALL_STATS_VIDEO : LINPHONE_CALL_STATS_TEXT);
-		
+
 		/*and yes the MediaStream must be taken at each iteration, because it may have changed due to the handling of events
 		 * in this loop*/
 		ms = linphone_call_get_media_stream(call, stream_index);
-		
+
 		if (ms) linphone_call_stats_fill(&call->stats[stats_index],ms,ev);
 		linphone_call_notify_stats_updated(call,stats_index);
 
@@ -4665,7 +4724,7 @@ void linphone_call_log_completed(LinphoneCall *call){
 			}
 			elem=prevelem;
 			linphone_call_log_unref((LinphoneCallLog*)elem->data);
-			lc->call_logs=bctbx_list_remove_link(lc->call_logs,elem);
+			lc->call_logs=bctbx_list_erase_link(lc->call_logs,elem);
 		}
 		call_logs_write_to_config_file(lc);
 	}
@@ -4982,13 +5041,18 @@ void linphone_call_set_broken(LinphoneCall *call){
 		case LinphoneCallIncomingEarlyMedia:
 			/*during the early states, the SAL layer reports the failure from the dialog or transaction layer,
 			 * hence, there is nothing special to do*/
-		break;
+		//break;
 		case LinphoneCallStreamsRunning:
+		case LinphoneCallUpdating:
+		case LinphoneCallPausing:
+		case LinphoneCallResuming:
 		case LinphoneCallPaused:
 		case LinphoneCallPausedByRemote:
+		case LinphoneCallUpdatedByRemote:
 			/*during these states, the dialog is established. A failure of a transaction is not expected to close it.
 			 * Instead we have to repair the dialog by sending a reINVITE*/
 			call->broken = TRUE;
+			call->need_localip_refresh = TRUE;
 		break;
 		default:
 			ms_error("linphone_call_set_broken() unimplemented case.");
@@ -4996,30 +5060,69 @@ void linphone_call_set_broken(LinphoneCall *call){
 	}
 }
 
-void linphone_call_repair_if_broken(LinphoneCall *call){
+static void linphone_call_repair_by_invite_with_replaces(LinphoneCall *call) {
+	const char *call_id = sal_op_get_call_id(call->op);
+	const char *from_tag = sal_call_get_local_tag(call->op);
+	const char *to_tag = sal_call_get_remote_tag(call->op);
+	sal_op_kill_dialog(call->op);
+	linphone_call_create_op(call);
+	sal_call_set_replaces(call->op, call_id, from_tag, to_tag);
+	linphone_core_start_invite(call->core, call, NULL);
+}
+
+void linphone_call_reinvite_to_recover_from_connection_loss(LinphoneCall *call) {
 	LinphoneCallParams *params;
+	ms_message("LinphoneCall[%p] is going to be updated (reINVITE) in order to recover from lost connectivity", call);
+	if (call->ice_session){
+		ice_session_restart(call->ice_session, IR_Controlling);
+	}
+	params = linphone_core_create_call_params(call->core, call);
+	linphone_core_update_call(call->core, call, params);
+	linphone_call_params_unref(params);
+}
 
+void linphone_call_repair_if_broken(LinphoneCall *call){
 	if (!call->broken) return;
-
-	/*First, make sure that the proxy from which we received this call, or to which we routed this call is registered*/
-	if (!call->dest_proxy || linphone_proxy_config_get_state(call->dest_proxy) != LinphoneRegistrationOk) return;
-
 	if (!call->core->media_network_reachable) return;
 
+	/*Make sure that the proxy from which we received this call, or to which we routed this call is registered first*/
+	if (call->dest_proxy){
+		/*in all other cases, ie no proxy config, or a proxy config for which no registration was requested, we can start the
+		 * call repair immediately.*/
+		if (linphone_proxy_config_register_enabled(call->dest_proxy)
+			&& linphone_proxy_config_get_state(call->dest_proxy) != LinphoneRegistrationOk) return;
+	}
+
+
 	switch (call->state){
+		case LinphoneCallUpdating:
+		case LinphoneCallPausing:
+			if (sal_call_dialog_request_pending(call->op)) {
+				/* Need to cancel first re-INVITE as described in section 5.5 of RFC 6141 */
+				sal_call_cancel_invite(call->op);
+			}
+			break;
 		case LinphoneCallStreamsRunning:
 		case LinphoneCallPaused:
 		case LinphoneCallPausedByRemote:
-			ms_message("LinphoneCall[%p] is going to be updated (reINVITE) in order to recover from lost connectivity", call);
-			if (call->ice_session){
-				ice_session_restart(call->ice_session, IR_Controlling);
+			if (!sal_call_dialog_request_pending(call->op)) {
+				linphone_call_reinvite_to_recover_from_connection_loss(call);
 			}
-			params = linphone_core_create_call_params(call->core, call);
-			linphone_core_update_call(call->core, call, params);
-			linphone_call_params_unref(params);
-		break;
+			break;
+		case LinphoneCallUpdatedByRemote:
+			if (sal_call_dialog_request_pending(call->op)) {
+				sal_call_decline(call->op, SalReasonServiceUnavailable, NULL);
+			}
+			linphone_call_reinvite_to_recover_from_connection_loss(call);
+			break;
+		case LinphoneCallOutgoingEarlyMedia:
+		case LinphoneCallOutgoingInit:
+		case LinphoneCallOutgoingProgress:
+		case LinphoneCallOutgoingRinging:
+			linphone_call_repair_by_invite_with_replaces(call);
+			break;
 		default:
-			ms_warning("linphone_call_resume_if_broken(): don't know what to do in state [%s]", linphone_call_state_to_string(call->state));
+			ms_warning("linphone_call_repair_if_broken(): don't know what to do in state [%s]", linphone_call_state_to_string(call->state));
 			call->broken = FALSE;
 		break;
 	}
@@ -5032,5 +5135,34 @@ void linphone_call_refresh_sockets(LinphoneCall *call){
 		if (mss->rtp_session){
 			rtp_session_refresh_sockets(mss->rtp_session);
 		}
+	}
+}
+
+void linphone_call_replace_op(LinphoneCall *call, SalOp *op) {
+	switch (linphone_call_get_state(call)) {
+		case LinphoneCallConnected:
+		case LinphoneCallStreamsRunning:
+			sal_call_terminate(call->op);
+			break;
+		default:
+			break;
+	}
+	sal_op_kill_dialog(call->op);
+	sal_op_release(call->op);
+	call->op = op;
+	sal_op_set_user_pointer(call->op, call);
+	sal_call_set_local_media_description(call->op, call->localdesc);
+	switch (linphone_call_get_state(call)) {
+		case LinphoneCallIncomingEarlyMedia:
+		case LinphoneCallIncomingReceived:
+			sal_call_notify_ringing(call->op, (linphone_call_get_state(call) == LinphoneCallIncomingEarlyMedia) ? TRUE : FALSE);
+			break;
+		case LinphoneCallConnected:
+		case LinphoneCallStreamsRunning:
+			sal_call_accept(call->op);
+			break;
+		default:
+			ms_warning("linphone_call_replace_op(): don't know what to do in state [%s]", linphone_call_state_to_string(call->state));
+			break;
 	}
 }

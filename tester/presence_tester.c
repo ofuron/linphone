@@ -38,11 +38,10 @@ static LinphoneCoreManager* presence_linphone_core_manager_new(char* username) {
 
 void new_subscription_requested(LinphoneCore *lc, LinphoneFriend *lf, const char *url){
 	stats* counters;
-	LinphoneAddress *addr = linphone_friend_get_address(lf);
+	const LinphoneAddress *addr = linphone_friend_get_address(lf);
 	if (addr != NULL) {
 		char* from=linphone_address_as_string(addr);
 		ms_message("New subscription request from [%s] url [%s]",from,url);
-		linphone_address_unref(addr);
 		ms_free(from);
 	}
 	counters = get_stats(lc);
@@ -53,11 +52,10 @@ void new_subscription_requested(LinphoneCore *lc, LinphoneFriend *lf, const char
 void notify_presence_received(LinphoneCore *lc, LinphoneFriend * lf) {
 	stats* counters;
 	unsigned int i;
-	LinphoneAddress *addr = linphone_friend_get_address(lf);
+	const LinphoneAddress *addr = linphone_friend_get_address(lf);
 	if (addr != NULL) {
 		char* from=linphone_address_as_string(addr);
 		ms_message("New Notify request from [%s] ",from);
-		linphone_address_unref(addr);
 		ms_free(from);
 	}
 	counters = get_stats(lc);
@@ -151,7 +149,7 @@ static void simple_publish_with_expire(int expires) {
 
 	proxy = linphone_core_get_default_proxy_config(marie->lc);
 	linphone_proxy_config_edit(proxy);
-	if (expires >0) {
+	if (expires > 0) {
 		linphone_proxy_config_set_publish_expires(proxy,expires);
 	}
 	linphone_proxy_config_enable_publish(proxy,TRUE);
@@ -194,7 +192,7 @@ static void simple_publish_with_expire(int expires) {
 	BC_ASSERT_TRUE(wait_for(marie->lc,marie->lc,&marie->stat.number_of_LinphonePublishOk,4));
 
 	linphone_core_manager_stop(marie);
-	BC_ASSERT_EQUAL(marie->stat.number_of_LinphonePublishCleared,2,int,"%i");
+	BC_ASSERT_EQUAL(marie->stat.number_of_LinphonePublishCleared,3,int,"%i"); /*yes it is 3 because when we change the expires, a new LinphoneEvent is created*/
 	BC_ASSERT_EQUAL(marie->stat.number_of_LinphonePublishOk,4,int,"%i");
 	linphone_core_manager_destroy(marie);
 }
@@ -566,8 +564,8 @@ test_t presence_tests[] = {
 	TEST_ONE_TAG("Simple Subscribe", simple_subscribe,"presence"),
 	TEST_ONE_TAG("Simple Subscribe with early NOTIFY", simple_subscribe_with_early_notify,"presence"),
 	TEST_NO_TAG("Simple Subscribe with friend from rc", simple_subscribe_with_friend_from_rc),
-	TEST_ONE_TAG("Simple Publish", simple_publish, "LeaksMemory"),
-	TEST_ONE_TAG("Simple Publish with expires", publish_with_expires, "LeaksMemory"),
+	TEST_NO_TAG("Simple Publish", simple_publish),
+	TEST_NO_TAG("Simple Publish with expires", publish_with_expires),
 	/*TEST_ONE_TAG("Call with presence", call_with_presence, "LeaksMemory"),*/
 	TEST_NO_TAG("Unsubscribe while subscribing", unsubscribe_while_subscribing),
 	TEST_NO_TAG("Presence information", presence_information),

@@ -254,19 +254,21 @@ static void simple_conference_base(LinphoneCoreManager* marie, LinphoneCoreManag
 	bool_t is_remote_conf;
 	bool_t focus_is_up = (focus && ((LinphoneConferenceServer *)focus)->reg_state == LinphoneRegistrationOk);
 	bctbx_list_t* lcs=bctbx_list_append(NULL,marie->lc);
+	
 	lcs=bctbx_list_append(lcs,pauline->lc);
 	lcs=bctbx_list_append(lcs,laure->lc);
-	if(focus) lcs=bctbx_list_append(lcs,focus->lc);
+	if (focus) lcs=bctbx_list_append(lcs,focus->lc);
 
 	is_remote_conf = (strcmp(lp_config_get_string(marie->lc->config, "misc", "conference_type", "local"), "remote") == 0);
 	if(is_remote_conf) BC_ASSERT_PTR_NOT_NULL(focus);
 
-	BC_ASSERT_TRUE(call(marie,pauline));
+	if (!BC_ASSERT_TRUE(call(marie,pauline))) goto end;
+	
 	marie_call_pauline=linphone_core_get_current_call(marie->lc);
 	pauline_called_by_marie=linphone_core_get_current_call(pauline->lc);
 	BC_ASSERT_TRUE(pause_call_1(marie,marie_call_pauline,pauline,pauline_called_by_marie));
 
-	BC_ASSERT_TRUE(call(marie,laure));
+	if (!BC_ASSERT_TRUE(call(marie,laure))) goto end;
 	initial_marie_stat=marie->stat;
 	initial_pauline_stat=pauline->stat;
 	initial_laure_stat=laure->stat;
@@ -559,7 +561,7 @@ static void unattended_call_transfer_with_error(void) {
 }
 
 
-static void call_transfer_existing_call_outgoing_call(void) {
+static void call_transfer_existing_call(bool_t outgoing_call) {
 	LinphoneCoreManager* marie = linphone_core_manager_new( "marie_rc");
 	LinphoneCoreManager* pauline = linphone_core_manager_new( "pauline_tcp_rc");
 	LinphoneCoreManager* laure = linphone_core_manager_new( "laure_rc_udp");
@@ -584,11 +586,20 @@ static void call_transfer_existing_call_outgoing_call(void) {
 			goto end;
 		}
 
-		/*marie call laure*/
-		if (!BC_ASSERT_TRUE(call(marie,laure))) {
-			end_call(marie, pauline);
-			goto end;
+		if (outgoing_call) {
+			/*marie call laure*/
+			if (!BC_ASSERT_TRUE(call(marie,laure))) {
+				end_call(marie, pauline);
+				goto end;
+			}
+		} else {
+			/*laure call pauline*/
+			if (!BC_ASSERT_TRUE(call(laure,marie))) {
+				end_call(marie,pauline);
+				goto end;
+			}
 		}
+			
 		marie_call_laure=linphone_core_get_current_call(marie->lc);
 		laure_called_by_marie=linphone_core_get_current_call(laure->lc);
 
@@ -641,7 +652,12 @@ end:
 	linphone_core_manager_destroy(pauline);
 	bctbx_list_free(lcs);
 }
-
+static void call_transfer_existing_call_outgoing_call(void) {
+	call_transfer_existing_call(TRUE);
+}
+static void call_transfer_existing_call_incoming_call(void) {
+	call_transfer_existing_call(FALSE);
+}
 static void eject_from_3_participants_conference(LinphoneCoreManager *marie, LinphoneCoreManager *pauline, LinphoneCoreManager *laure, LinphoneCoreManager *focus) {
 	stats initial_marie_stat;
 	stats initial_pauline_stat;
@@ -853,8 +869,6 @@ void simple_remote_conference(void) {
 	LinphoneProxyConfig *laure_proxy_config = linphone_core_get_default_proxy_config(((LinphoneCoreManager *)laure)->lc);
 	const char *laure_proxy_uri = linphone_proxy_config_get_server_addr(laure_proxy_config);
 	const char *focus_uri = linphone_proxy_config_get_identity(focus_proxy_config);
-	int laure_n_register = laure->stat.number_of_LinphoneRegistrationOk;
-	bctbx_list_t *lcs = NULL;
 
 	lp_config_set_string(marie_config, "misc", "conference_type", "remote");
 	lp_config_set_string(marie_config, "misc", "conference_focus_addr", focus_uri);
@@ -862,9 +876,6 @@ void simple_remote_conference(void) {
 	linphone_proxy_config_edit(laure_proxy_config);
 	linphone_proxy_config_set_route(laure_proxy_config, laure_proxy_uri);
 	linphone_proxy_config_done(laure_proxy_config);
-	lcs = bctbx_list_append(lcs, laure->lc);
-	BC_ASSERT_TRUE(wait_for_list(lcs, &laure->stat.number_of_LinphoneRegistrationOk, laure_n_register+1, 5000));
-	bctbx_list_free(lcs);
 
 	simple_conference_base(marie, pauline, laure, (LinphoneCoreManager *)focus);
 
@@ -884,8 +895,6 @@ void simple_remote_conference_shut_down_focus(void) {
 	LinphoneProxyConfig *laure_proxy_config = linphone_core_get_default_proxy_config(((LinphoneCoreManager *)laure)->lc);
 	const char *laure_proxy_uri = linphone_proxy_config_get_server_addr(laure_proxy_config);
 	const char *focus_uri = linphone_proxy_config_get_identity(focus_proxy_config);
-	int laure_n_register = laure->stat.number_of_LinphoneRegistrationOk;
-	bctbx_list_t *lcs = NULL;
 
 	lp_config_set_string(marie_config, "misc", "conference_type", "remote");
 	lp_config_set_string(marie_config, "misc", "conference_focus_addr", focus_uri);
@@ -893,9 +902,6 @@ void simple_remote_conference_shut_down_focus(void) {
 	linphone_proxy_config_edit(laure_proxy_config);
 	linphone_proxy_config_set_route(laure_proxy_config, laure_proxy_uri);
 	linphone_proxy_config_done(laure_proxy_config);
-	lcs = bctbx_list_append(lcs, laure->lc);
-	BC_ASSERT_TRUE(wait_for_list(lcs, &laure->stat.number_of_LinphoneRegistrationOk, laure_n_register+1, 5000));
-	bctbx_list_free(lcs);
 
 	simple_conference_base(marie, pauline, laure, (LinphoneCoreManager *)focus);
 
@@ -915,8 +921,6 @@ void eject_from_3_participants_remote_conference(void) {
 	LinphoneProxyConfig *laure_proxy_config = linphone_core_get_default_proxy_config(((LinphoneCoreManager *)laure)->lc);
 	const char *laure_proxy_uri = linphone_proxy_config_get_server_addr(laure_proxy_config);
 	const char *focus_uri = linphone_proxy_config_get_identity(focus_proxy_config);
-	int laure_n_register = laure->stat.number_of_LinphoneRegistrationOk;
-	bctbx_list_t *lcs = NULL;
 
 	lp_config_set_string(marie_config, "misc", "conference_type", "remote");
 	lp_config_set_string(marie_config, "misc", "conference_focus_addr", focus_uri);
@@ -924,9 +928,6 @@ void eject_from_3_participants_remote_conference(void) {
 	linphone_proxy_config_edit(laure_proxy_config);
 	linphone_proxy_config_set_route(laure_proxy_config, laure_proxy_uri);
 	linphone_proxy_config_done(laure_proxy_config);
-	lcs = bctbx_list_append(lcs, laure->lc);
-	BC_ASSERT_TRUE(wait_for_list(lcs, &laure->stat.number_of_LinphoneRegistrationOk, laure_n_register+1, 5000));
-	bctbx_list_free(lcs);
 
 	eject_from_3_participants_conference(marie, pauline, laure, (LinphoneCoreManager *)focus);
 
@@ -953,6 +954,7 @@ test_t multi_call_tests[] = {
 	TEST_NO_TAG("Unattended call transfer", unattended_call_transfer),
 	TEST_NO_TAG("Unattended call transfer with error", unattended_call_transfer_with_error),
 	TEST_NO_TAG("Call transfer existing call outgoing call", call_transfer_existing_call_outgoing_call),
+	TEST_NO_TAG("Call transfer existing call incoming call", call_transfer_existing_call_incoming_call),
 	TEST_NO_TAG("Simple remote conference", simple_remote_conference),
 	TEST_NO_TAG("Simple remote conference with shut down focus", simple_remote_conference_shut_down_focus),
 	TEST_NO_TAG("Eject from 3 participants in remote conference", eject_from_3_participants_remote_conference),

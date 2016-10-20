@@ -274,7 +274,7 @@ static void linphone_core_log_collection_handler(const char *domain, OrtpLogLeve
 	time_t tt;
 	int ret;
 
-	if (liblinphone_log_func != NULL) {
+	if (liblinphone_log_func != NULL && liblinphone_log_func != linphone_core_log_collection_handler) {
 #ifndef _WIN32
 		va_list args_copy;
 		va_copy(args_copy, args);
@@ -761,16 +761,17 @@ static void net_config_read (LinphoneCore *lc)
 	if (nat_policy_ref != NULL) {
 		lc->nat_policy = linphone_core_create_nat_policy_from_config(lc, nat_policy_ref);
 	}
+	if (lc->nat_policy == NULL){
+		/*this will create a default nat policy according to deprecated config keys, or an empty nat policy otherwise*/
+		linphone_core_set_firewall_policy(lc, linphone_core_get_firewall_policy(lc));
+	}
 
 	lc->net_conf.nat_address_ip = NULL;
 	tmp=lp_config_get_int(config,"net","download_bw",0);
 	linphone_core_set_download_bandwidth(lc,tmp);
 	tmp=lp_config_get_int(config,"net","upload_bw",0);
 	linphone_core_set_upload_bandwidth(lc,tmp);
-	if (lc->nat_policy == NULL) /* For compatibility, now the STUN server is stored in the NAT policy. */
-		linphone_core_set_stun_server(lc,lp_config_get_string(config,"net","stun_server",NULL));
-	else
-		linphone_core_set_stun_server(lc, linphone_nat_policy_get_stun_server(lc->nat_policy));
+
 	tmpstr=lp_config_get_string(lc->config,"net","nat_address",NULL);
 	if (tmpstr!=NULL && (strlen(tmpstr)<1)) tmpstr=NULL;
 	linphone_core_set_nat_address(lc,tmpstr);
@@ -787,10 +788,6 @@ static void net_config_read (LinphoneCore *lc)
 	linphone_core_enable_dns_srv(lc, tmp);
 	tmp = lp_config_get_int(lc->config, "net", "dns_search_enabled", 1);
 	linphone_core_enable_dns_search(lc, tmp);
-
-	/* This is to filter out unsupported firewall policies */
-	if (nat_policy_ref == NULL)
-		linphone_core_set_firewall_policy(lc, linphone_core_get_firewall_policy(lc));
 }
 
 static void build_sound_devices_table(LinphoneCore *lc){
@@ -1057,6 +1054,8 @@ static void sip_config_read(LinphoneCore *lc)
 	linphone_core_set_sip_transport_timeout(lc, lp_config_get_int(lc->config, "sip", "transport_timeout", 63000));
 	sal_set_supported_tags(lc->sal,lp_config_get_string(lc->config,"sip","supported","replaces, outbound"));
 	lc->sip_conf.save_auth_info = lp_config_get_int(lc->config, "sip", "save_auth_info", 1);
+	if (lp_config_get_string(lc->config, "sip", "rls_uri", NULL))
+		lc->default_rls_addr = linphone_address_new(lp_config_get_string(lc->config, "sip", "rls_uri", NULL));
 }
 
 static void rtp_config_read(LinphoneCore *lc)
@@ -1601,7 +1600,7 @@ static void misc_config_read(LinphoneCore *lc) {
 	LpConfig *config=lc->config;
 	const char *uuid;
 
-	lc->max_call_logs=(unsigned int)lp_config_get_int(config,"misc","history_max_size",30);
+	lc->max_call_logs=lp_config_get_int(config,"misc","history_max_size",LINPHONE_MAX_CALL_HISTORY_SIZE);
 	lc->max_calls=lp_config_get_int(config,"misc","max_calls",NB_MAX_CALLS);
 
 	uuid=lp_config_get_string(config,"misc","uuid",NULL);
@@ -1622,8 +1621,11 @@ void linphone_core_reload_ms_plugins(LinphoneCore *lc, const char *path){
 }
 
 static void linphone_core_start(LinphoneCore * lc) {
-	linphone_core_add_friend_list(lc, NULL);
-
+	LinphoneFriendList *list = linphone_core_create_friend_list(lc);
+	linphone_friend_list_set_display_name(list, "_default");
+	linphone_core_add_friend_list(lc, list);
+	linphone_friend_list_unref(list);
+	
 	sip_setup_register_all(lc->factory);
 	sound_config_read(lc);
 	net_config_read(lc);
@@ -2064,32 +2066,18 @@ void linphone_core_remove_friend_list(LinphoneCore *lc, LinphoneFriendList *list
 	linphone_core_notify_friend_list_removed(lc, list);
 	list->lc = NULL;
 	linphone_friend_list_unref(list);
-	lc->friends_lists = bctbx_list_remove_link(lc->friends_lists, elem);
+	lc->friends_lists = bctbx_list_erase_link(lc->friends_lists, elem);
 }
 
 void linphone_core_add_friend_list(LinphoneCore *lc, LinphoneFriendList *list) {
-	const char *rls_uri = lp_config_get_string(lc->config, "sip", "rls_uri", NULL);
-	if (list) {
-		if (!list->lc) {
-			list->lc = lc;
-		}
-		lc->friends_lists = bctbx_list_append(lc->friends_lists, linphone_friend_list_ref(list));
-#ifdef SQLITE_STORAGE_ENABLED
-		linphone_core_store_friends_list_in_db(lc, list);
-#endif
-		linphone_core_notify_friend_list_created(lc, list);
-		if (!linphone_friend_list_get_rls_uri(list) && rls_uri && lp_config_get_int(lc->config, "sip", "use_rls_presence", 0)) {
-			linphone_friend_list_set_rls_uri(list, rls_uri);
-		}
-	} else {
-		list = linphone_core_create_friend_list(lc);
-		linphone_friend_list_set_display_name(list, "_default");
-		if (rls_uri && lp_config_get_int(lc->config, "sip", "use_rls_presence", 0)) {
-			linphone_friend_list_set_rls_uri(list, rls_uri);
-		}
-		lc->friends_lists = bctbx_list_append(lc->friends_lists, linphone_friend_list_ref(list));
-		linphone_friend_list_unref(list);
+	if (!list->lc) {
+		list->lc = lc;
 	}
+	lc->friends_lists = bctbx_list_append(lc->friends_lists, linphone_friend_list_ref(list));
+#ifdef SQLITE_STORAGE_ENABLED
+	linphone_core_store_friends_list_in_db(lc, list);
+#endif
+	linphone_core_notify_friend_list_created(lc, list);
 }
 
 void linphone_core_enable_audio_adaptive_jittcomp(LinphoneCore* lc, bool_t val)
@@ -2420,6 +2408,17 @@ static bool_t transports_unchanged(const LCSipTransports * tr1, const LCSipTrans
 		tr2->tls_port==tr1->tls_port;
 }
 
+static void __linphone_core_invalidate_registers(LinphoneCore* lc){
+	const bctbx_list_t *elem=linphone_core_get_proxy_config_list(lc);
+	for(;elem!=NULL;elem=elem->next){
+		LinphoneProxyConfig *cfg=(LinphoneProxyConfig*)elem->data;
+		if (linphone_proxy_config_register_enabled(cfg)) {
+			/*this will force a re-registration at next iterate*/
+			cfg->commit = TRUE;
+		}
+	}
+}
+
 int _linphone_core_apply_transports(LinphoneCore *lc){
 	Sal *sal=lc->sal;
 	const char *anyaddr;
@@ -2628,7 +2627,7 @@ static void proxy_update(LinphoneCore *lc){
 		LinphoneProxyConfig* cfg = (LinphoneProxyConfig*)elem->data;
 		next=elem->next;
 		if (ms_time(NULL) - cfg->deletion_date > 32) {
-			lc->sip_conf.deleted_proxies =bctbx_list_remove_link(lc->sip_conf.deleted_proxies,elem);
+			lc->sip_conf.deleted_proxies =bctbx_list_erase_link(lc->sip_conf.deleted_proxies,elem);
 			ms_message("Proxy config for [%s] is definitely removed from core.",linphone_proxy_config_get_addr(cfg));
 			_linphone_proxy_config_release_ops(cfg);
 			linphone_proxy_config_unref(cfg);
@@ -2665,7 +2664,7 @@ static void analyze_buddy_lookup_results(LinphoneCore *lc, LinphoneProxyConfig *
 	}
 	/*purge completed requests */
 	while((elem=bctbx_list_find(lc->bl_reqs,NULL))!=NULL){
-		lc->bl_reqs=bctbx_list_remove_link(lc->bl_reqs,elem);
+		lc->bl_reqs=bctbx_list_erase_link(lc->bl_reqs,elem);
 	}
 }
 
@@ -3129,26 +3128,33 @@ int linphone_core_start_invite(LinphoneCore *lc, LinphoneCall *call, const Linph
 		/*we are offering, set local media description before sending the call*/
 		sal_call_set_local_media_description(call->op,call->localdesc);
 	}
+	
+	barmsg=ortp_strdup_printf("%s %s", _("Contacting"), real_url);
+	linphone_core_notify_display_status(lc,barmsg);
+	ms_free(barmsg);
+	
 	err=sal_call(call->op,from,real_url);
+	
+	if (err < 0){
+		if (call->state != LinphoneCallError &&
+			call->state != LinphoneCallReleased){
+			/*sal_call() may invoke call_failure() and call_released() SAL callbacks synchronously,
+			 * in which case there is no need to perform a state change here.*/
+			linphone_core_notify_display_status(lc,_("Could not call"));
+			linphone_call_stop_media_streams(call);
+			linphone_call_set_state(call,LinphoneCallError,"Call failed");
+		}
+		goto end;
+	}
 	if (lc->sip_conf.sdp_200_ack){
 		/*we are NOT offering, set local media description after sending the call so that we are ready to
 		 process the remote offer when it will arrive*/
 		sal_call_set_local_media_description(call->op,call->localdesc);
 	}
-
 	call->log->call_id=ms_strdup(sal_op_get_call_id(call->op)); /*must be known at that time*/
-
-	barmsg=ortp_strdup_printf("%s %s", _("Contacting"), real_url);
-	linphone_core_notify_display_status(lc,barmsg);
-	ms_free(barmsg);
-
-	if (err<0){
-		linphone_core_notify_display_status(lc,_("Could not call"));
-		linphone_call_stop_media_streams(call);
-		linphone_call_set_state(call,LinphoneCallError,"Call failed");
-	}else {
-		linphone_call_set_state(call,LinphoneCallOutgoingProgress,"Outgoing call in progress");
-	}
+	linphone_call_set_state(call,LinphoneCallOutgoingProgress,"Outgoing call in progress");
+	
+end:
 	ms_free(real_url);
 	ms_free(from);
 	return err;
@@ -3353,7 +3359,12 @@ LinphoneCall * linphone_core_invite_address_with_params(LinphoneCore *lc, const 
 		}
 	}
 
-	if (defer==FALSE) linphone_core_start_invite(lc,call,NULL);
+	if (defer==FALSE) {
+		if (linphone_core_start_invite(lc,call,NULL) != 0){
+			/*the call has already gone to error and released state, so do not return it*/
+			call = NULL;
+		}
+	}
 
 	if (real_url!=NULL) ms_free(real_url);
 	linphone_call_params_destroy(cp);
@@ -3611,7 +3622,13 @@ int linphone_core_update_call(LinphoneCore *lc, LinphoneCall *call, const Linpho
 		case LinphoneCallStreamsRunning:
 		case LinphoneCallPaused:
 		case LinphoneCallPausedByRemote:
+		case LinphoneCallUpdatedByRemote:
 			nextstate=LinphoneCallUpdating;
+			break;
+		case LinphoneCallPausing:
+		case LinphoneCallResuming:
+		case LinphoneCallUpdating:
+			nextstate=call->state;
 			break;
 		default:
 		ms_error("linphone_core_update_call() is not allowed in [%s] state",linphone_call_state_to_string(call->state));
@@ -4919,12 +4936,28 @@ const char *linphone_core_get_ring(const LinphoneCore *lc){
  *
  * @ingroup initializing
 **/
-void linphone_core_set_root_ca(LinphoneCore *lc,const char *path){
+void linphone_core_set_root_ca(LinphoneCore *lc, const char *path) {
 	sal_set_root_ca(lc->sal, path);
-	if (lc->http_crypto_config){
-		belle_tls_crypto_config_set_root_ca(lc->http_crypto_config,path);
+	if (lc->http_crypto_config) {
+		belle_tls_crypto_config_set_root_ca(lc->http_crypto_config, path);
 	}
-	lp_config_set_string(lc->config,"sip","root_ca",path);
+	lp_config_set_string(lc->config,"sip", "root_ca", path);
+}
+
+/**
+ * Sets the trusted root CAs (PEM format)
+ *
+ * @param path
+ * @param lc The LinphoneCore object
+ *
+ * @ingroup initializing
+**/
+void linphone_core_set_root_ca_data(LinphoneCore *lc, const char *data) {
+	sal_set_root_ca(lc->sal, NULL);
+	sal_set_root_ca_data(lc->sal, data);
+	if (lc->http_crypto_config) {
+		belle_tls_crypto_config_set_root_ca_data(lc->http_crypto_config, data);
+	}
 }
 
 /**
@@ -5083,7 +5116,8 @@ void linphone_core_enable_mic(LinphoneCore *lc, bool_t enable) {
 	for (elem = list; elem != NULL; elem = elem->next) {
 		call = (LinphoneCall *)elem->data;
 		call->audio_muted = !enable;
-		linphone_core_mute_audio_stream(lc, call->audiostream, !enable);
+		if (call->audiostream)
+			linphone_core_mute_audio_stream(lc, call->audiostream, call->audio_muted);
 	}
 }
 
@@ -6494,14 +6528,7 @@ void sip_config_uninit(LinphoneCore *lc)
 
 	lc->auth_info=bctbx_list_free_with_data(lc->auth_info,(void (*)(void*))linphone_auth_info_destroy);
 
-	/*now that we are unregisted, we no longer need the tunnel.*/
-#ifdef TUNNEL_ENABLED
-	if (lc->tunnel) {
-		linphone_tunnel_destroy(lc->tunnel);
-		lc->tunnel=NULL;
-		ms_message("Tunnel destroyed.");
-	}
-#endif
+
 
 	if (lc->vcard_context) {
 		linphone_vcard_context_destroy(lc->vcard_context);
@@ -6517,14 +6544,27 @@ void sip_config_uninit(LinphoneCore *lc)
 		belle_sip_object_unref(lc->http_crypto_config);
 		lc->http_crypto_config=NULL;
 	}
+	
+	/*now that we are unregisted, there is no more channel using tunnel socket we no longer need the tunnel.*/
+#ifdef TUNNEL_ENABLED
+	if (lc->tunnel) {
+		linphone_tunnel_destroy(lc->tunnel);
+		lc->tunnel=NULL;
+		ms_message("Tunnel destroyed.");
+	}
+#endif
+
 	sal_iterate(lc->sal); /*make sure event are purged*/
 	sal_uninit(lc->sal);
 	lc->sal=NULL;
+	
 
 	if (lc->sip_conf.guessed_contact)
 		ms_free(lc->sip_conf.guessed_contact);
 	if (config->contact)
 		ms_free(config->contact);
+	if (lc->default_rls_addr)
+		linphone_address_destroy(lc->default_rls_addr);
 
 }
 
@@ -6690,6 +6730,7 @@ static void linphone_core_uninit(LinphoneCore *lc)
 #endif
 
 	lc->msevq=NULL;
+	
 	/* save all config */
 	friends_config_uninit(lc);
 	sip_config_uninit(lc);
@@ -6854,16 +6895,6 @@ void linphone_core_refresh_registers(LinphoneCore* lc) {
 	}
 }
 
-void __linphone_core_invalidate_registers(LinphoneCore* lc){
-	const bctbx_list_t *elem=linphone_core_get_proxy_config_list(lc);
-	for(;elem!=NULL;elem=elem->next){
-		LinphoneProxyConfig *cfg=(LinphoneProxyConfig*)elem->data;
-		if (linphone_proxy_config_register_enabled(cfg)) {
-			linphone_proxy_config_edit(cfg);
-			linphone_proxy_config_done(cfg);
-		}
-	}
-}
 
 static void disable_internal_network_reachability_detection(LinphoneCore *lc){
 	if (lc->auto_net_state_mon) {
@@ -6972,7 +7003,7 @@ int linphone_core_del_call( LinphoneCore *lc, LinphoneCall *call)
 	it=bctbx_list_find(the_calls,call);
 	if (it)
 	{
-		the_calls = bctbx_list_remove_link(the_calls,it);
+		the_calls = bctbx_list_erase_link(the_calls,it);
 	}
 	else
 	{
@@ -7332,7 +7363,7 @@ bool_t linphone_core_media_encryption_supported(const LinphoneCore *lc, Linphone
 		case LinphoneMediaEncryptionDTLS:
 			return ms_dtls_srtp_available();
 		case LinphoneMediaEncryptionZRTP:
-			return ms_zrtp_available();
+			return ms_zrtp_available() && !lc->zrtp_not_available_simulation;
 		case LinphoneMediaEncryptionNone:
 			return TRUE;
 	}
@@ -7355,7 +7386,7 @@ int linphone_core_set_media_encryption(LinphoneCore *lc, LinphoneMediaEncryption
 			}
 		break;
 		case LinphoneMediaEncryptionZRTP:
-			if (!ms_zrtp_available()){
+			if (!linphone_core_media_encryption_supported(lc, LinphoneMediaEncryptionZRTP)){
 				ms_warning("ZRTP not supported by library.");
 				type="none";
 				ret=-1;
@@ -7409,6 +7440,10 @@ void linphone_core_set_media_encryption_mandatory(LinphoneCore *lc, bool_t m) {
 void linphone_core_init_default_params(LinphoneCore*lc, LinphoneCallParams *params) {
 	params->has_audio = TRUE;
 	params->has_video=linphone_core_video_enabled(lc) && lc->video_policy.automatically_initiate;
+	if (!linphone_core_video_enabled(lc) && lc->video_policy.automatically_initiate){
+		ms_error("LinphoneCore has video disabled for both capture and display, but video policy is to start the call with video. "
+			"This is a possible mis-use of the API. In this case, video is disabled in default LinphoneCallParams");
+	}
 	params->media_encryption=linphone_core_get_media_encryption(lc);
 	params->in_conference=FALSE;
 	params->realtimetext_enabled = linphone_core_realtime_text_enabled(lc);
@@ -7715,15 +7750,15 @@ const char * linphone_core_get_video_preset(const LinphoneCore *lc) {
 #ifdef ANDROID
 static int linphone_core_call_void_method(jobject obj, jmethodID id) {
 	JNIEnv *env=ms_get_jni_env();
-		if (env && obj) {
-			(*env)->CallVoidMethod(env,obj,id);
-			if ((*env)->ExceptionCheck(env)) {
-				(*env)->ExceptionClear(env);
-				return -1;
-			} else
-				return 0;
-		} else
+	if (env && obj) {
+		(*env)->CallVoidMethod(env,obj,id);
+		if ((*env)->ExceptionCheck(env)) {
+			(*env)->ExceptionClear(env);
 			return -1;
+		} else
+			return 0;
+	} else
+		return -1;
 }
 
 void linphone_core_wifi_lock_acquire(LinphoneCore *lc) {
@@ -7916,4 +7951,46 @@ int linphone_core_stop_conference_recording(LinphoneCore *lc) {
 
 LinphoneConference *linphone_core_get_conference(LinphoneCore *lc) {
 	return lc->conf_ctx;
+}
+
+void linphone_core_set_tls_cert(LinphoneCore *lc, const char *tls_cert) {
+	if (lc->tls_cert) {
+		ms_free(lc->tls_cert);
+		lc->tls_cert = NULL;
+	}
+	if (tls_cert && strlen(tls_cert) > 0) lc->tls_cert = ms_strdup(tls_cert);
+}
+
+void linphone_core_set_tls_key(LinphoneCore *lc, const char *tls_key) {
+	if (lc->tls_key) {
+		ms_free(lc->tls_key);
+		lc->tls_key = NULL;
+	}
+	if (tls_key && strlen(tls_key) > 0) lc->tls_key = ms_strdup(tls_key);
+}
+
+void linphone_core_set_tls_cert_path(LinphoneCore *lc, const char *tls_cert_path) {
+	lp_config_set_string(lc->config, "sip", "client_cert_chain", tls_cert_path);
+}
+
+void linphone_core_set_tls_key_path(LinphoneCore *lc, const char *tls_key_path) {
+	lp_config_set_string(lc->config, "sip", "client_cert_key", tls_key_path);
+}
+
+const char *linphone_core_get_tls_cert(const LinphoneCore *lc) {
+	return lc->tls_cert;
+}
+
+const char *linphone_core_get_tls_key(const LinphoneCore *lc) {
+	return lc->tls_key;
+}
+
+const char *linphone_core_get_tls_cert_path(const LinphoneCore *lc) {
+	const char *tls_cert_path = lp_config_get_string(lc->config, "sip", "client_cert_chain", NULL);
+	return tls_cert_path;
+}
+
+const char *linphone_core_get_tls_key_path(const LinphoneCore *lc) {
+	const char *tls_key_path = lp_config_get_string(lc->config, "sip", "client_cert_key", NULL);
+	return tls_key_path;
 }

@@ -31,8 +31,7 @@ import java.util.Vector;
 public interface LinphoneFriend {
 	/**
 	 * Enum controlling behavior for incoming subscription request. 
-	 *	Use by {@link LinphoneFriend#setIncSubscribePolicy()}
-	 *
+	 * Used by {@link setIncSubscribePolicy(SubscribePolicy)}
 	 */
 	static class SubscribePolicy {
 
@@ -111,14 +110,24 @@ public interface LinphoneFriend {
 	/**
 	 * Get the status of a friend
 	 * @return OnlineStatus
-	 * @deprecated Use getPresenceModel() instead
+	 * @deprecated Use getPresenceModelForUri() instead
 	 */
+	@Deprecated
 	OnlineStatus getStatus();
 	/**
 	 * Get the presence information of a friend
 	 * @return A #PresenceModel object, or null if the friend do not have presence information (in which case he is considered offline)
+	 * @deprecated Use getPresenceModelForUri() instead
 	 */
+	@Deprecated
 	PresenceModel getPresenceModel();
+	
+	/**
+	 * Get the presence information for a specific uri (phone number or sip address)
+	 * @return A #PresenceModel object or null
+	 */
+	PresenceModel getPresenceModelForUri(String uri);
+	
 	/**
 	 * Set the presence information of a friend
 	 * @param presenceModel A #PresenceModel object

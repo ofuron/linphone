@@ -29,7 +29,7 @@ void linphone_core_v_table_set_user_data(LinphoneCoreVTable *table, void *data) 
 	table->user_data = data;
 }
 
-void* linphone_core_v_table_get_user_data(LinphoneCoreVTable *table) {
+void* linphone_core_v_table_get_user_data(const LinphoneCoreVTable *table) {
 	return table->user_data;
 }
 
@@ -48,7 +48,7 @@ static void cleanup_dead_vtable_refs(LinphoneCore *lc){
 		next_it=it->next;
 		if (ref->valid==0){
 			ref->valid=0;
-			lc->vtable_refs=bctbx_list_remove_link(lc->vtable_refs, it);
+			lc->vtable_refs=bctbx_list_erase_link(lc->vtable_refs, it);
 			ms_free(ref);
 		}
 		it=next_it;
@@ -143,8 +143,9 @@ void linphone_core_notify_new_subscription_requested(LinphoneCore *lc, LinphoneF
 	cleanup_dead_vtable_refs(lc);
 }
 
-void linphone_core_notify_auth_info_requested(LinphoneCore *lc, const char *realm, const char *username, const char *domain) {
-	NOTIFY_IF_EXIST(auth_info_requested, lc, realm, username, domain);
+
+void linphone_core_notify_authentication_requested(LinphoneCore *lc, LinphoneAuthInfo *ai, LinphoneAuthMethod method) {
+	NOTIFY_IF_EXIST(authentication_requested, lc, ai, method);
 	cleanup_dead_vtable_refs(lc);
 }
 
@@ -160,6 +161,11 @@ void linphone_core_notify_call_log_updated(LinphoneCore *lc, LinphoneCallLog *ne
 #else
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
+
+void linphone_core_notify_auth_info_requested(LinphoneCore *lc, const char *realm, const char *username, const char *domain) {
+	NOTIFY_IF_EXIST(auth_info_requested, lc, realm, username, domain);
+	cleanup_dead_vtable_refs(lc);
+}
 
 void linphone_core_notify_text_message_received(LinphoneCore *lc, LinphoneChatRoom *room, const LinphoneAddress *from, const char *message){
 	NOTIFY_IF_EXIST(text_received, lc,room,from,message);

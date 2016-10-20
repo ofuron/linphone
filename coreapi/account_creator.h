@@ -49,20 +49,33 @@ typedef enum _LinphoneAccountCreatorStatus {
 	LinphoneAccountCreatorAccountAlreadyActivated,
 	LinphoneAccountCreatorAccountNotActivated,
 
+	LinphoneAccountCreatorAccountLinked,
+	LinphoneAccountCreatorAccountNotLinked,
+
 	LinphoneAccountCreatorEmailInvalid,
+
 	LinphoneAccountCreatorUsernameInvalid,
 	LinphoneAccountCreatorUsernameTooShort,
 	LinphoneAccountCreatorUsernameTooLong,
 	LinphoneAccountCreatorUsernameInvalidSize,
+
 	LinphoneAccountCreatorPhoneNumberInvalid,
 	LinphoneAccountCreatorPhoneNumberTooShort,
 	LinphoneAccountCreatorPhoneNumberTooLong,
+	LinphoneAccountCreatorPhoneNumberUsedAccount,
+	LinphoneAccountCreatorPhoneNumberUsedAlias,
+	LinphoneAccountCreatorPhoneNumberNotUsed,
+
 	LinphoneAccountCreatorPasswordTooShort,
 	LinphoneAccountCreatorPasswordTooLong,
+
 	LinphoneAccountCreatorDomainInvalid,
 	LinphoneAccountCreatorRouteInvalid,
 	LinphoneAccountCreatorDisplayNameInvalid,
 	LinphoneAccountCreatorTransportNotSupported,
+	LinphoneAccountCreatorCountryCodeInvalid,
+
+	LinphoneAccountCreatorErrorServer,
 } LinphoneAccountCreatorStatus;
 
 /**
@@ -186,6 +199,13 @@ LINPHONE_PUBLIC const char * linphone_account_creator_get_ha1(const LinphoneAcco
 LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_set_activation_code(LinphoneAccountCreator *creator, const char *activation_code);
 
 /**
+ * Set the language to use in email or SMS if supported.
+ * @param[in] creator LinphoneAccountCreator object
+ * @param[in] activation_code The language code to use
+**/
+LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_set_language(LinphoneAccountCreator *creator, const char *lang);
+
+/**
  * Set the transport.
  * @param[in] creator LinphoneAccountCreator object
  * @param[in] transport The transport to set
@@ -296,6 +316,13 @@ LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_activate_a
 LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_is_account_activated(LinphoneAccountCreator *creator);
 
 /**
+ * Send an XML-RPC request to test the existence a phone number with a Linphone account.
+ * @param[in] creator LinphoneAccountCreator object
+ * @return LinphoneAccountCreatorOk if the request has been sent, LinphoneAccountCreatorReqFailed otherwise
+**/
+LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_is_phone_number_used(LinphoneAccountCreator *creator);
+
+/**
  * Send an XML-RPC request to link a phone number with a Linphone account.
  * @param[in] creator LinphoneAccountCreator object
  * @return LinphoneAccountCreatorOK if the request has been sent, LinphoneAccountCreatorReqFailed otherwise
@@ -310,6 +337,13 @@ LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_link_phone
 LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_activate_phone_number_link(LinphoneAccountCreator *creator);
 
 LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_recover_phone_account(LinphoneAccountCreator *creator);
+
+/**
+ * Send an XML-RPC request to ask if an account is linked with a phone number
+ * @param[in] creator LinphoneAccountCreator object
+ * @return if this account is linked with a phone number
+**/
+LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_is_account_linked(LinphoneAccountCreator *creator);
 
 /**
  * Configure an account (create a proxy config and authentication info for it).
@@ -344,6 +378,20 @@ LINPHONE_PUBLIC void *linphone_account_creator_cbs_get_user_data(const LinphoneA
  * @param[in] ud The user pointer to associate with the LinphoneAccountCreatorCbs object.
 **/
 LINPHONE_PUBLIC void linphone_account_creator_cbs_set_user_data(LinphoneAccountCreatorCbs *cbs, void *ud);
+
+/**
+ * Get the current linked tested callback.
+ * @param[in] cbs LinphoneAccountCreatorCbs object.
+ * @return The current linked tested callback.
+**/
+LINPHONE_PUBLIC LinphoneAccountCreatorCbsStatusCb linphone_account_creator_cbs_get_is_account_linked(const LinphoneAccountCreatorCbs *cbs);
+
+/**
+ * Set the linked tested callback
+ * @param[in] cbs LinphoneAccountCreatorCbs object.
+ * @param[in] cb The existence tested callback to be used.
+**/
+LINPHONE_PUBLIC void linphone_account_creator_cbs_set_is_account_linked(LinphoneAccountCreatorCbs *cbs, LinphoneAccountCreatorCbsStatusCb cb);
 
 /**
  * Get the existence tested callback.
@@ -428,6 +476,20 @@ LINPHONE_PUBLIC LinphoneAccountCreatorCbsStatusCb linphone_account_creator_cbs_g
  * @param[in] cb The validation tested callback to be used.
 **/
 LINPHONE_PUBLIC void linphone_account_creator_cbs_set_is_account_activated(LinphoneAccountCreatorCbs *cbs, LinphoneAccountCreatorCbsStatusCb cb);
+
+/**
+ * Get the is phone number used callback.
+ * @param[in] cbs LinphoneAccountCreatorCbs object.
+ * @return The current is phone number used callback
+**/
+LINPHONE_PUBLIC LinphoneAccountCreatorCbsStatusCb linphone_account_creator_cbs_get_is_phone_number_used(const LinphoneAccountCreatorCbs *cbs);
+
+/**
+ * Set the is phone number used callback.
+ * @param[in] cbs LinphoneAccountCreatorCbs object.
+ * @param[in] cb is phone number to be used.
+**/
+LINPHONE_PUBLIC void linphone_account_creator_cbs_set_is_phone_number_used(LinphoneAccountCreatorCbs *cbs, LinphoneAccountCreatorCbsStatusCb cb);
 
 LINPHONE_PUBLIC void linphone_account_creator_cbs_set_recover_phone_account(LinphoneAccountCreatorCbs *cbs, LinphoneAccountCreatorCbsStatusCb cb);
 LINPHONE_PUBLIC LinphoneAccountCreatorCbsStatusCb linphone_account_creator_cbs_get_recover_phone_account(const LinphoneAccountCreatorCbs *cbs);

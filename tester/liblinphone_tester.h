@@ -114,6 +114,7 @@ extern bool_t liblinphone_tester_tls_support_disabled;
 extern const MSAudioDiffParams audio_cmp_params;
 extern const char *liblinphone_tester_mire_id;
 extern bool_t liblinphonetester_ipv6;
+extern bool_t liblinphonetester_show_account_manager_logs;
 
 typedef struct _stats {
 	int number_of_LinphoneRegistrationNone;
@@ -209,7 +210,7 @@ typedef struct _stats {
 	LinphoneInfoMessage* last_received_info_message;
 
 	int number_of_LinphoneSubscriptionIncomingReceived;
-	int number_of_LinphoneSubscriptionOutgoingInit;
+	int number_of_LinphoneSubscriptionOutgoingProgress;
 	int number_of_LinphoneSubscriptionPending;
 	int number_of_LinphoneSubscriptionActive;
 	int number_of_LinphoneSubscriptionTerminated;
@@ -368,7 +369,7 @@ bool_t pause_call_1(LinphoneCoreManager* mgr_1,LinphoneCall* call_1,LinphoneCore
 void compare_files(const char *path1, const char *path2);
 void check_media_direction(LinphoneCoreManager* mgr, LinphoneCall *call, MSList* lcs,LinphoneMediaDirection audio_dir, LinphoneMediaDirection video_dir);
 void _call_with_ice_base(LinphoneCoreManager* pauline,LinphoneCoreManager* marie, bool_t caller_with_ice, bool_t callee_with_ice, bool_t random_ports, bool_t forced_relay);
-void check_nb_media_starts(LinphoneCoreManager *caller, LinphoneCoreManager *callee, unsigned int caller_nb_media_starts, unsigned int callee_nb_media_starts);
+int check_nb_media_starts(LinphoneCoreManager *caller, LinphoneCoreManager *callee, unsigned int caller_nb_media_starts, unsigned int callee_nb_media_starts);
 void record_call(const char *filename, bool_t enableVideo, const char *video_codec);
 
 /*
@@ -381,12 +382,12 @@ int linphone_core_manager_get_mean_audio_up_bw(const LinphoneCoreManager *mgr);
 void video_call_base_2(LinphoneCoreManager* pauline,LinphoneCoreManager* marie, bool_t using_policy,LinphoneMediaEncryption mode, bool_t callee_video_enabled, bool_t caller_video_enabled);
 
 void liblinphone_tester_before_each(void);
-int liblinphone_tester_after_each(void);
+void liblinphone_tester_after_each(void);
 void liblinphone_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));
 void liblinphone_tester_uninit(void);
 int liblinphone_tester_set_log_file(const char *filename);
 bool_t check_ice(LinphoneCoreManager* caller, LinphoneCoreManager* callee, LinphoneIceState state);
-void check_nb_media_starts(LinphoneCoreManager *caller, LinphoneCoreManager *callee, unsigned int caller_nb_media_starts, unsigned int callee_nb_media_starts);
+
 
 LinphoneConferenceServer* linphone_conference_server_new(const char *rc_file, bool_t do_registration);
 void linphone_conference_server_destroy(LinphoneConferenceServer *conf_srv);

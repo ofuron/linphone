@@ -4,7 +4,7 @@ sip_tcp_port=-1
 sip_tls_port=-1
 default_proxy=0
 ping_with_options=0
-use_ipv6=1
+
 composing_idle_timeout=1
 
 [auth_info_0]
@@ -13,10 +13,10 @@ userid=pauline
 passwd=secret
 realm=sip.example.org
 
-
 [proxy_0]
-reg_proxy=sipv4-nat64.example.org;transport=tcp
-reg_route=sipv4-nat64.example.org;transport=tcp
+realm=sip.example.org
+reg_proxy=sip2.linphone.org:5063;transport=tls
+reg_route=sip2.linphone.org:5063;transport=tls
 reg_identity=sip:pauline@sip.example.org
 reg_expires=3600
 reg_sendregister=1

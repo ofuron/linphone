@@ -226,6 +226,7 @@ static void process_request_event(void *ud, const belle_sip_request_event_t *eve
 	belle_sip_header_address_t* address=NULL;
 	belle_sip_header_from_t* from_header;
 	belle_sip_header_to_t* to;
+	belle_sip_header_diversion_t* diversion;
 	belle_sip_response_t* resp;
 	belle_sip_header_t *evh;
 	const char *method=belle_sip_request_get_method(req);
@@ -336,6 +337,24 @@ static void process_request_event(void *ud, const belle_sip_request_event_t *eve
 
 		sal_op_set_to_address(op,(SalAddress*)address);
 		belle_sip_object_unref(address);
+	}
+
+	if(!op->base.diversion_address){
+		diversion=belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(req),belle_sip_header_diversion_t);
+		if (diversion) {
+			if (belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(diversion)))
+				address=belle_sip_header_address_create(belle_sip_header_address_get_displayname(BELLE_SIP_HEADER_ADDRESS(diversion))
+						,belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(diversion)));
+			else if ((belle_sip_header_address_get_absolute_uri(BELLE_SIP_HEADER_ADDRESS(diversion))))
+				address=belle_sip_header_address_create2(belle_sip_header_address_get_displayname(BELLE_SIP_HEADER_ADDRESS(diversion))
+						,belle_sip_header_address_get_absolute_uri(BELLE_SIP_HEADER_ADDRESS(diversion)));
+			else
+				ms_warning("Cannot not find diversion header from request [%p]",req);
+			if (address) {
+				sal_op_set_diversion_address(op,(SalAddress*)address);
+				belle_sip_object_unref(address);
+			}
+		}
 	}
 
 	if (!op->base.origin) {
@@ -596,6 +615,7 @@ void sal_uninit(Sal* sal){
 	bctbx_list_free_with_data(sal->supported_tags,ms_free);
 	if (sal->uuid) ms_free(sal->uuid);
 	if (sal->root_ca) ms_free(sal->root_ca);
+	if (sal->root_ca_data) ms_free(sal->root_ca_data);
 	ms_free(sal);
 };
 
@@ -761,21 +781,33 @@ static void set_tls_properties(Sal *ctx){
 		else if (!ctx->tls_verify_cn) verify_exceptions = BELLE_TLS_VERIFY_CN_MISMATCH;
 		belle_tls_crypto_config_set_verify_exceptions(crypto_config, verify_exceptions);
 		if (ctx->root_ca != NULL) belle_tls_crypto_config_set_root_ca(crypto_config, ctx->root_ca);
+		if (ctx->root_ca_data != NULL) belle_tls_crypto_config_set_root_ca_data(crypto_config, ctx->root_ca_data);
 		if (ctx->ssl_config != NULL) belle_tls_crypto_config_set_ssl_config(crypto_config, ctx->ssl_config);
 		belle_sip_tls_listening_point_set_crypto_config(tlp, crypto_config);
 		belle_sip_object_unref(crypto_config);
 	}
 }
 
-void sal_set_root_ca(Sal* ctx, const char* rootCa){
-	if (ctx->root_ca){
+void sal_set_root_ca(Sal* ctx, const char* rootCa) {
+	if (ctx->root_ca) {
 		ms_free(ctx->root_ca);
-		ctx->root_ca=NULL;
+		ctx->root_ca = NULL;
 	}
 	if (rootCa)
-		ctx->root_ca=ms_strdup(rootCa);
+		ctx->root_ca = ms_strdup(rootCa);
 	set_tls_properties(ctx);
-	return ;
+	return;
+}
+
+void sal_set_root_ca_data(Sal* ctx, const char* data) {
+	if (ctx->root_ca_data) {
+		ms_free(ctx->root_ca_data);
+		ctx->root_ca_data = NULL;
+	}
+	if (data)
+		ctx->root_ca_data = ms_strdup(data);
+	set_tls_properties(ctx);
+	return;
 }
 
 void sal_verify_server_certificates(Sal *ctx, bool_t verify){
@@ -1124,7 +1156,7 @@ void sal_remove_supported_tag(Sal *ctx, const char* tag){
 	bctbx_list_t *elem=bctbx_list_find_custom(ctx->supported_tags,(bctbx_compare_func)strcasecmp,tag);
 	if (elem){
 		ms_free(elem->data);
-		ctx->supported_tags=bctbx_list_remove_link(ctx->supported_tags,elem);
+		ctx->supported_tags=bctbx_list_erase_link(ctx->supported_tags,elem);
 		make_supported_header(ctx);
 	}
 }
@@ -1166,11 +1198,10 @@ SalResolverContext * sal_resolve(Sal *sal, const char *service, const char *tran
 	return (SalResolverContext *)belle_sip_stack_resolve(sal->stack, service, transport, name, port, family, (belle_sip_resolver_callback_t)cb, data);
 }
 
-/*
-void sal_resolve_cancel(Sal *sal, SalResolverContext* ctx){
-	belle_sip_stack_resolve_cancel(sal->stack,ctx);
+void sal_resolve_cancel(SalResolverContext* ctx){
+	belle_sip_resolver_context_cancel((belle_sip_resolver_context_t*)ctx);
 }
-*/
+
 
 void sal_enable_unconditional_answer(Sal *sal,int value) {
 	belle_sip_provider_enable_unconditional_answer(sal->prov,value);
@@ -1182,7 +1213,7 @@ void sal_enable_unconditional_answer(Sal *sal,int value) {
  * @param format either PEM or DER
  */
 void sal_certificates_chain_parse_file(SalAuthInfo* auth_info, const char* path, SalCertificateRawFormat format) {
-	auth_info->certificates = (SalCertificatesChain*) belle_sip_certificates_chain_parse_file(path, (belle_sip_certificate_raw_format_t)format); //
+	auth_info->certificates = (SalCertificatesChain*) belle_sip_certificates_chain_parse_file(path, (belle_sip_certificate_raw_format_t)format);
 	if (auth_info->certificates) belle_sip_object_ref((belle_sip_object_t *) auth_info->certificates);
 }
 
@@ -1193,6 +1224,28 @@ void sal_certificates_chain_parse_file(SalAuthInfo* auth_info, const char* path,
  */
 void sal_signing_key_parse_file(SalAuthInfo* auth_info, const char* path, const char *passwd) {
 	auth_info->key = (SalSigningKey *) belle_sip_signing_key_parse_file(path, passwd);
+	if (auth_info->key) belle_sip_object_ref((belle_sip_object_t *) auth_info->key);
+}
+
+/** Parse a buffer containing either a certificate chain order in PEM format or a single DER cert
+ * @param auth_info structure where to store the result of parsing
+ * @param buffer the buffer to parse
+ * @param format either PEM or DER
+ */
+void sal_certificates_chain_parse(SalAuthInfo* auth_info, const char* buffer, SalCertificateRawFormat format) {
+	size_t len = buffer != NULL ? strlen(buffer) : 0;
+	auth_info->certificates = (SalCertificatesChain*) belle_sip_certificates_chain_parse(buffer, len, (belle_sip_certificate_raw_format_t)format);
+	if (auth_info->certificates) belle_sip_object_ref((belle_sip_object_t *) auth_info->certificates);
+}
+
+/**
+ * Parse a buffer containing either a private or public rsa key
+ * @param auth_info structure where to store the result of parsing
+ * @param passwd password (optionnal)
+ */
+void sal_signing_key_parse(SalAuthInfo* auth_info, const char* buffer, const char *passwd) {
+	size_t len = buffer != NULL ? strlen(buffer) : 0;
+	auth_info->key = (SalSigningKey *) belle_sip_signing_key_parse(buffer, len, passwd);
 	if (auth_info->key) belle_sip_object_ref((belle_sip_object_t *) auth_info->key);
 }
 

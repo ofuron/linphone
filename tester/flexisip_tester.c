@@ -41,7 +41,7 @@ static void subscribe_forking(void) {
 
 	lev=linphone_core_subscribe(marie->lc,pauline->identity,"dodo",expires,content);
 
-	BC_ASSERT_TRUE(wait_for_list(lcs,&marie->stat.number_of_LinphoneSubscriptionOutgoingInit,1,1000));
+	BC_ASSERT_TRUE(wait_for_list(lcs,&marie->stat.number_of_LinphoneSubscriptionOutgoingProgress,1,1000));
 	BC_ASSERT_TRUE(wait_for_list(lcs,&pauline->stat.number_of_LinphoneSubscriptionIncomingReceived,1,3000));
 	BC_ASSERT_TRUE(wait_for_list(lcs,&pauline2->stat.number_of_LinphoneSubscriptionIncomingReceived,1,1000));
 	BC_ASSERT_TRUE(wait_for_list(lcs,&marie->stat.number_of_LinphoneSubscriptionActive,1,1000));
@@ -675,6 +675,7 @@ static void call_with_sips_not_achievable(void){
 		if (ei){
 			BC_ASSERT_EQUAL(linphone_error_info_get_reason(ei), LinphoneReasonTemporarilyUnavailable, int, "%d");
 		}
+		linphone_call_unref(call);
 
 		linphone_core_manager_destroy(marie);
 		linphone_core_manager_destroy(pauline1);
@@ -925,6 +926,7 @@ static void file_transfer_message_external_body_to_rcs_client(void) {
 static void dos_module_trigger(void) {
 	LinphoneChatRoom *chat_room;
 	int i = 0;
+	int dummy = 0;
 	const char* passmsg = "This one should pass through";
 	int number_of_messge_to_send = 100;
 	LinphoneChatMessage * chat_msg = NULL;
@@ -941,12 +943,12 @@ static void dos_module_trigger(void) {
 		sprintf(msg, "Flood message number %i", i);
 		chat_msg = linphone_chat_room_create_message(chat_room, msg);
 		linphone_chat_room_send_chat_message(chat_room, chat_msg);
-		ms_usleep(10000);
+		wait_for_until(marie->lc, pauline->lc, &dummy, 1, 10);
 		i++;
 	} while (i < number_of_messge_to_send);
 	// At this point we should be banned for a minute
 
-	ms_usleep(65000000); // Wait several seconds to ensure we are not banned anymore
+	wait_for_until(marie->lc, pauline->lc, &dummy, 1, 65000);; // Wait several seconds to ensure we are not banned anymore
 	BC_ASSERT_LOWER(marie->stat.number_of_LinphoneMessageReceived, number_of_messge_to_send, int, "%d");
 
 	reset_counters(&marie->stat);
@@ -1110,7 +1112,7 @@ static void test_list_subscribe (void) {
 
 	linphone_event_send_subscribe(lev,content);
 
-	BC_ASSERT_TRUE(wait_for_list(lcs,&marie->stat.number_of_LinphoneSubscriptionOutgoingInit,1,1000));
+	BC_ASSERT_TRUE(wait_for_list(lcs,&marie->stat.number_of_LinphoneSubscriptionOutgoingProgress,1,1000));
 	BC_ASSERT_TRUE(wait_for_list(lcs,&marie->stat.number_of_LinphoneSubscriptionActive,1,5000));
 
 	/*make sure marie receives first notification before terminating*/
@@ -1168,6 +1170,25 @@ static void test_subscribe_on_wrong_dialog(void) {
 }
 #endif
 
+static void publish_subscribe(void) {
+	LinphoneCoreManager* marie = linphone_core_manager_new("marie_rc");
+	LinphoneCoreManager* pauline = linphone_core_manager_new(transport_supported(LinphoneTransportTls) ? "pauline_rc" : "pauline_tcp_rc");
+	LinphoneCoreManager* marie2 = NULL;
+	LinphoneAddress *marie_identity = linphone_address_ref(marie->identity);
+	
+	linphone_core_set_network_reachable(marie->lc, FALSE);
+	linphone_core_manager_destroy(marie);
+	
+	linphone_core_invite_address(pauline->lc, marie_identity);
+	BC_ASSERT_TRUE(wait_for_until(pauline->lc, NULL, &pauline->stat.number_of_LinphoneCallOutgoingProgress, 1, 3000));
+	
+	marie2 = linphone_core_manager_new("marie2_rc");
+	BC_ASSERT_TRUE(wait_for_until(marie2->lc, NULL, &marie2->stat.number_of_LinphoneCallIncomingReceived, 1, 3000));
+	
+	linphone_address_unref(marie_identity);
+	linphone_core_manager_destroy(pauline);
+	linphone_core_manager_destroy(marie2);
+}
 
 test_t flexisip_tests[] = {
 	TEST_ONE_TAG("Subscribe forking", subscribe_forking, "LeaksMemory"),
@@ -1184,7 +1205,7 @@ test_t flexisip_tests[] = {
 	TEST_NO_TAG("Call forking not responded", call_forking_not_responded),
 	TEST_NO_TAG("Early-media call forking", early_media_call_forking),
 	TEST_NO_TAG("Call with sips", call_with_sips),
-	TEST_ONE_TAG("Call with sips not achievable", call_with_sips_not_achievable, "LeaksMemory"),
+	TEST_NO_TAG("Call with sips not achievable", call_with_sips_not_achievable),
 	TEST_NO_TAG("Call ipv6 to ipv6", call_with_ipv6),
 	TEST_NO_TAG("Call ipv6 to ipv4", call_ipv6_to_ipv4),
 	TEST_NO_TAG("Call ipv4 to ipv6", call_ipv4_to_ipv6),
@@ -1193,14 +1214,15 @@ test_t flexisip_tests[] = {
 	/*TEST_ONE_TAG("Subscribe Notify with sipp double publish", test_subscribe_notify_with_sipp_publisher_double_publish, "LeaksMemory"),*/
 #endif
 	TEST_NO_TAG("Publish/unpublish", test_publish_unpublish),
-	TEST_ONE_TAG("List subscribe", test_list_subscribe,"LeaksMemory"),
+	TEST_NO_TAG("List subscribe", test_list_subscribe),
 	TEST_NO_TAG("File transfer message rcs to external body client", file_transfer_message_rcs_to_external_body_client),
 	TEST_ONE_TAG("File transfer message external body to rcs client", file_transfer_message_external_body_to_rcs_client, "LeaksMemory"),
 	TEST_ONE_TAG("File transfer message external body to external body client", file_transfer_message_external_body_to_external_body_client, "LeaksMemory"),
 	TEST_NO_TAG("DoS module trigger by sending a lot of chat messages", dos_module_trigger),
 #if HAVE_SIPP
-	TEST_NO_TAG("Subscribe on wrong dialog", test_subscribe_on_wrong_dialog)
+	TEST_NO_TAG("Subscribe on wrong dialog", test_subscribe_on_wrong_dialog),
 #endif
+	TEST_NO_TAG("Publish/subscribe", publish_subscribe)
 };
 
 test_suite_t flexisip_test_suite = {"Flexisip", NULL, NULL, liblinphone_tester_before_each, liblinphone_tester_after_each,

@@ -30,6 +30,11 @@ SalOp * sal_op_new(Sal *sal){
 	return op;
 }
 
+void sal_op_kill_dialog(SalOp *op) {
+	ms_warning("op [%p]: force kill of dialog [%p]", op, op->dialog);
+	belle_sip_dialog_delete(op->dialog);
+}
+
 void sal_op_release(SalOp *op){
 	/*if in terminating state, keep this state because it means we are waiting for a response to be able to terminate the operation.*/
 	if (op->state!=SalOpStateTerminating)
@@ -235,6 +240,14 @@ int sal_ping(SalOp *op, const char *from, const char *to){
 	return sal_op_send_request(op,sal_op_build_request(op,"OPTIONS"));
 }
 
+void sal_op_set_replaces(SalOp* op,belle_sip_header_replaces_t* replaces) {
+	if (op->replaces){
+		belle_sip_object_unref(op->replaces);
+	}
+	op->replaces=replaces;
+	belle_sip_object_ref(op->replaces);
+}
+
 void sal_op_set_remote_ua(SalOp*op,belle_sip_message_t* message) {
 	belle_sip_header_user_agent_t* user_agent=belle_sip_message_get_header_by_type(message,belle_sip_header_user_agent_t);
 	char user_agent_string[256];
@@ -342,6 +355,9 @@ static int _sal_op_send_request_with_contact(SalOp* op, belle_sip_request_t* req
 			}
 #endif
 		}
+		/*because in case of tunnel, transport can be changed*/
+		transport=belle_sip_uri_get_transport_param(next_hop_uri);
+		
 		if ((strcmp(method,"REGISTER")==0 || strcmp(method,"SUBSCRIBE")==0) && transport &&
 			(strcasecmp(transport,"TCP")==0 || strcasecmp(transport,"TLS")==0)){
 			/*RFC 5923: add 'alias' parameter to tell the server that we want it to keep the connection for future requests*/
@@ -738,7 +754,7 @@ void sal_op_set_manual_refresher_mode(SalOp *op, bool_t enabled){
 	op->manual_refresher=enabled;
 }
 
-bool_t sal_op_is_ipv6(SalOp *op){
+int sal_op_get_address_family(SalOp *op){
 	belle_sip_transaction_t *tr=NULL;
 	belle_sip_header_address_t *contact;
 	
@@ -753,7 +769,7 @@ bool_t sal_op_is_ipv6(SalOp *op){
 	
 	if (tr==NULL){
 		ms_error("Unable to determine IP version from signaling operation.");
-		return FALSE;
+		return AF_UNSPEC;
 	}
 	
 	
@@ -762,16 +778,16 @@ bool_t sal_op_is_ipv6(SalOp *op){
 		belle_sip_header_via_t *via = resp ?belle_sip_message_get_header_by_type(resp,belle_sip_header_via_t):NULL;
 		if (!via){
 			ms_error("Unable to determine IP version from signaling operation, no via header found.");
-			return FALSE;
+			return AF_UNSPEC;
 		}
-		return strchr(belle_sip_header_via_get_host(via),':') != NULL;
+		return (strchr(belle_sip_header_via_get_host(via),':') != NULL) ? AF_INET6 : AF_INET;
 	} else {
 		belle_sip_request_t *req = belle_sip_transaction_get_request(tr);
 		contact=(belle_sip_header_address_t*)belle_sip_message_get_header_by_type(req,belle_sip_header_contact_t);
 		if (!contact){
 			ms_error("Unable to determine IP version from signaling operation, no contact header found.");
 		}
-		return sal_address_is_ipv6((SalAddress*)contact);
+		return sal_address_is_ipv6((SalAddress*)contact) ? AF_INET6 : AF_INET;
 	}
 }
 

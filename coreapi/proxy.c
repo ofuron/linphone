@@ -64,7 +64,7 @@ LinphoneProxyConfigAddressComparisonResult linphone_proxy_config_is_server_confi
 	LinphoneAddress *current_proxy=cfg->reg_proxy?linphone_address_new(cfg->reg_proxy):NULL;
 	LinphoneProxyConfigAddressComparisonResult result_identity;
 	LinphoneProxyConfigAddressComparisonResult result;
-
+	
 	result = linphone_proxy_config_address_equal(cfg->saved_identity,cfg->identity_address);
 	if (result == LinphoneProxyConfigAddressDifferent) goto end;
 	result_identity = result;
@@ -79,6 +79,7 @@ LinphoneProxyConfigAddressComparisonResult linphone_proxy_config_is_server_confi
 
 	end:
 	if (current_proxy) linphone_address_destroy(current_proxy);
+	ms_message("linphone_proxy_config_is_server_config_changed : %i", result);
 	return result;
 }
 
@@ -353,11 +354,13 @@ bool_t linphone_proxy_config_check(LinphoneCore *lc, LinphoneProxyConfig *cfg){
 }
 
 void linphone_proxy_config_enableregister(LinphoneProxyConfig *cfg, bool_t val){
+	if (val != cfg->reg_sendregister) cfg->register_changed = TRUE;
 	cfg->reg_sendregister=val;
 }
 
 void linphone_proxy_config_set_expires(LinphoneProxyConfig *cfg, int val){
 	if (val<0) val=600;
+	if (val != cfg->expires) cfg->register_changed = TRUE;
 	cfg->expires=val;
 }
 
@@ -377,8 +380,7 @@ void linphone_proxy_config_edit(LinphoneProxyConfig *cfg){
 	if (cfg->publish && cfg->long_term_event){
 		linphone_event_pause_publish(cfg->long_term_event);
 	}
-	/*stop refresher in any case*/
-	linphone_proxy_config_pause_register(cfg);
+	/*Don't stop refresher*/
 }
 
 void linphone_proxy_config_apply(LinphoneProxyConfig *cfg,LinphoneCore *lc){
@@ -592,8 +594,19 @@ static char *flatten_number(const char *number){
 	char *result=ms_malloc0(strlen(number)+1);
 	char *w=result;
 	const char *r;
+	bool_t removing_trunk_prefix = FALSE;
 	for(r=number;*r!='\0';++r){
-		if (*r=='+' || isdigit(*r)){
+		if (result[0] == '+') {
+			/*e164 case*/
+			if (*r=='(') {
+				/*start removing trunk prefix as we are in form +33 (0) 6 222222*/
+				removing_trunk_prefix=TRUE;
+			} else if (*r==')') {
+				/*stop removing trunk prefix*/
+				removing_trunk_prefix=FALSE;
+			}
+		}
+		if (removing_trunk_prefix == FALSE && (*r=='+' || isdigit(*r))){
 			*w++=*r;
 		}
 	}
@@ -622,38 +635,44 @@ char* linphone_proxy_config_normalize_phone_number(LinphoneProxyConfig *proxy, c
 	LinphoneProxyConfig *tmpproxy = proxy ? proxy : linphone_proxy_config_new();
 	char* result = NULL;
 	if (linphone_proxy_config_is_phone_number(tmpproxy, username)){
+		LinphoneDialPlan dialplan = *linphone_dial_plan_by_ccc(tmpproxy->dial_prefix); //copy dial plan;
 		char * flatten=flatten_number(username);
-		const LinphoneDialPlan *dialplan = linphone_dial_plan_by_ccc(tmpproxy->dial_prefix);
 		ms_debug("Flattened number is '%s' for '%s'",flatten, username);
 
+		if (tmpproxy->dial_prefix){
+			if (strcmp(tmpproxy->dial_prefix,dialplan.ccc) != 0){
+				//probably generic dialplan, preserving proxy dial prefix
+				strncpy(dialplan.ccc,tmpproxy->dial_prefix,sizeof(dialplan.ccc));
+			}
+		}
 		/*if proxy has a dial prefix, modify phonenumber accordingly*/
 		if (tmpproxy->dial_prefix!=NULL && tmpproxy->dial_prefix[0]!='\0'){
 			ms_debug("Using dial plan '%s'",dialplan->country);
 			/* the number already starts with + or international prefix*/
-			if (flatten[0]=='+'||strstr(flatten,dialplan->icp)==flatten){
+			if (flatten[0]=='+'||strstr(flatten,dialplan.icp)==flatten){
 				ms_debug("Prefix already present.");
 				if (tmpproxy->dial_escape_plus) {
-					result = replace_plus_with_icp(flatten,dialplan->icp);
+					result = replace_plus_with_icp(flatten,dialplan.icp);
 				} else {
-					result = replace_icp_with_plus(flatten,dialplan->icp);
+					result = replace_icp_with_plus(flatten,dialplan.icp);
 				}
 			}else{
 				/*0. keep at most national number significant digits */
-				char* flatten_start = flatten + MAX(0, (int)strlen(flatten) - (int)dialplan->nnl);
+				char* flatten_start = flatten + MAX(0, (int)strlen(flatten) - (int)dialplan.nnl);
 				ms_debug("Prefix not present. Keeping at most %d digits: %s", dialplan->nnl, flatten_start);
 
 				/*1. First prepend international calling prefix or +*/
 				/*2. Second add prefix*/
 				/*3. Finally add user digits */
 				result = ms_strdup_printf("%s%s%s"
-											, tmpproxy->dial_escape_plus ? dialplan->icp : "+"
-											, dialplan->ccc
+											, tmpproxy->dial_escape_plus ? dialplan.icp : "+"
+											, dialplan.ccc
 											, flatten_start);
 				ms_debug("Prepended prefix resulted in %s", result);
 			}
 		}else if (tmpproxy->dial_escape_plus){
 			/* user did not provide dial prefix, so we'll take the most generic one */
-			result = replace_plus_with_icp(flatten,dialplan->icp);
+			result = replace_plus_with_icp(flatten,dialplan.icp);
 		}
 		if (result==NULL) {
 			result = flatten;
@@ -745,7 +764,7 @@ int linphone_proxy_config_done(LinphoneProxyConfig *cfg)
 	if (!linphone_proxy_config_check(cfg->lc,cfg))
 		return -1;
 
-	/*check if server address as changed*/
+	/*check if server address has changed*/
 	res = linphone_proxy_config_is_server_config_changed(cfg);
 	if (res != LinphoneProxyConfigAddressEqual) {
 		/* server config has changed, need to unregister from previous first*/
@@ -761,22 +780,29 @@ int linphone_proxy_config_done(LinphoneProxyConfig *cfg)
 			if (res == LinphoneProxyConfigAddressDifferent) {
 				_linphone_proxy_config_unpublish(cfg);
 			}
-
 		}
+		cfg->commit = TRUE;
 	}
+	if (cfg->register_changed){
+		cfg->commit = TRUE;
+		cfg->register_changed = FALSE;
+	}
+	if (cfg->commit){
+		linphone_proxy_config_pause_register(cfg);
+	}
+	
 	if (linphone_proxy_config_compute_publish_params_hash(cfg)) {
 		ms_message("Publish params have changed on proxy config [%p]",cfg);
 		if (cfg->long_term_event) {
-			if (!cfg->publish) {
-				/*publish is terminated*/
-				linphone_event_terminate(cfg->long_term_event);
-			} else {
+			if (cfg->publish) {
 				const char * sip_etag = linphone_event_get_custom_header(cfg->long_term_event, "SIP-ETag");
 				if (sip_etag) {
 					if (cfg->sip_etag) ms_free(cfg->sip_etag);
 					cfg->sip_etag = ms_strdup(sip_etag);
 				}
 			}
+			/*publish is terminated*/
+			linphone_event_terminate(cfg->long_term_event);
 			linphone_event_unref(cfg->long_term_event);
 			cfg->long_term_event = NULL;
 		}
@@ -784,7 +810,7 @@ int linphone_proxy_config_done(LinphoneProxyConfig *cfg)
 	} else {
 		ms_message("Publish params have not changed on proxy config [%p]",cfg);
 	}
-	cfg->commit=TRUE;
+	
 	linphone_proxy_config_write_all_to_config_file(cfg->lc);
 	return 0;
 }
@@ -893,6 +919,7 @@ void linphone_proxy_config_set_contact_parameters(LinphoneProxyConfig *cfg, cons
 	if (contact_params){
 		cfg->contact_params=ms_strdup(contact_params);
 	}
+	cfg->register_changed = TRUE;
 }
 
 void linphone_proxy_config_set_contact_uri_parameters(LinphoneProxyConfig *cfg, const char *contact_uri_params){
@@ -903,6 +930,7 @@ void linphone_proxy_config_set_contact_uri_parameters(LinphoneProxyConfig *cfg, 
 	if (contact_uri_params){
 		cfg->contact_uri_params=ms_strdup(contact_uri_params);
 	}
+	cfg->register_changed = TRUE;
 }
 
 const char *linphone_proxy_config_get_contact_parameters(const LinphoneProxyConfig *cfg){
@@ -926,6 +954,7 @@ const char *linphone_proxy_config_get_custom_header(LinphoneProxyConfig *cfg, co
 
 void linphone_proxy_config_set_custom_header(LinphoneProxyConfig *cfg, const char *header_name, const char *header_value){
 	cfg->sent_headers=sal_custom_header_append(cfg->sent_headers, header_name, header_value);
+	cfg->register_changed = TRUE;
 }
 
 int linphone_core_add_proxy_config(LinphoneCore *lc, LinphoneProxyConfig *cfg){
@@ -1255,7 +1284,7 @@ void linphone_proxy_config_set_state(LinphoneProxyConfig *cfg, LinphoneRegistrat
 			ms_message("Updating friends for identity [%s] on core [%p]",linphone_proxy_config_get_identity(cfg),cfg->lc);
 			/* state must be updated before calling linphone_core_update_friends_subscriptions*/
 			cfg->state=state;
-			linphone_core_update_friends_subscriptions(lc,cfg,TRUE);
+			linphone_core_update_friends_subscriptions(lc);
 		} else {
 			/*at this point state must be updated*/
 			cfg->state=state;
@@ -1404,5 +1433,5 @@ LinphoneNatPolicy * linphone_proxy_config_get_nat_policy(const LinphoneProxyConf
 void linphone_proxy_config_set_nat_policy(LinphoneProxyConfig *cfg, LinphoneNatPolicy *policy) {
 	if (policy != NULL) policy = linphone_nat_policy_ref(policy); /* Prevent object destruction if the same policy is used */
 	if (cfg->nat_policy != NULL) linphone_nat_policy_unref(cfg->nat_policy);
-	if (policy != NULL) cfg->nat_policy = policy;
+	cfg->nat_policy = policy;
 }

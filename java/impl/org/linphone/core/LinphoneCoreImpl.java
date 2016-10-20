@@ -45,6 +45,7 @@ class LinphoneCoreImpl implements LinphoneCore {
 	protected long nativePtr = 0;
 	private Context mContext = null;
 	private AudioManager mAudioManager = null;
+	private boolean openh264Enabled = false;
 	private boolean mSpeakerEnabled = false;
 	private native long newLinphoneCore(LinphoneCoreListener listener,String userConfig,String factoryConfig,Object  userdata);
 	private native void iterate(long nativePtr);
@@ -129,6 +130,7 @@ class LinphoneCoreImpl implements LinphoneCore {
 	private native void setRing(long nativePtr, String path);
 	private native String getRing(long nativePtr);
 	private native void setRootCA(long nativePtr, String path);
+	private native void setRootCAData(long nativePtr, String data);
 	private native void setRingback(long nativePtr, String path);
 	private native long[] listVideoPayloadTypes(long nativePtr);
 	private native void setVideoCodecs(long nativePtr, long[] codecs);
@@ -623,6 +625,10 @@ class LinphoneCoreImpl implements LinphoneCore {
 
 	public synchronized void setRootCA(String path) {
 		setRootCA(nativePtr, path);
+	}
+
+	public synchronized void setRootCAData(String data) {
+		setRootCAData(nativePtr, data);
 	}
 
 	public synchronized void setRingback(String path) {
@@ -1725,5 +1731,61 @@ class LinphoneCoreImpl implements LinphoneCore {
 	private native int getLimeEncryption(long nativePtr);
 	public synchronized LinphoneLimeState getLimeEncryption() {
 		return LinphoneLimeState.fromInt(getLimeEncryption(nativePtr));
+	}
+
+	private native String getTlsCertificate(long ptr);
+	@Override
+	public String getTlsCertificate() {
+		return getTlsCertificate(nativePtr);
+	}
+
+	private native String getTlsKey(long ptr);
+	@Override
+	public String getTlsKey() {
+		return getTlsKey(nativePtr);
+	}
+
+	private native String getTlsCertificatePath(long ptr);
+	@Override
+	public String getTlsCertificatePath() {
+		return getTlsCertificatePath(nativePtr);
+	}
+
+	private native String getTlsKeyPath(long ptr);
+	@Override
+	public String getTlsKeyPath() {
+		return getTlsKeyPath(nativePtr);
+	}
+
+	private native void setTlsCertificate(long ptr, String cert);
+	@Override
+	public void setTlsCertificate(String cert) {
+		setTlsCertificate(nativePtr, cert);
+	}
+
+	private native void setTlsKey(long ptr, String key);
+	@Override
+	public void setTlsKey(String key) {
+		setTlsKey(nativePtr, key);
+	}
+
+	private native void setTlsCertificatePath(long ptr, String path);
+	@Override
+	public void setTlsCertificatePath(String path) {
+		setTlsCertificatePath(nativePtr, path);
+	}
+
+	private native void setTlsKeyPath(long ptr, String path);
+	@Override
+	public void setTlsKeyPath(String path) {
+		setTlsKeyPath(nativePtr, path);
+	}
+
+	public void enableOpenH264(boolean enable) {
+		openh264Enabled = enable;
+	}
+
+	public boolean openH264Enabled() {
+		return openh264Enabled;
 	}
 }
