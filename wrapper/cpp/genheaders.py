@@ -7,7 +7,7 @@ import genapixml as CApi
 import abstractapi as AbsApi
 
 
-class CppTranslator(AbsApi.Translator):
+class CppTranslator(object):
 	sharedPtrTypeExtractor = re.compile('^(const )?std::shared_ptr<(.+)>( &)?$')
 	
 	def __init__(self):
@@ -17,77 +17,79 @@ class CppTranslator(AbsApi.Translator):
 	def is_ambigous_type(self, _type):
 		return _type.name in self.ambigousTypes or (_type.name == 'list' and CppTranslator.is_ambigous_type(self, _type.containedTypeDesc))
 	
-	def _translate_enum(self, enum):
+	@staticmethod
+	def translate_enum(enum):
 		enumDict = {}
 		enumDict['name'] = enum.name.to_camel_case()
 		enumDict['values'] = []
 		i = 0
 		for enumValue in enum.values:
-			enumValDict = self.translate(enumValue)
+			enumValDict = CppTranslator.translate_enum_value(enumValue)
 			enumValDict['notLast'] = (i != len(enum.values)-1)
 			enumDict['values'].append(enumValDict)
 			i += 1
 		return enumDict
 	
-	def _translate_enum_value(self, enumValue):
+	@staticmethod
+	def translate_enum_value(enumValue):
 		enumValueDict = {}
-		enumValueDict['name'] = self.translate(enumValue.name)
+		enumValueDict['name'] = CppTranslator.translate_enum_value_name(enumValue.name)
 		return enumValueDict
 	
-	def _translate_class(self, _class):
+	def translate_class(self, _class):
 		if _class.name.to_camel_case(fullName=True) in self.ignore:
 			raise AbsApi.Error('{0} has been escaped'.format(_class.name.to_camel_case(fullName=True)))
 		
 		classDict = {}
-		classDict['name'] = self.translate(_class.name)
+		classDict['name'] = CppTranslator.translate_class_name(_class.name)
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
 		for property in _class.properties:
 			try:
-				classDict['methods'] += self.translate(property)
+				classDict['methods'] += CppTranslator.translate_property(self, property)
 			except AbsApi.Error as e:
 				print('error while translating {0} property: {1}'.format(property.name.to_snake_case(), e.args[0]))
 		
 		for method in _class.instanceMethods:
 			try:
-				methodDict = self.translate(method)
+				methodDict = CppTranslator.translate_method(self, method)
 				classDict['methods'].append(methodDict)
 			except AbsApi.Error as e:
 				print('Could not translate {0}: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
 				
 		for method in _class.classMethods:
 			try:
-				methodDict = self.translate(method)
+				methodDict = CppTranslator.translate_method(self, method)
 				classDict['staticMethods'].append(methodDict)
 			except AbsApi.Error as e:
 				print('Could not translate {0}: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
 		
 		return classDict
 	
-	def _translate_property(self, property):
+	def translate_property(self, property):
 		res = []
 		if property.getter is not None:
-			res.append(self.translate(property.getter))
+			res.append(CppTranslator.translate_method(self, property.getter))
 		if property.setter is not None:
-			res.append(self.translate(property.setter))
+			res.append(CppTranslator.translate_method(self, property.setter))
 		return res
 	
-	def _translate_method(self, method):
+	def translate_method(self, method):
 		if method.name.to_snake_case(fullName=True) in self.ignore:
 			raise AbsApi.Error('{0} has been escaped'.format(method.name.to_snake_case(fullName=True)))
 		
 		namespace = method.find_first_ancestor_by_type(AbsApi.Namespace)
 		
 		methodElems = {}
-		methodElems['return'] = self.translate(method.returnType)
+		methodElems['return'] = CppTranslator.translate_type(method.returnType)
 		
 		if not CppTranslator.is_ambigous_type(self, method.returnType):
-			methodElems['implReturn'] = self.translate(method.returnType, namespace=namespace)
+			methodElems['implReturn'] = CppTranslator.translate_type(method.returnType, namespace=namespace)
 		else:
-			methodElems['implReturn'] = self.translate(method.returnType, namespace=None)
+			methodElems['implReturn'] = CppTranslator.translate_type(method.returnType, namespace=None)
 		
-		methodElems['name'] = self.translate(method.name)
-		methodElems['longname'] = self.translate(method.name, recursive=True)
+		methodElems['name'] = CppTranslator.translate_method_name(method.name)
+		methodElems['longname'] = CppTranslator.translate_method_name(method.name, recursive=True)
 		
 		methodElems['params'] = ''
 		methodElems['implParams'] = ''
@@ -95,8 +97,8 @@ class CppTranslator(AbsApi.Translator):
 			if arg is not method.args[0]:
 				methodElems['params'] += ', '
 				methodElems['implParams'] += ', '
-			methodElems['params'] += CppTranslator._translate_argument(self, arg)
-			methodElems['implParams'] += CppTranslator._translate_argument(self, arg, namespace=namespace)
+			methodElems['params'] += CppTranslator.translate_argument(arg)
+			methodElems['implParams'] += CppTranslator.translate_argument(arg, namespace=namespace)
 		
 		methodElems['const'] = ' const' if method.constMethod else ''
 		methodElems['static'] = 'static ' if method.type == AbsApi.Method.Type.Class else ''
@@ -104,10 +106,11 @@ class CppTranslator(AbsApi.Translator):
 		methodDict = {}
 		methodDict['prototype'] = '{static}{return} {name}({params}){const};'.format(**methodElems)
 		methodDict['implPrototype'] = '{implReturn} {longname}({implParams}){const}'.format(**methodElems)
-		methodDict['sourceCode' ] = CppTranslator._generate_source_code(self, method, usedNamespace=namespace)
+		methodDict['sourceCode' ] = CppTranslator._generate_source_code(method, usedNamespace=namespace)
 		return methodDict
 	
-	def _generate_source_code(self, method, usedNamespace=None):
+	@staticmethod
+	def _generate_source_code(method, usedNamespace=None):
 		nsName = usedNamespace.name if usedNamespace is not None else None
 		
 		params = {}
@@ -131,14 +134,14 @@ class CppTranslator(AbsApi.Translator):
 			elif type(arg.type) is AbsApi.EnumType:
 				cppExpr = '(::{0}){1}'.format(arg.type.desc.name.to_camel_case(fullName=True), paramName)
 			elif type(arg.type) is AbsApi.ClassType:
-				ptrType = CppTranslator._translate_class_type(self, arg.type, namespace=usedNamespace)
+				ptrType = CppTranslator.translate_class_type(arg.type, namespace=usedNamespace)
 				ptrType = CppTranslator.sharedPtrTypeExtractor.match(ptrType).group(2)
 				cppExpr = '(::{0} *)sharedPtrToCPtr<{1}>({2})'.format(arg.type.desc.name.to_camel_case(fullName=True), ptrType, paramName)
 			elif type(arg.type) is AbsApi.ListType:
 				if type(arg.type.containedTypeDesc) is AbsApi.BaseType and arg.type.containedTypeDesc.name == 'string':
 					cppExpr = 'StringBctbxListWrapper({0}).c_list()'.format(paramName)
 				elif type(arg.type.containedTypeDesc) is AbsApi.Class:
-					ptrType = CppTranslator._translate_class_type(self, arg.type, namespace=usedNamespace)
+					ptrType = CppTranslator.translate_class_type(arg.type, namespace=usedNamespace)
 					ptrType = CppTranslator.sharedPtrTypeExtractor.match(ptrType).group(2)
 					cppExpr = 'ObjectBctbxListWrapper<{0}>({1}).c_list()'.format(ptrType, paramName)
 				else:
@@ -157,10 +160,10 @@ class CppTranslator(AbsApi.Translator):
 				params['return'] = 'return cStringArrayToCppList('
 				params['trailingBrackets'] = ')'
 		elif type(method.returnType) is AbsApi.EnumType:
-			cppEnumName = CppTranslator._translate_enum_type(self, method.returnType, namespace=usedNamespace)
+			cppEnumName = CppTranslator.translate_enum_type(method.returnType, namespace=usedNamespace)
 			params['return'] = 'return ({0})'.format(cppEnumName)
 		elif type(method.returnType) is AbsApi.ClassType:
-			cppReturnType = CppTranslator._translate_class_type(self, method.returnType, namespace=usedNamespace)
+			cppReturnType = CppTranslator.translate_class_type(method.returnType, namespace=usedNamespace)
 			cppReturnType = CppTranslator.sharedPtrTypeExtractor.match(cppReturnType).group(2)
 			params['return'] = 'return cPtrToSharedPtr<{0}>('.format(cppReturnType)
 			params['trailingBrackets'] = ')'
@@ -169,7 +172,7 @@ class CppTranslator(AbsApi.Translator):
 				params['return'] = 'return bctbxStringListToCppList('
 				params['trailingBrackets'] = ')'
 			elif type(method.returnType.containedTypeDesc) is AbsApi.ClassType:
-				cppReturnType = CppTranslator._translate_class_type(self, method.returnType.containedTypeDesc, namespace=usedNamespace)
+				cppReturnType = CppTranslator.translate_class_type(method.returnType.containedTypeDesc, namespace=usedNamespace)
 				cppReturnType = CppTranslator.sharedPtrTypeExtractor.match(cppReturnType).group(2)
 				params['return'] = 'return bctbxObjectListToCppList<{0}>('.format(cppReturnType)
 				params['trailingBrackets'] = ')'
@@ -180,10 +183,25 @@ class CppTranslator(AbsApi.Translator):
 		
 		return '{return}{functionName}({args}){trailingBrackets};'.format(**params)
 	
-	def _translate_argument(self, arg, **params):
-		return '{0} {1}'.format(self.translate(arg.type, **params), self.translate(arg.name))
+	@staticmethod
+	def translate_argument(arg, **params):
+		return '{0} {1}'.format(CppTranslator.translate_type(arg.type, **params), CppTranslator.translate_argument_name(arg.name))
 	
-	def _translate_base_type(self, _type):
+	@staticmethod
+	def translate_type(aType, **params):
+		if type(aType) is AbsApi.BaseType:
+			return CppTranslator.translate_base_type(aType)
+		elif type(aType) is AbsApi.EnumType:
+			return CppTranslator.translate_enum_type(aType, **params)
+		elif type(aType) is AbsApi.ClassType:
+			return CppTranslator.translate_class_type(aType, **params)
+		elif type(aType) is AbsApi.ListType:
+			return CppTranslator.translate_list_type(aType, **params)
+		else:
+			CppTranslator.fail(aType)
+	
+	@staticmethod
+	def translate_base_type(_type):
 		if _type.name == 'void':
 			if _type.isref:
 				return 'void *'
@@ -234,7 +252,8 @@ class CppTranslator(AbsApi.Translator):
 			res += ' &'
 		return res
 	
-	def _translate_enum_type(self, _type, **params):
+	@staticmethod
+	def translate_enum_type(_type, **params):
 		if _type.desc is None:
 			raise AbsApi.Error('{0} has not been fixed'.format(_type.name.to_camel_case(fullName=True)))
 		
@@ -244,9 +263,10 @@ class CppTranslator(AbsApi.Translator):
 			method = _type.find_first_ancestor_by_type(AbsApi.Method)
 			nsName = AbsApi.Name.find_common_parent(_type.desc.name, method.name)
 		
-		return self.translate(_type.desc.name, recursive=True, topAncestor=nsName)
+		return CppTranslator.translate_enum_name(_type.desc.name, recursive=True, topAncestor=nsName)
 	
-	def _translate_class_type(self, _type, **params):
+	@staticmethod
+	def translate_class_type(_type, **params):
 		if _type.desc is None:
 			raise AbsApi.Error('{0} has not been fixed'.format(_type.name.to_camel_case(fullName=True)))
 		
@@ -256,7 +276,7 @@ class CppTranslator(AbsApi.Translator):
 			method = _type.find_first_ancestor_by_type(AbsApi.Method)
 			nsName = AbsApi.Name.find_common_parent(_type.desc.name, method.name)
 		
-		res = self.translate(_type.desc.name, recursive=True, topAncestor=nsName)
+		res = CppTranslator.translate_class_name(_type.desc.name, recursive=True, topAncestor=nsName)
 		
 		if _type.isconst:
 			res = 'const ' + res
@@ -266,35 +286,59 @@ class CppTranslator(AbsApi.Translator):
 		else:
 			return 'std::shared_ptr<{0}>'.format(res)
 	
-	def _translate_list_type(self, _type, **params):
+	@staticmethod
+	def translate_list_type(_type, **params):
 		if _type.containedTypeDesc is None:
 			raise AbsApi.Error('{0} has not been fixed'.format(_type.containedTypeName))
 		elif isinstance(_type.containedTypeDesc, AbsApi.BaseType):
-			res = self.translate(_type.containedTypeDesc)
+			res = CppTranslator.translate_type(_type.containedTypeDesc)
 		else:
-			res = self.translate(_type.containedTypeDesc, **params)
+			res = CppTranslator.translate_type(_type.containedTypeDesc, **params)
 			
 		if type(_type.parent) is AbsApi.Argument:
 			return 'const std::list<{0} > &'.format(res)
 		else:
 			return 'std::list<{0} >'.format(res)
 	
-	def _translate_class_name(self, name, recursive=False, topAncestor=None):
+	@staticmethod
+	def translate_name(aName, **params):
+		if type(aName) is AbsApi.ClassName:
+			return CppTranslator.translate_class_name(aName, **params)
+		elif type(aName) is AbsApi.EnumName:
+			return CppTranslator.translate_enum_name(aName, **params)
+		elif type(aName) is AbsApi.EnumValueName:
+			return CppTranslator.translate_enum_value_name(aName, **params)
+		elif type(aName) is AbsApi.MethodName:
+			return CppTranslator.translate_method_name(aName, **params)
+		elif type(aName) is AbsApi.ArgName:
+			return CppTranslator.translate_argument_name(aName, **params)
+		elif type(aName) is AbsApi.NamespaceName:
+			return CppTranslator.translate_namespace_name(aName, **params)
+		elif type(aName) is AbsApi.PropertyName:
+			return CppTranslator.translate_property_name(aName, **params)
+		else:
+			CppTranslator.fail(aName)
+	
+	@staticmethod
+	def translate_class_name(name, recursive=False, topAncestor=None):
 		if name.prev is None or not recursive or name.prev is topAncestor:
 			return name.to_camel_case()
 		else:
 			params = {'recursive': recursive, 'topAncestor': topAncestor}
-			return self.translate(name.prev, **params) + '::' + name.to_camel_case()
+			return CppTranslator.translate_name(name.prev, **params) + '::' + name.to_camel_case()
 	
-	def _translate_enum_name(self, name, recursive=False, topAncestor=None):
+	@staticmethod
+	def translate_enum_name(name, recursive=False, topAncestor=None):
 		params = {'recursive': recursive, 'topAncestor': topAncestor}
-		return CppTranslator._translate_class_name(self, name, **params)
+		return CppTranslator.translate_class_name(name, **params)
 	
-	def _translate_enum_value_name(self, name, recursive=False, topAncestor=None):
+	@staticmethod
+	def translate_enum_value_name(name, recursive=False, topAncestor=None):
 		params = {'recursive': recursive, 'topAncestor': topAncestor}
-		return CppTranslator._translate_enum_name(self, name.prev, **params) + name.to_camel_case()
+		return CppTranslator.translate_enum_name(name.prev, **params) + name.to_camel_case()
 	
-	def _translate_method_name(self, name, recursive=False, topAncestor=None):
+	@staticmethod
+	def translate_method_name(name, recursive=False, topAncestor=None):
 		translatedName = name.to_camel_case(lower=True)
 		if translatedName == 'new':
 			translatedName = '_new'
@@ -303,20 +347,27 @@ class CppTranslator(AbsApi.Translator):
 			return translatedName
 		else:
 			params = {'recursive': recursive, 'topAncestor': topAncestor}
-			return self.translate(name.prev, **params) + '::' + translatedName
+			return CppTranslator.translate_name(name.prev, **params) + '::' + translatedName
 	
-	def _translate_namespace_name(self, name, recursive=False, topAncestor=None):
+	@staticmethod
+	def translate_namespace_name(name, recursive=False, topAncestor=None):
 		if name.prev is None or not recursive or name.prev is topAncestor:
 			return name.concatenate()
 		else:
 			params = {'recursive': recursive, 'topAncestor': topAncestor}
-			return self.translate(name.prev, **params) + '::' + name.concatenate()
+			return CppTranslator.translate_namespace_name(name.prev, **params) + '::' + name.concatenate()
 	
-	def _translate_argument_name(self, name):
+	@staticmethod
+	def translate_argument_name(name):
 		return name.to_camel_case(lower=True)
 	
-	def _translate_property_name(self, name):
-		CppTranslator._translate_argument_name(self, name)
+	@staticmethod
+	def translate_property_name(name):
+		CppTranslator.translate_argument_name(name)
+	
+	@staticmethod
+	def fail(obj):
+		raise AbsApi.Error('Cannot translate {0} type'.format(type(obj)))
 
 
 class EnumsHeader(object):
@@ -325,12 +376,12 @@ class EnumsHeader(object):
 		self.enums = []
 	
 	def add_enum(self, enum):
-		self.enums.append(self.translator.translate(enum))
+		self.enums.append(self.translator.translate_enum(enum))
 
 
 class ClassHeader(object):
 	def __init__(self, _class, translator):
-		self._class = translator.translate(_class)
+		self._class = translator.translate_class(_class)
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
 		self.includes = {'internal': [], 'external': []}

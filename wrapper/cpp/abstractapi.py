@@ -337,6 +337,10 @@ class Class(DocumentableObject):
 
 
 class CParser(object):
+	cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
+	cListType = 'bctbx_list_t'
+	regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
+	
 	def __init__(self, cProject):
 		self.cProject = cProject
 		
@@ -351,28 +355,58 @@ class CParser(object):
 		for _class in self.cProject.classes:
 			self.classesIndex[_class.name] = None
 		
-		self.cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
-		self.cListType = 'bctbx_list_t'
-		self.regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
-		
 		name = NamespaceName()
 		name.from_snake_case('linphone')
 		self.namespace = Namespace(name)
+		
+	def parse_all(self):
+		for enum in self.cProject.enums:
+			CParser.parse_enum(self, enum)
+		for _class in self.cProject.classes:
+			try:
+				CParser.parse_class(self, _class)
+			except Error as e:
+				print('Could not parse \'{0}\' class: {1}'.format(_class.name, e.args[0]))
+		CParser._fix_all_types(self)
 	
-	def parse_type(self, cType):
-		if cType.ctype in self.cBaseType or re.match(self.regexFixedSizeInteger, cType.ctype):
-			return CParser.parse_c_base_type(self, cType.completeType)
-		elif cType.ctype in self.enumsIndex:
-			return EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
-		elif cType.ctype in self.classesIndex:
-			params = {'classDesc': self.classesIndex[cType.ctype]}
-			if 'const' in cType.completeType.split(' '):
-				params['isconst'] = True
-			return ClassType(cType.ctype, **params)
-		elif cType.ctype == self.cListType:
-			return ListType(cType.containedType)
-		else:
-			raise Error('Unknown C type \'{0}\''.format(cType.ctype))
+	def _fix_all_types(self):
+		for _class in self.classesIndex.itervalues():
+			if _class is not None:
+				CParser._fix_all_types_in_class(self, _class)
+	
+	def _fix_all_types_in_class(self, _class):
+		for property in _class.properties:
+			if property.setter is not None:
+				CParser._fix_all_types_in_method(self, property.setter)
+			if property.getter is not None:
+				CParser._fix_all_types_in_method(self, property.getter)
+		
+		for method in (_class.instanceMethods + _class.classMethods):
+			CParser._fix_all_types_in_method(self, method)
+	
+	def _fix_all_types_in_method(self, method):
+		try:
+			CParser._fix_type(self, method.returnType)
+			for arg in method.args:
+				CParser._fix_type(self, arg.type)
+		except Error as e:
+			print('warning: some types could not be fixed in {0}() function: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
+		
+	def _fix_type(self, type):
+		if isinstance(type, EnumType) and type.desc is None:
+			type.desc = self.enumsIndex[type.name]
+		elif isinstance(type, ClassType) and type.desc is None:
+			type.desc = self.classesIndex[type.name]
+		elif isinstance(type, ListType) and type.containedTypeDesc is None:
+			if type.containedTypeName in self.classesIndex:
+				type.containedTypeDesc = ClassType(type.containedTypeName, classDesc=self.classesIndex[type.containedTypeName])
+			elif type.containedTypeName in self.enumsIndex:
+				type.containedTypeDesc = EnumType(type.containedTypeName, enumDesc=self.enumsIndex[type.containedTypeName])
+			else:
+				if type.containedTypeName is not None:
+					type.containedTypeDesc = CParser.parse_c_base_type(type.containedTypeName)
+				else:
+					raise Error('bctbx_list_t type without specified contained type')
 	
 	def parse_enum(self, cenum):
 		if 'associatedTypedef' in dir(cenum):
@@ -454,56 +488,23 @@ class CParser(object):
 		
 		return method
 	
-	def parse_all(self):
-		for enum in self.cProject.enums:
-			CParser.parse_enum(self, enum)
-		for _class in self.cProject.classes:
-			try:
-				CParser.parse_class(self, _class)
-			except Error as e:
-				print('Could not parse \'{0}\' class: {1}'.format(_class.name, e.args[0]))
-		CParser._fix_all_types(self)
-		
-	def _fix_type(self, type):
-		if isinstance(type, EnumType) and type.desc is None:
-			type.desc = self.enumsIndex[type.name]
-		elif isinstance(type, ClassType) and type.desc is None:
-			type.desc = self.classesIndex[type.name]
-		elif isinstance(type, ListType) and type.containedTypeDesc is None:
-			if type.containedTypeName in self.classesIndex:
-				type.containedTypeDesc = ClassType(type.containedTypeName, classDesc=self.classesIndex[type.containedTypeName])
-			elif type.containedTypeName in self.enumsIndex:
-				type.containedTypeDesc = EnumType(type.containedTypeName, enumDesc=self.enumsIndex[type.containedTypeName])
-			else:
-				if type.containedTypeName is not None:
-					type.containedTypeDesc = self.parse_c_base_type(type.containedTypeName)
-				else:
-					raise Error('bctbx_list_t type without specified contained type')
+	def parse_type(self, cType):
+		if cType.ctype in CParser.cBaseType or re.match(CParser.regexFixedSizeInteger, cType.ctype):
+			return CParser.parse_c_base_type(cType.completeType)
+		elif cType.ctype in self.enumsIndex:
+			return EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
+		elif cType.ctype in self.classesIndex:
+			params = {'classDesc': self.classesIndex[cType.ctype]}
+			if 'const' in cType.completeType.split(' '):
+				params['isconst'] = True
+			return ClassType(cType.ctype, **params)
+		elif cType.ctype == CParser.cListType:
+			return ListType(cType.containedType)
+		else:
+			raise Error('Unknown C type \'{0}\''.format(cType.ctype))
 	
-	def _fix_all_types_in_method(self, method):
-		try:
-			CParser._fix_type(self, method.returnType)
-			for arg in method.args:
-				CParser._fix_type(self, arg.type)
-		except Error as e:
-			print('warning: some types could not be fixed in {0}() function: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
-	
-	def _fix_all_types_in_class(self, _class):
-		for property in _class.properties:
-			if property.setter is not None:
-				CParser._fix_all_types_in_method(self, property.setter)
-			if property.getter is not None:
-				CParser._fix_all_types_in_method(self, property.getter)
-		
-		for method in (_class.instanceMethods + _class.classMethods):
-			CParser._fix_all_types_in_method(self, method)
-	
-	def _fix_all_types(self):
-		for _class in self.classesIndex.itervalues():
-			if _class is not None:
-				CParser._fix_all_types_in_class(self, _class)
-	
-	def parse_c_base_type(self, cDecl):
+	@staticmethod
+	def parse_c_base_type(cDecl):
 		declElems = cDecl.split(' ')
 		param = {}
 		name = None
@@ -547,7 +548,7 @@ class CParser(object):
 					else:
 						raise Error('Unhandled double-pointer')
 			else:
-				matchCtx = re.match(self.regexFixedSizeInteger, elem)
+				matchCtx = re.match(CParser.regexFixedSizeInteger, elem)
 				if matchCtx:
 					name = 'integer'
 					if matchCtx.group(1) == 'u':
@@ -562,65 +563,3 @@ class CParser(object):
 			return BaseType(name, **param)
 		else:
 			raise Error('could not find type in \'{0}\''.format(cDecl))
-
-
-class Translator(object):
-	def translate(self, obj, **params):
-		if isinstance(obj, DocumentableObject):
-			return Translator._translate_object(self, obj, **params)
-		elif isinstance(obj, Type):
-			return Translator._translate_type(self, obj, **params)
-		elif isinstance(obj, Name):
-			return Translator._translate_name(self, obj, **params)
-		else:
-			Translator.fail(obj)
-	
-	def _translate_object(self, aObject):
-		if type(aObject) is Enum:
-			return self._translate_enum(aObject)
-		elif type(aObject) is EnumValue:
-			return self._translate_enum_value(aObject)
-		elif type(aObject) is Class:
-			return self._translate_class(aObject)
-		elif type(aObject) is Method:
-			return self._translate_method(aObject)
-		elif type(aObject) is Argument:
-			return self._translate_argument(aObject)
-		elif type(aObject) is Property:
-			return self._translate_property(aObject)
-		else:
-			Translator.fail(aObject)
-	
-	def _translate_type(self, aType, **params):
-		if type(aType) is BaseType:
-			return self._translate_base_type(aType)
-		elif type(aType) is EnumType:
-			return self._translate_enum_type(aType, **params)
-		elif type(aType) is ClassType:
-			return self._translate_class_type(aType, **params)
-		elif type(aType) is ListType:
-			return self._translate_list_type(aType, **params)
-		else:
-			Translator.fail(aType)
-	
-	def _translate_name(self, aName, **params):
-		if type(aName) is ClassName:
-			return self._translate_class_name(aName, **params)
-		elif type(aName) is EnumName:
-			return self._translate_enum_name(aName, **params)
-		elif type(aName) is EnumValueName:
-			return self._translate_enum_value_name(aName, **params)
-		elif type(aName) is MethodName:
-			return self._translate_method_name(aName, **params)
-		elif type(aName) is ArgName:
-			return self._translate_argument_name(aName, **params)
-		elif type(aName) is NamespaceName:
-			return self._translate_namespace_name(aName, **params)
-		elif type(aName) is PropertyName:
-			return self._translate_property_name(aName, **params)
-		else:
-			Translator.fail(aName)
-	
-	@staticmethod
-	def fail(obj):
-		raise Error('Cannot translate {0} type'.format(type(obj)))
