@@ -39,6 +39,17 @@ namespace linphone {
 	
 	
 	class Object: public std::enable_shared_from_this<Object> {
+	public:
+		template <class T> void setData(const std::string &key, const std::shared_ptr<T> &data) {
+			std::shared_ptr<T> *newSharedPtr = new std::shared_ptr<T>(data);
+			belle_sip_object_data_set((::belle_sip_object_t *)mPrivPtr, key.c_str(), newSharedPtr, deleteSharedPtr<T>);
+		}
+		template <class T> std::shared_ptr<T> getData(const std::string &key) const {
+			void *dataPtr = belle_sip_object_data_get((::belle_sip_object_t *)mPrivPtr, key.c_str());
+			if (dataPtr == NULL) return nullptr;
+			else return *dynamic_cast<T*>(dataPtr);
+		}
+	
 	protected:
 		Object(::belle_sip_object_t *ptr, bool takeRef=true);
 		virtual ~Object();
@@ -51,6 +62,11 @@ namespace linphone {
 		static std::list<std::string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList);
 		
 		static std::list<std::string> cStringArrayToCppList(const char **cArray);
+	
+	private:
+		template <class T> static void deleteSharedPtr(std::shared_ptr<T> *ptr) {
+			delete ptr;
+		}
 	
 	protected:
 		::belle_sip_object_t *mPrivPtr;
