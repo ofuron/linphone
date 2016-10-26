@@ -265,10 +265,19 @@ class Enum(DocumentableObject):
 class Argument(DocumentableObject):
 	def __init__(self, name, argType, optional=False, default=None):
 		DocumentableObject.__init__(self, name)
-		self.type = argType
+		self._type = argType
 		argType.parent = self
 		self.optional = optional
 		self.default = default
+	
+	def _set_type(self, _type):
+		self._type = _type
+		_type.parent = self
+	
+	def _get_type(self):
+		return self._type
+	
+	type = property(fset=_set_type, fget=_get_type)
 
 
 class Method(DocumentableObject):
@@ -281,15 +290,20 @@ class Method(DocumentableObject):
 		self.type = type
 		self.constMethod = False
 		self.args = []
-		self.returnType = None
+		self._returnType = None
 		
-	def set_return_type(self, returnType):
-		self.returnType = returnType
+	def _set_return_type(self, returnType):
+		self._returnType = returnType
 		returnType.parent = self
+	
+	def _get_return_type(self):
+		return self._returnType
 	
 	def add_arguments(self, arg):
 		self.args.append(arg)
 		arg.parent = self
+	
+	returnType = property(fset=_set_return_type, fget=_get_return_type)
 
 
 class Property(DocumentableObject):
@@ -334,6 +348,11 @@ class Class(DocumentableObject):
 	def add_class_method(self, method):
 		self.classMethods.append(method)
 		method.parent = self
+
+
+class Listener(Class):
+	def __init__(self, name):
+		Class.__init__(self, name)
 
 
 class CParser(object):
@@ -429,6 +448,14 @@ class CParser(object):
 		return enum
 	
 	def parse_class(self, cclass):
+		if cclass.name.endswith('Cbs'):
+			_class = CParser._parse_listener(self, cclass)
+		else:
+			_class = CParser._parse_class(self, cclass)
+		self.classesIndex[cclass.name] = _class
+		return _class
+	
+	def _parse_class(self, cclass):
 		name = ClassName()
 		name.from_camel_case(cclass.name, namespace=self.namespace.name)
 		_class = Class(name)
@@ -467,14 +494,59 @@ class CParser(object):
 			except Error as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 		
-		self.classesIndex[cclass.name] = _class
 		return _class
+	
+	def _parse_listener(self, cclass):
+		name = ClassName()
+		name.from_camel_case(cclass.name, namespace=self.namespace.name)
+		
+		if name.words[len(name.words)-1] == 'cbs':
+			name.words[len(name.words)-1] = 'listener'
+		else:
+			raise Error('{0} is not a listener'.format(cclass.name))
+		
+		listener = Listener(name)
+		
+		for property in cclass.properties.values():
+			if property.name != 'user_data':
+				method = CParser._parse_listener_property(self, property, listener, cclass.events)
+				listener.add_instance_method(method)
+		
+		return listener
+	
+	def _parse_listener_property(self, property, listener, events):
+		methodName = MethodName()
+		methodName.from_snake_case(property.name)
+		methodName.words.insert(0, 'on')
+		methodName.prev = listener.name
+		
+		if property.getter is not None:
+			eventName = property.getter.returnArgument.ctype
+		elif property.setter is not None and len(property.setter.arguments) == 2:
+			eventName = property.setter.arguments[1].type
+		else:
+			raise Error('event name for {0} property of {1} listener not found'.format(property.name, listener.name.to_snake_case(fullName=True)))
+		
+		try:
+			event = events[eventName]
+		except KeyError:
+			raise Error('invalid event name \'{0}\''.format(eventName))
+		
+		method = Method(methodName)
+		method.returnType = CParser.parse_type(self, event.returnArgument)
+		for arg in event.arguments:
+			argName = ArgName()
+			argName.from_snake_case(arg.name)
+			argument = Argument(argName, CParser.parse_type(self, arg))
+			method.add_arguments(argument)
+		
+		return method
 	
 	def parse_method(self, cfunction, namespace, type=Method.Type.Instance):
 		name = MethodName()
 		name.from_snake_case(cfunction.name, namespace=namespace)
 		method = Method(name, type=type)
-		method.set_return_type(CParser.parse_type(self, cfunction.returnArgument))
+		method.returnType = CParser.parse_type(self, cfunction.returnArgument)
 		
 		for arg in cfunction.arguments:
 			if type == Method.Type.Instance and arg is cfunction.arguments[0]:

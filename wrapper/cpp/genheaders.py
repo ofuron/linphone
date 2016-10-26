@@ -119,6 +119,9 @@ class CppTranslator(object):
 		args = []
 		if method.type == AbsApi.Method.Type.Instance:
 			_class = method.find_first_ancestor_by_type(AbsApi.Class)
+			if _class is None:
+				_class = method.find_first_ancestor_by_type(AbsApi.Listener)
+				
 			argStr = '(::{0} *)mPrivPtr'.format(_class.name.to_camel_case(fullName=True))
 			args.append(argStr)
 		
@@ -268,7 +271,7 @@ class CppTranslator(object):
 	@staticmethod
 	def translate_class_type(_type, **params):
 		if _type.desc is None:
-			raise AbsApi.Error('{0} has not been fixed'.format(_type.name.to_camel_case(fullName=True)))
+			raise AbsApi.Error('{0} has not been fixed'.format(_type.name))
 		
 		if 'namespace' in params:
 			nsName = params['namespace'].name if params['namespace'] is not None else None
