@@ -66,6 +66,22 @@ class CppTranslator(object):
 		
 		return classDict
 	
+	def translate_interface(self, interface):
+		if interface.name.to_camel_case(fullName=True) in self.ignore:
+			raise AbsApi.Error('{0} has been escaped'.format(interface.name.to_camel_case(fullName=True)))
+		
+		intDict = {}
+		intDict['name'] = CppTranslator.translate_class_name(interface.name)
+		intDict['methods'] = []
+		for method in interface.methods:
+			try:
+				methodDict = CppTranslator.translate_method(self, method, genImpl=False)
+				intDict['methods'].append(methodDict)
+			except AbsApi.Error as e:
+				print('Could not translate {0}: {1}'.format(method.name.to_snake_case(fullName=True), e.args[0]))
+		
+		return intDict
+	
 	def translate_property(self, property):
 		res = []
 		if property.getter is not None:
@@ -74,7 +90,7 @@ class CppTranslator(object):
 			res.append(CppTranslator.translate_method(self, property.setter))
 		return res
 	
-	def translate_method(self, method):
+	def translate_method(self, method, genImpl=True):
 		if method.name.to_snake_case(fullName=True) in self.ignore:
 			raise AbsApi.Error('{0} has been escaped'.format(method.name.to_snake_case(fullName=True)))
 		
@@ -82,31 +98,45 @@ class CppTranslator(object):
 		
 		methodElems = {}
 		methodElems['return'] = CppTranslator.translate_type(method.returnType)
-		
-		if not CppTranslator.is_ambigous_type(self, method.returnType):
-			methodElems['implReturn'] = CppTranslator.translate_type(method.returnType, namespace=namespace)
-		else:
-			methodElems['implReturn'] = CppTranslator.translate_type(method.returnType, namespace=None)
-		
 		methodElems['name'] = CppTranslator.translate_method_name(method.name)
-		methodElems['longname'] = CppTranslator.translate_method_name(method.name, recursive=True)
 		
 		methodElems['params'] = ''
-		methodElems['implParams'] = ''
 		for arg in method.args:
 			if arg is not method.args[0]:
 				methodElems['params'] += ', '
-				methodElems['implParams'] += ', '
 			methodElems['params'] += CppTranslator.translate_argument(arg)
-			methodElems['implParams'] += CppTranslator.translate_argument(arg, namespace=namespace)
 		
 		methodElems['const'] = ' const' if method.constMethod else ''
-		methodElems['static'] = 'static ' if method.type == AbsApi.Method.Type.Class else ''
+		methodElems['semicolon'] = ';'
+		if type(method.parent) is AbsApi.Class and method.type == AbsApi.Method.Type.Class:
+			methodElems['methodType'] = 'static '
+		elif type(method.parent) is AbsApi.Interface:
+			methodElems['methodType'] = 'virtual '
+			methodElems['semicolon'] = ' {}'
+		else:
+			methodElems['methodType'] = ''
+		
+		'static ' if method.type == AbsApi.Method.Type.Class else ''
 		
 		methodDict = {}
-		methodDict['prototype'] = '{static}{return} {name}({params}){const};'.format(**methodElems)
-		methodDict['implPrototype'] = '{implReturn} {longname}({implParams}){const}'.format(**methodElems)
-		methodDict['sourceCode' ] = CppTranslator._generate_source_code(method, usedNamespace=namespace)
+		methodDict['prototype'] = '{methodType}{return} {name}({params}){const}{semicolon}'.format(**methodElems)
+	
+		if genImpl:
+			if not CppTranslator.is_ambigous_type(self, method.returnType):
+				methodElems['implReturn'] = CppTranslator.translate_type(method.returnType, namespace=namespace)
+			else:
+				methodElems['implReturn'] = CppTranslator.translate_type(method.returnType, namespace=None)
+			
+			methodElems['longname'] = CppTranslator.translate_method_name(method.name, recursive=True)
+			methodElems['implParams'] = ''
+			for arg in method.args:
+				if arg is not method.args[0]:
+					methodElems['implParams'] += ', '
+				methodElems['implParams'] += CppTranslator.translate_argument(arg, namespace=namespace)
+			
+			methodDict['implPrototype'] = '{implReturn} {longname}({implParams}){const}'.format(**methodElems)
+			methodDict['sourceCode' ] = CppTranslator._generate_source_code(method, usedNamespace=namespace)
+		
 		return methodDict
 	
 	@staticmethod
@@ -120,7 +150,7 @@ class CppTranslator(object):
 		if method.type == AbsApi.Method.Type.Instance:
 			_class = method.find_first_ancestor_by_type(AbsApi.Class)
 			if _class is None:
-				_class = method.find_first_ancestor_by_type(AbsApi.Listener)
+				_class = method.find_first_ancestor_by_type(AbsApi.Interface)
 				
 			argStr = '(::{0} *)mPrivPtr'.format(_class.name.to_camel_case(fullName=True))
 			args.append(argStr)
@@ -384,7 +414,11 @@ class EnumsHeader(object):
 
 class ClassHeader(object):
 	def __init__(self, _class, translator):
-		self._class = translator.translate_class(_class)
+		if type(_class) is AbsApi.Class:
+			self._class = translator.translate_class(_class)
+		else:
+			self._class = translator.translate_interface(_class)
+		
 		self.define = ClassHeader._class_name_to_define(_class.name)
 		self.filename = ClassHeader._class_name_to_filename(_class.name)
 		self.includes = {'internal': [], 'external': []}
@@ -395,17 +429,23 @@ class ClassHeader(object):
 	def update_includes(self, _class):
 		includes = {'internal': set(), 'external': set()}
 		
-		for property in _class.properties:
-			if property.setter is not None:
-				tmp = ClassHeader._needed_includes_from_method(self, property.setter)
-				includes['internal'] |= tmp['internal']
-				includes['external'] |= tmp['external']
-			if property.getter is not None:
-				tmp = ClassHeader._needed_includes_from_method(self, property.getter)
-				includes['internal'] |= tmp['internal']
-				includes['external'] |= tmp['external']
+		if type(_class) is AbsApi.Class:
+			for property in _class.properties:
+				if property.setter is not None:
+					tmp = ClassHeader._needed_includes_from_method(self, property.setter)
+					includes['internal'] |= tmp['internal']
+					includes['external'] |= tmp['external']
+				if property.getter is not None:
+					tmp = ClassHeader._needed_includes_from_method(self, property.getter)
+					includes['internal'] |= tmp['internal']
+					includes['external'] |= tmp['external']
 		
-		for method in (_class.classMethods + _class.instanceMethods):
+		if type(_class) is AbsApi.Class:
+			methods = _class.classMethods + _class.instanceMethods
+		else:
+			methods = _class.methods
+		
+		for method in methods:
 			tmp = ClassHeader._needed_includes_from_type(self, method.returnType)
 			includes['internal'] |= tmp['internal']
 			includes['external'] |= tmp['external']
@@ -531,7 +571,7 @@ def main():
 	
 	mainHeader = MainHeader()
 	
-	for _class in parser.classesIndex.itervalues():
+	for _class in parser.classesIndex.values() + parser.interfacesIndex.values():
 		if _class is not None:
 			try:
 				header = ClassHeader(_class, translator)
@@ -539,8 +579,11 @@ def main():
 				mainHeader.add_include(_class.name.to_snake_case() + '.hh')
 				with open('include/' + header.filename, mode='w') as f:
 					f.write(renderer.render(header))
-				with open('src/' + impl.filename, mode='w') as f:
-					f.write(renderer.render(impl))
+				
+				if type(_class) is AbsApi.Class:
+					with open('src/' + impl.filename, mode='w') as f:
+						f.write(renderer.render(impl))
+				
 			except AbsApi.Error as e:
 				print('Could not translate {0}: {1}'.format(_class.name.to_camel_case(fullName=True), e.args[0]))
 	

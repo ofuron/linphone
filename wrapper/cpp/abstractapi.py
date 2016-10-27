@@ -350,9 +350,14 @@ class Class(DocumentableObject):
 		method.parent = self
 
 
-class Listener(Class):
+class Interface(DocumentableObject):
 	def __init__(self, name):
-		Class.__init__(self, name)
+		DocumentableObject.__init__(self, name)
+		self.methods = []
+	
+	def add_method(self, method):
+		self.methods.append(method)
+		method.parent = self
 
 
 class CParser(object):
@@ -371,8 +376,12 @@ class CParser(object):
 				self.enumsIndex[enum.associatedTypedef.name] = None
 		
 		self.classesIndex = {}
+		self.interfacesIndex = {}
 		for _class in self.cProject.classes:
-			self.classesIndex[_class.name] = None
+			if _class.name.endswith('Cbs'):
+				self.interfacesIndex[_class.name] = None
+			else:
+				self.classesIndex[_class.name] = None
 		
 		name = NamespaceName()
 		name.from_snake_case('linphone')
@@ -389,9 +398,12 @@ class CParser(object):
 		CParser._fix_all_types(self)
 	
 	def _fix_all_types(self):
-		for _class in self.classesIndex.itervalues():
+		for _class in self.classesIndex.values() + self.interfacesIndex.values():
 			if _class is not None:
-				CParser._fix_all_types_in_class(self, _class)
+				if type(_class) is Class:
+					CParser._fix_all_types_in_class(self, _class)
+				else:
+					CParser._fix_all_types_in_interface(self, _class)
 	
 	def _fix_all_types_in_class(self, _class):
 		for property in _class.properties:
@@ -401,6 +413,10 @@ class CParser(object):
 				CParser._fix_all_types_in_method(self, property.getter)
 		
 		for method in (_class.instanceMethods + _class.classMethods):
+			CParser._fix_all_types_in_method(self, method)
+	
+	def _fix_all_types_in_interface(self, interface):
+		for method in interface.methods:
 			CParser._fix_all_types_in_method(self, method)
 	
 	def _fix_all_types_in_method(self, method):
@@ -415,10 +431,15 @@ class CParser(object):
 		if isinstance(type, EnumType) and type.desc is None:
 			type.desc = self.enumsIndex[type.name]
 		elif isinstance(type, ClassType) and type.desc is None:
-			type.desc = self.classesIndex[type.name]
+			if type.name in self.classesIndex:
+				type.desc = self.classesIndex[type.name]
+			else:
+				type.desc = self.interfacesIndex[type.name]
 		elif isinstance(type, ListType) and type.containedTypeDesc is None:
 			if type.containedTypeName in self.classesIndex:
 				type.containedTypeDesc = ClassType(type.containedTypeName, classDesc=self.classesIndex[type.containedTypeName])
+			elif type.containedTypeName in self.interfacesIndex:
+				type.containedTypeDesc = ClassType(type.containedTypeName, classDesc=self.interfacesIndex[type.containedTypeName])
 			elif type.containedTypeName in self.enumsIndex:
 				type.containedTypeDesc = EnumType(type.containedTypeName, enumDesc=self.enumsIndex[type.containedTypeName])
 			else:
@@ -450,9 +471,10 @@ class CParser(object):
 	def parse_class(self, cclass):
 		if cclass.name.endswith('Cbs'):
 			_class = CParser._parse_listener(self, cclass)
+			self.interfacesIndex[cclass.name] = _class
 		else:
 			_class = CParser._parse_class(self, cclass)
-		self.classesIndex[cclass.name] = _class
+			self.classesIndex[cclass.name] = _class
 		return _class
 	
 	def _parse_class(self, cclass):
@@ -505,12 +527,12 @@ class CParser(object):
 		else:
 			raise Error('{0} is not a listener'.format(cclass.name))
 		
-		listener = Listener(name)
+		listener = Interface(name)
 		
 		for property in cclass.properties.values():
 			if property.name != 'user_data':
 				method = CParser._parse_listener_property(self, property, listener, cclass.events)
-				listener.add_instance_method(method)
+				listener.add_method(method)
 		
 		return listener
 	
