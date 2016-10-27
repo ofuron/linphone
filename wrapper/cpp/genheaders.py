@@ -41,6 +41,7 @@ class CppTranslator(object):
 			raise AbsApi.Error('{0} has been escaped'.format(_class.name.to_camel_case(fullName=True)))
 		
 		classDict = {}
+		classDict['isobject'] = True
 		classDict['name'] = CppTranslator.translate_class_name(_class.name)
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
@@ -71,6 +72,7 @@ class CppTranslator(object):
 			raise AbsApi.Error('{0} has been escaped'.format(interface.name.to_camel_case(fullName=True)))
 		
 		intDict = {}
+		intDict['isobject'] = False
 		intDict['name'] = CppTranslator.translate_class_name(interface.name)
 		intDict['methods'] = []
 		for method in interface.methods:
@@ -441,6 +443,8 @@ class ClassHeader(object):
 		includes = {'internal': set(), 'external': set()}
 		
 		if type(_class) is AbsApi.Class:
+			includes['internal'].add('object')
+			
 			for property in _class.properties:
 				if property.setter is not None:
 					ClassHeader._needed_includes_from_method(self, property.setter, includes)

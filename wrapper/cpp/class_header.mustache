@@ -9,7 +9,6 @@
 #include "{{name}}.hh"
 {{/internal}}
 {{/includes}}
-#include "object.hh"
 
 namespace linphone {
 
@@ -18,7 +17,7 @@ namespace linphone {
 	{{/priorDeclarations}}
 
 	{{#_class}}
-	class {{name}}: public Object {
+	class {{name}}{{#isobject}}: public Object{{/isobject}} {
 		public:
 			{{#methods}}
 			{{{prototype}}}
