@@ -64,11 +64,14 @@ class Name(object):
 		Name._lower_all_words(self)
 		Name._set_namespace(self, namespace)
 	
-	def to_snake_case(self, fullName=False):
+	def to_snake_case(self, fullName=False, upper=False):
 		if self.prev is None or not fullName:
-			return '_'.join(self.words)
+			res = '_'.join(self.words)
+			if upper:
+				res = res.upper()
+			return res
 		else:
-			return Name.to_snake_case(self.prev, fullName=True) + '_' + Name.to_snake_case(self)
+			return Name.to_snake_case(self.prev, fullName=True, upper=upper) + '_' + Name.to_snake_case(self, upper=upper)
 	
 	def to_camel_case(self, lower=False, fullName=False):
 		if self.prev is None or not fullName:

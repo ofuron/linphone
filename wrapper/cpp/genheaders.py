@@ -419,45 +419,13 @@ class ClassHeader(object):
 		else:
 			self._class = translator.translate_interface(_class)
 		
-		self.define = ClassHeader._class_name_to_define(_class.name)
-		self.filename = ClassHeader._class_name_to_filename(_class.name)
-		self.includes = {'internal': [], 'external': []}
+		self.define = '_{0}_HH'.format(_class.name.to_snake_case(upper=True, fullName=True))
+		self.filename = '{0}.hh'.format(_class.name.to_snake_case())
 		self.priorDeclarations = []
 		self.private_type = _class.name.to_camel_case(fullName=True)
-		self.update_includes(_class)
-	
-	def update_includes(self, _class):
-		includes = {'internal': set(), 'external': set()}
 		
-		if type(_class) is AbsApi.Class:
-			for property in _class.properties:
-				if property.setter is not None:
-					tmp = ClassHeader._needed_includes_from_method(self, property.setter)
-					includes['internal'] |= tmp['internal']
-					includes['external'] |= tmp['external']
-				if property.getter is not None:
-					tmp = ClassHeader._needed_includes_from_method(self, property.getter)
-					includes['internal'] |= tmp['internal']
-					includes['external'] |= tmp['external']
-		
-		if type(_class) is AbsApi.Class:
-			methods = _class.classMethods + _class.instanceMethods
-		else:
-			methods = _class.methods
-		
-		for method in methods:
-			tmp = ClassHeader._needed_includes_from_type(self, method.returnType)
-			includes['internal'] |= tmp['internal']
-			includes['external'] |= tmp['external']
-			for arg in method.args:
-				tmp = ClassHeader._needed_includes_from_type(self, arg.type)
-				includes['internal'] |= tmp['internal']
-				includes['external'] |= tmp['external']
-		
-		currentClassInclude = _class.name.to_snake_case()
-		if currentClassInclude in includes['internal']:
-			includes['internal'].remove(currentClassInclude)
-		
+		self.includes = {'internal': [], 'external': []}
+		includes = ClassHeader.needed_includes(self, _class)
 		for include in includes['internal']:
 			if _class.name.to_camel_case(fullName=True) == 'LinphoneCore':
 				className = AbsApi.ClassName()
@@ -469,57 +437,52 @@ class ClassHeader(object):
 		for include in includes['external']:
 			self.includes['external'].append({'name': include})
 	
-	def _needed_includes_from_method(self, method):
-		includes = ClassHeader._needed_includes_from_type(self, method.returnType)
-		for arg in method.args:
-			tmp = ClassHeader._needed_includes_from_type(self, arg.type)
-			includes['internal'] |= tmp['internal']
-			includes['external'] |= tmp['external']
+	def needed_includes(self, _class):
+		includes = {'internal': set(), 'external': set()}
+		
+		if type(_class) is AbsApi.Class:
+			for property in _class.properties:
+				if property.setter is not None:
+					ClassHeader._needed_includes_from_method(self, property.setter, includes)
+				if property.getter is not None:
+					ClassHeader._needed_includes_from_method(self, property.getter, includes)
+		
+		if type(_class) is AbsApi.Class:
+			methods = _class.classMethods + _class.instanceMethods
+		else:
+			methods = _class.methods
+		
+		for method in methods:
+			ClassHeader._needed_includes_from_type(self, method.returnType, includes)
+			for arg in method.args:
+				ClassHeader._needed_includes_from_type(self, arg.type, includes)
+		
+		currentClassInclude = _class.name.to_snake_case()
+		if currentClassInclude in includes['internal']:
+			includes['internal'].remove(currentClassInclude)
+			
 		return includes
 	
-	def _needed_includes_from_type(self, _type):
-		res = {'internal': set(), 'external': set()}
+	def _needed_includes_from_method(self, method, includes):
+		ClassHeader._needed_includes_from_type(self, method.returnType, includes)
+		for arg in method.args:
+			ClassHeader._needed_includes_from_type(self, arg.type, includes)
+	
+	def _needed_includes_from_type(self, _type, includes):
 		if isinstance(_type, AbsApi.ClassType):
-			res['external'].add('memory')
+			includes['external'].add('memory')
 			if _type.desc is not None:
-				res['internal'].add('_'.join(_type.desc.name.words))
+				includes['internal'].add('_'.join(_type.desc.name.words))
 		elif isinstance(_type, AbsApi.EnumType):
-			res['internal'].add('enums')
+			includes['internal'].add('enums')
 		elif isinstance(_type, AbsApi.BaseType):
 			if _type.name == 'integer' and isinstance(_type.size, int):
-				res['external'].add('cstdint')
+				includes['external'].add('cstdint')
 			elif _type.name == 'string':
-				res['external'].add('string')
+				includes['external'].add('string')
 		elif isinstance(_type, AbsApi.ListType):
-			res['external'].add('list')
-			retIncludes = self._needed_includes_from_type(_type.containedTypeDesc)
-			res['external'] |= retIncludes['external']
-			res['internal'] = retIncludes['internal']
-		return res
-	
-	@staticmethod
-	def _class_name_to_define(className):
-		words = className.words
-		res = ''
-		for word in words:
-			res += ('_' + word.upper())
-		res += '_HH'
-		return res
-
-	@staticmethod
-	def _class_name_to_filename(className):
-		words = className.words
-		res = ''
-		first = True
-		for word in words:
-			if first:
-				first = False
-			else:
-				res += '_'
-			res += word.lower()
-		
-		res += '.hh'
-		return res
+			includes['external'].add('list')
+			ClassHeader._needed_includes_from_type(self, _type.containedTypeDesc, includes)
 
 
 class MainHeader(object):
