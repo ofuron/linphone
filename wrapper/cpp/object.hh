@@ -15,7 +15,6 @@ namespace linphone {
 	public:
 		AbstractBctbxListWrapper(): mCList(NULL) {}
 		virtual ~AbstractBctbxListWrapper() {}
-		
 		::bctbx_list_t *c_list() {return mCList;}
 		
 	protected:
@@ -49,18 +48,16 @@ namespace linphone {
 			if (dataPtr == NULL) return nullptr;
 			else return *dynamic_cast<T*>(dataPtr);
 		}
+		virtual ~Object();
 	
 	protected:
 		Object(::belle_sip_object_t *ptr, bool takeRef=true);
-		virtual ~Object();
 	
 	protected:
 		template <class T> static std::shared_ptr<T> cPtrToSharedPtr(const void *ptr, bool takeRef=true);
 		template <class T> static void *sharedPtrToCPtr(const std::shared_ptr<T> &sharedPtr);
-		
 		template <class T> static std::list<std::shared_ptr<T> > bctbxObjectListToCppList(const ::bctbx_list_t *bctbxList);
 		static std::list<std::string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList);
-		
 		static std::list<std::string> cStringArrayToCppList(const char **cArray);
 	
 	private:
@@ -70,6 +67,19 @@ namespace linphone {
 	
 	protected:
 		::belle_sip_object_t *mPrivPtr;
+	};
+	
+	class Listener {};
+	
+	class ListenableObject: public Object {
+	protected:
+		ListenableObject(::belle_sip_object_t *ptr, bool takeRef=true);
+		void addListener(const std::shared_ptr<Listener> &listener);
+	
+	private:
+		static void deleteListenersList(std::list<std::shared_ptr<Listener> > *ptr) {
+			delete ptr;
+		}
 	};
 	
 };

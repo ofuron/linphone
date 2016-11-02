@@ -2,6 +2,7 @@
 #include <bctoolbox/port.h>
 #include <cstring>
 #include <cstdlib>
+#include <algorithm>
 
 using namespace linphone;
 using namespace std;
@@ -92,4 +93,20 @@ std::list<std::string> cStringArrayToCppList(const char **cArray) {
 		cppList.push_back(cArray[i]);
 	}
 	return cppList;
+}
+
+ListenableObject::ListenableObject(::belle_sip_object_t *ptr, bool takeRef): Object(ptr, takeRef) {
+	list<shared_ptr<Listener> > *cppListeners = (list<shared_ptr<Listener> > *)belle_sip_object_data_get(mPrivPtr, "cpp_listeners");
+	if (cppListeners == NULL) {
+		cppListeners = new list<shared_ptr<Listener> >();
+		belle_sip_object_data_set(mPrivPtr, "cpp_listeners", cppListeners, (belle_sip_data_destroy)deleteListenersList);
+	}
+}
+
+void ListenableObject::addListener(const std::shared_ptr<Listener> &listener) {
+	list<shared_ptr<Listener> > *listenersList = (list<shared_ptr<Listener> > *)belle_sip_object_data_get(mPrivPtr, "cpp_listeners");
+	auto result = find(listenersList->begin(), listenersList->end(), listener);
+	if (result == listenersList->end()) {
+		listenersList->push_back(listener);
+	}
 }
