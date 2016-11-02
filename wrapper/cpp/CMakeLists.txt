@@ -7,7 +7,6 @@ add_definitions(-DTUNNEL_ENABLED=1)
 include_directories(include/ ../../)
 
 set(SOURCES
-	src/account_creator_cbs.cc
 	src/account_creator.cc
 	src/address.cc
 	src/auth_info.cc
@@ -18,7 +17,6 @@ set(SOURCES
 	src/card_dav_context.cc
 	src/card_dav_query.cc
 	src/card_dav_response.cc
-	src/chat_message_cbs.cc
 	src/chat_message.cc
 	src/chat_room.cc
 	src/conference.cc
@@ -30,7 +28,6 @@ set(SOURCES
 	src/error_info.cc
 	src/event.cc
 	src/friend.cc
-	src/friend_list_cbs.cc
 	src/friend_list.cc
 	src/nat_policy.cc
 	src/object.cc
@@ -48,9 +45,9 @@ set(SOURCES
 	src/vcard.cc
 	src/vcard_context.cc
 	src/video_policy.cc
-	src/xml_rpc_request_cbs.cc
 	src/xml_rpc_request.cc
 	src/xml_rpc_session.cc
 )
 
 add_library(linphone++ ${SOURCES})
+
