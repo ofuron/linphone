@@ -339,6 +339,7 @@ class Class(DocumentableObject):
 		self.properties = []
 		self.instanceMethods = []
 		self.classMethods = []
+		self._listener = None
 	
 	def add_property(self, property):
 		self.properties.append(property)
@@ -351,6 +352,15 @@ class Class(DocumentableObject):
 	def add_class_method(self, method):
 		self.classMethods.append(method)
 		method.parent = self
+	
+	def _set_listener(self, interface):
+		self._listener = interface
+		interface.parent = self
+	
+	def _get_listener(self):
+		return self._listener
+	
+	listener = property(fset=_set_listener, fget=_get_listener)
 
 
 class Interface(DocumentableObject):
