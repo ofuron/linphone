@@ -496,24 +496,12 @@ class CParser(object):
 		_class = Class(name)
 		self.namespace.add_child(_class)
 		
-		for property in cclass.properties.values():
+		for cproperty in cclass.properties.values():
 			try:
-				pname = PropertyName()
-				pname.from_snake_case(property.name)
-				if (property.setter is not None and len(property.setter.arguments) == 1) or (property.getter is not None and len(property.getter.arguments) == 0):
-					methodType = Method.Type.Class
-				else:
-					methodType = Method.Type.Instance
-				absProperty = Property(pname)
-				if property.setter is not None:
-					method = CParser.parse_method(self, property.setter, namespace=name, type=methodType)
-					absProperty.setter = method
-				if property.getter is not None:
-					method = CParser.parse_method(self, property.getter, namespace=name, type=methodType)
-					absProperty.getter = method
+				absProperty = CParser._parse_property(self, cproperty, namespace=name)
 				_class.add_property(absProperty)
 			except Error as e:
-				print('Could not parse {0} property in {1}: {2}'.format(property.name, cclass.name, e.args[0]))
+				print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
 		
 		for cMethod in cclass.instanceMethods.values():
 			try:
@@ -530,6 +518,22 @@ class CParser(object):
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 		
 		return _class
+	
+	def _parse_property(self, cproperty, namespace=None):
+		name = PropertyName()
+		name.from_snake_case(cproperty.name)
+		if (cproperty.setter is not None and len(cproperty.setter.arguments) == 1) or (cproperty.getter is not None and len(cproperty.getter.arguments) == 0):
+			methodType = Method.Type.Class
+		else:
+			methodType = Method.Type.Instance
+		aproperty = Property(name)
+		if cproperty.setter is not None:
+			method = CParser.parse_method(self, cproperty.setter, namespace=namespace, type=methodType)
+			aproperty.setter = method
+		if cproperty.getter is not None:
+			method = CParser.parse_method(self, cproperty.getter, namespace=namespace, type=methodType)
+			aproperty.getter = method
+		return aproperty
 	
 	def _parse_listener(self, cclass):
 		name = ClassName()
