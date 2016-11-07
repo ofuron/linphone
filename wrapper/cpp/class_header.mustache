@@ -17,7 +17,7 @@ namespace linphone {
 	{{/priorDeclarations}}
 
 	{{#_class}}
-	class {{name}}{{#isobject}}: public Object{{/isobject}} {
+	class {{name}}{{#inheritFrom}}: public {{{name}}}{{/inheritFrom}} {
 		public:
 			{{#methods}}
 			{{{prototype}}}
@@ -27,6 +27,18 @@ namespace linphone {
 			{{{prototype}}}
 			
 			{{/staticMethods}}
+		
+		{{#constructor}}
+		private:
+			{{{name}}}(::belle_sip_object_t *ptr, bool takeRef=true);
+		{{/constructor}}
+		
+		{{#islistenable}}
+		private:
+			{{#wrapperCbs}}
+			{{decl}}
+			{{/wrapperCbs}}
+		{{/islistenable}}
 	};
 	{{/_class}}
 

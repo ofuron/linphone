@@ -118,7 +118,13 @@ class Name(object):
 
 
 class ClassName(Name):
-	pass
+	def to_c(self):
+		return Name.to_camel_case(self, fullName=True)
+
+
+class InterfaceName(ClassName):
+	def to_c(self):
+		return ClassName.to_c(self)[:-8] + 'Cbs'
 
 
 class EnumName(ClassName):
@@ -130,11 +136,13 @@ class EnumValueName(ClassName):
 
 
 class MethodName(Name):
-	pass
+	def to_c(self):
+		return Name.to_snake_case(self, fullName=True)
 
 
 class ArgName(Name):
-	pass
+	def to_c(self):
+		return Name.to_snake_case(self)
 
 
 class PropertyName(Name):
@@ -165,6 +173,7 @@ class Type(Object):
 		Object.__init__(self, name)
 		self.isconst = isconst
 		self.isref = isref
+		self.cname = None
 
 
 class BaseType(Type):
@@ -339,7 +348,7 @@ class Class(DocumentableObject):
 		self.properties = []
 		self.instanceMethods = []
 		self.classMethods = []
-		self._listener = None
+		self._listenerInterface = None
 	
 	def add_property(self, property):
 		self.properties.append(property)
@@ -353,24 +362,30 @@ class Class(DocumentableObject):
 		self.classMethods.append(method)
 		method.parent = self
 	
-	def _set_listener(self, interface):
-		self._listener = interface
-		interface.parent = self
+	def set_listener_interface(self, interface):
+		self._listenerInterface = interface
+		interface._listenedClass = self
 	
-	def _get_listener(self):
-		return self._listener
+	def get_listener_interface(self):
+		return self._listenerInterface
 	
-	listener = property(fset=_set_listener, fget=_get_listener)
+	listenerInterface = property(fget=get_listener_interface, fset=set_listener_interface)
 
 
 class Interface(DocumentableObject):
 	def __init__(self, name):
 		DocumentableObject.__init__(self, name)
 		self.methods = []
+		self._listenedClass = None
 	
 	def add_method(self, method):
 		self.methods.append(method)
 		method.parent = self
+	
+	def get_listened_class(self):
+		return self._listenedClass
+	
+	listenedClass = property(fget=get_listened_class)
 
 
 class CParser(object):
@@ -488,20 +503,28 @@ class CParser(object):
 		else:
 			_class = CParser._parse_class(self, cclass)
 			self.classesIndex[cclass.name] = _class
+		self.namespace.add_child(_class)
 		return _class
 	
 	def _parse_class(self, cclass):
 		name = ClassName()
 		name.from_camel_case(cclass.name, namespace=self.namespace.name)
 		_class = Class(name)
-		self.namespace.add_child(_class)
 		
 		for cproperty in cclass.properties.values():
-			try:
-				absProperty = CParser._parse_property(self, cproperty, namespace=name)
-				_class.add_property(absProperty)
-			except Error as e:
-				print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
+			if cproperty.name != 'callbacks':
+				try:
+					absProperty = CParser._parse_property(self, cproperty, namespace=name)
+					_class.add_property(absProperty)
+				except Error as e:
+					print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
+			else:
+				try:
+					listenerMethod = CParser._parse_callbacks_property(self, cproperty, namespace=name)
+					_class.add_instance_method(listenerMethod)
+					_class.listenerInterface = self.interfacesIndex[listenerMethod.args[0].type.name]
+				except Error as e:
+					print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
 		
 		for cMethod in cclass.instanceMethods.values():
 			try:
@@ -535,8 +558,24 @@ class CParser(object):
 			aproperty.getter = method
 		return aproperty
 	
+	def _parse_callbacks_property(self, cproperty, namespace=None):
+		methodName = MethodName()
+		methodName.words = ['set', 'listener']
+		methodName.prev = namespace
+		
+		argName = ArgName()
+		argName.words = ['listener']
+		argType = ClassType(cproperty.getter.returnArgument.ctype)
+		
+		method = Method(methodName)
+		method.returnType = BaseType('void')
+		method.add_arguments(Argument(argName, argType))
+		
+		return method
+		
+	
 	def _parse_listener(self, cclass):
-		name = ClassName()
+		name = InterfaceName()
 		name.from_camel_case(cclass.name, namespace=self.namespace.name)
 		
 		if name.words[len(name.words)-1] == 'cbs':
@@ -601,18 +640,21 @@ class CParser(object):
 	
 	def parse_type(self, cType):
 		if cType.ctype in CParser.cBaseType or re.match(CParser.regexFixedSizeInteger, cType.ctype):
-			return CParser.parse_c_base_type(cType.completeType)
+			absType = CParser.parse_c_base_type(cType.completeType)
 		elif cType.ctype in self.enumsIndex:
-			return EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
+			absType = EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
 		elif cType.ctype in self.classesIndex:
 			params = {'classDesc': self.classesIndex[cType.ctype]}
 			if 'const' in cType.completeType.split(' '):
 				params['isconst'] = True
-			return ClassType(cType.ctype, **params)
+			absType = ClassType(cType.ctype, **params)
 		elif cType.ctype == CParser.cListType:
-			return ListType(cType.containedType)
+			absType = ListType(cType.containedType)
 		else:
 			raise Error('Unknown C type \'{0}\''.format(cType.ctype))
+		
+		absType.cname = cType.completeType
+		return absType
 	
 	@staticmethod
 	def parse_c_base_type(cDecl):

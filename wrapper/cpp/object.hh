@@ -74,10 +74,13 @@ namespace linphone {
 	class ListenableObject: public Object {
 	protected:
 		ListenableObject(::belle_sip_object_t *ptr, bool takeRef=true);
-		void addListener(const std::shared_ptr<Listener> &listener);
+		void setListener(const std::shared_ptr<Listener> &listener);
+	
+	protected:
+		template <class T> static std::shared_ptr<T> getListenerFromObject(::belle_sip_object_t *object);
 	
 	private:
-		static void deleteListenersList(std::list<std::shared_ptr<Listener> > *ptr) {
+		static void deleteListenerPtr(std::shared_ptr<Listener> *ptr) {
 			delete ptr;
 		}
 	};

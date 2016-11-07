@@ -9,6 +9,27 @@
 using namespace {{{namespace}}};
 
 {{#_class}}
+
+{{#islistenable}}
+{{#constructor}}
+{{{name}}}::{{{name}}}(::belle_sip_object_t *ptr, bool takeRef): ListenableObject(ptr, takeRef) {
+	{{{cListenerName}}} *cbs = {{{cCbsGetter}}}(({{{cname}}} *)ptr);
+	{{#callbacks}}
+	{{{setter}}}(cbs, {{{wrapperCb}}});
+	{{/callbacks}}
+}
+{{/constructor}}
+
+{{#wrapperCbs}}
+{{{returnType}}} {{{name}}}::{{{cbName}}}({{{declArgs}}}) {
+	std::shared_ptr<{{{cppListenerName}}}> listener = getListenerFromObject<{{{cppListenerName}}}>((::belle_sip_object_t *){{{firstArgName}}});
+	{{#hasNotReturnValue}}listener->{{{methodName}}}({{{wrappedArgs}}});{{/hasNotReturnValue}}
+	{{#hasReturnValue}}return ({{{returnType}}})sharedPtrToCPtr(listener->{{{methodName}}}({{{wrappedArgs}}}));{{/hasReturnValue}}
+}
+
+{{/wrapperCbs}}
+{{/islistenable}}
+
 {{#methods}}
 {{{implPrototype}}} {
 	{{{sourceCode}}}

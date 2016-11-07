@@ -96,17 +96,20 @@ std::list<std::string> cStringArrayToCppList(const char **cArray) {
 }
 
 ListenableObject::ListenableObject(::belle_sip_object_t *ptr, bool takeRef): Object(ptr, takeRef) {
-	list<shared_ptr<Listener> > *cppListeners = (list<shared_ptr<Listener> > *)belle_sip_object_data_get(mPrivPtr, "cpp_listeners");
-	if (cppListeners == NULL) {
-		cppListeners = new list<shared_ptr<Listener> >();
-		belle_sip_object_data_set(mPrivPtr, "cpp_listeners", cppListeners, (belle_sip_data_destroy)deleteListenersList);
+	shared_ptr<Listener> *cppListener = (shared_ptr<Listener> *)belle_sip_object_data_get(mPrivPtr, "cpp_listener");
+	if (cppListener == NULL) {
+		cppListener = new shared_ptr<Listener>();
+		belle_sip_object_data_set(mPrivPtr, "cpp_listeners", cppListener, (belle_sip_data_destroy)deleteListenerPtr);
 	}
 }
 
-void ListenableObject::addListener(const std::shared_ptr<Listener> &listener) {
-	list<shared_ptr<Listener> > *listenersList = (list<shared_ptr<Listener> > *)belle_sip_object_data_get(mPrivPtr, "cpp_listeners");
-	auto result = find(listenersList->begin(), listenersList->end(), listener);
-	if (result == listenersList->end()) {
-		listenersList->push_back(listener);
-	}
+void ListenableObject::setListener(const std::shared_ptr<Listener> &listener) {
+	shared_ptr<Listener> &curListener = *(shared_ptr<Listener> *)belle_sip_object_data_get(mPrivPtr, "cpp_listener");
+	curListener = listener;
+}
+
+template <class T>
+std::shared_ptr<T> ListenableObject::getListenerFromObject(::belle_sip_object_t *object) {
+	std::shared_ptr<Listener> listener = *(std::shared_ptr<Listener> *)belle_sip_object_data_get(object, "cpp_listeners");
+	return static_pointer_cast<T, Listener>(listener);
 }
