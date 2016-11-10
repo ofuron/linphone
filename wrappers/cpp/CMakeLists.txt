@@ -88,7 +88,7 @@ set(HEADERS
 
 add_custom_command(OUTPUT ${GENERATED_SOURCES}
 	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/genheaders.py" "${CMAKE_CURRENT_SOURCE_DIR}/../../work/coreapi/help/doc/xml"
-	DEPENDS genheaders.py class_header.mustache class_impl.mustache enums_header.mustache
+	DEPENDS genheaders.py class_header.mustache class_impl.mustache enums_header.mustache linphone-doc
 )
 
 add_compile_options(-Wall -Werror -Wno-deprecated-declarations -Wextra)
