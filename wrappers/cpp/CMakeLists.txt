@@ -99,6 +99,9 @@ target_include_directories(linphone++
 	PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${PROJECT_SOURCE_DIR}
 )
+set_target_properties(linphone++
+	PROPERTIES SOVERSION ${LINPHONE_SO_VERSION}
+)
 
 install(TARGETS linphone++
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
