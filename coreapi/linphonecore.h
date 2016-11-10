@@ -62,6 +62,11 @@ struct _LinphoneInfoMessage;
  */
 typedef struct _LinphoneCore LinphoneCore;
 
+/**
+ * Safely down-cast a belle_sip_object_t into LinphoneCore
+ * @ingroup initializing
+ */
+#define LINPHONE_CORE(object) BELLE_SIP_CAST(object, LinphoneCore)
 
 /**
  * Disable a sip transport
@@ -2560,6 +2565,22 @@ LINPHONE_PUBLIC LinphoneCore *linphone_core_new(const LinphoneCoreVTable *vtable
 **/
 LINPHONE_PUBLIC LinphoneCore *linphone_core_new_with_config(const LinphoneCoreVTable *vtable, LpConfig *config, void *userdata);
 
+/**
+ * Increment the reference counter of a #LinphoneCone.
+ * @param lc The #LinphoneCore which the ref counter is to be incremented.
+ * @return A pointer on the #LinphoneCore passed as parameter.
+ * @ingroup initializing
+ */
+LINPHONE_PUBLIC LinphoneCore *linphone_core_ref(LinphoneCore *lc);
+
+/**
+ * Decrement the ref counter of a #LinphoneCore and destroy it
+ * if the counter reach 0.
+ * @param lc The #LinphoneCore which the reference counter is to be decreased.
+ * @ingroup initializing
+ */
+LINPHONE_PUBLIC void linphone_core_unref(LinphoneCore *lc);
+
 /* function to be periodically called in a main loop */
 /* For ICE to work properly it should be called every 20ms */
 LINPHONE_PUBLIC	void linphone_core_iterate(LinphoneCore *lc);
@@ -4049,7 +4070,7 @@ LINPHONE_PUBLIC void linphone_core_set_waiting_callback(LinphoneCore *lc, Linpho
 /*returns the list of registered SipSetup (linphonecore plugins) */
 LINPHONE_PUBLIC const bctbx_list_t * linphone_core_get_sip_setups(LinphoneCore *lc);
 
-LINPHONE_PUBLIC	void linphone_core_destroy(LinphoneCore *lc);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC	void linphone_core_destroy(LinphoneCore *lc);
 
 /*for advanced users:*/
 typedef RtpTransport * (*LinphoneCoreRtpTransportFactoryFunc)(void *data, int port);

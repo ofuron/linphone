@@ -943,6 +943,7 @@ void linphone_task_list_free(LinphoneTaskList *t);
 
 struct _LinphoneCore
 {
+	belle_sip_object_t base;
 	MSFactory* factory;
 	MSList* vtable_refs;
 	Sal *sal;
@@ -1512,7 +1513,8 @@ BELLE_SIP_TYPE_ID(LinphoneXmlRpcSession),
 BELLE_SIP_TYPE_ID(LinphoneTunnelConfig),
 BELLE_SIP_TYPE_ID(LinphoneFriendListCbs),
 BELLE_SIP_TYPE_ID(LinphoneEvent),
-BELLE_SIP_TYPE_ID(LinphoneNatPolicy)
+BELLE_SIP_TYPE_ID(LinphoneNatPolicy),
+BELLE_SIP_TYPE_ID(LinphoneCore)
 BELLE_SIP_DECLARE_TYPES_END
 
 

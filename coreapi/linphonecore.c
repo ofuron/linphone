@@ -105,6 +105,7 @@ static void set_network_reachable(LinphoneCore* lc,bool_t isReachable, time_t cu
 static void set_sip_network_reachable(LinphoneCore* lc,bool_t isReachable, time_t curtime);
 static void set_media_network_reachable(LinphoneCore* lc,bool_t isReachable);
 static void linphone_core_run_hooks(LinphoneCore *lc);
+static void linphone_core_uninit(LinphoneCore *lc);
 
 #include "enum.h"
 #include "contact_providers_priv.h"
@@ -128,6 +129,15 @@ static void toggle_video_preview(LinphoneCore *lc, bool_t val);
 #define HOLD_MUSIC_MKV SOUNDS_PREFIX "dont_wait_too_long.mkv"
 
 extern SalCallbacks linphone_sal_callbacks;
+
+typedef belle_sip_object_t_vptr_t LinphoneCore_vptr_t;
+BELLE_SIP_DECLARE_NO_IMPLEMENTED_INTERFACES(LinphoneCore);
+BELLE_SIP_INSTANCIATE_VPTR(LinphoneCore, belle_sip_object_t,
+	linphone_core_uninit, // destroy
+	NULL, // clone
+	NULL, // Marshall
+	FALSE
+);
 
 void lc_callback_obj_init(LCCallbackObj *obj,LinphoneCoreCbFunc func,void* ud)
 {
@@ -1850,9 +1860,17 @@ LinphoneCore *linphone_core_new(const LinphoneCoreVTable *vtable,
 
 LinphoneCore *linphone_core_new_with_config(const LinphoneCoreVTable *vtable, struct _LpConfig *config, void *userdata)
 {
-	LinphoneCore *core = ms_new0(LinphoneCore, 1);
+	LinphoneCore *core = belle_sip_object_new(LinphoneCore);
 	linphone_core_init(core, vtable, config, userdata);
 	return core;
+}
+
+LinphoneCore *linphone_core_ref(LinphoneCore *lc) {
+	return (LinphoneCore *)belle_sip_object_ref(BELLE_SIP_OBJECT(lc));
+}
+
+void linphone_core_unref(LinphoneCore *lc) {
+	belle_sip_object_unref(BELLE_SIP_OBJECT(lc));
 }
 
 const bctbx_list_t *linphone_core_get_audio_codecs(const LinphoneCore *lc)
@@ -6928,10 +6946,10 @@ ortp_socket_t linphone_core_get_sip_socket(LinphoneCore *lc){
  * Destroys a LinphoneCore
  *
  * @ingroup initializing
+ * @deprecated Use linphone_core_unref() instead.
 **/
 void linphone_core_destroy(LinphoneCore *lc){
-	linphone_core_uninit(lc);
-	ms_free(lc);
+	linphone_core_unref(lc);
 }
 /**
  * Get the number of Call
