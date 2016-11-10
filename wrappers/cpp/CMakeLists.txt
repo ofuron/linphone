@@ -99,6 +99,7 @@ add_custom_command(OUTPUT ${GENERATED_SOURCES}
 )
 
 add_compile_options(-Wall -Werror -Wno-deprecated-declarations -Wextra)
+add_definitions(-DWRAPPER_BUILD)
 
 add_library(linphone++ SHARED ${SOURCES})
 target_link_libraries(linphone++ PRIVATE linphone)
