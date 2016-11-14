@@ -94,7 +94,7 @@ const char *Object::cppStringToC(const std::string &cppstr) {
 // 	return cppList;
 // }
 
-list<string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList) {
+list<string> Object::bctbxStringListToCppList(const ::bctbx_list_t *bctbxList) {
 	list<string> cppList;
 	for(const ::bctbx_list_t *it=bctbxList; it!=NULL; it=it->next) {
 		cppList.push_back(string((char *)it->data));
@@ -102,7 +102,7 @@ list<string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList) {
 	return cppList;
 }
 
-std::list<std::string> cStringArrayToCppList(const char **cArray) {
+std::list<std::string> Object::cStringArrayToCppList(const char **cArray) {
 	list<string> cppList;
 	int i;
 	for(i=0; cArray[i]!=NULL; i++) {
@@ -124,9 +124,9 @@ void ListenableObject::setListener(const std::shared_ptr<Listener> &listener) {
 	curListener = listener;
 }
 
-template <class T>
-std::shared_ptr<T> ListenableObject::getListenerFromObject(::belle_sip_object_t *object) {
-	std::shared_ptr<Listener> listener = *(std::shared_ptr<Listener> *)belle_sip_object_data_get(object, "cpp_listeners");
-	return static_pointer_cast<T, Listener>(listener);
-}
+// template <class T>
+// std::shared_ptr<T> ListenableObject::getListenerFromObject(::belle_sip_object_t *object) {
+// 	std::shared_ptr<Listener> listener = *(std::shared_ptr<Listener> *)belle_sip_object_data_get(object, "cpp_listeners");
+// 	return static_pointer_cast<T, Listener>(listener);
+// }
 

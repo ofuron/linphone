@@ -594,7 +594,9 @@ def main():
 	translator.ignore += ['linphone_tunnel_get_http_proxy',
 					   'linphone_core_can_we_add_call',
 					   'linphone_core_get_default_proxy',
-					   'linphone_proxy_config_normalize_number']
+					   'linphone_proxy_config_normalize_number',
+					   'linphone_proxy_config_set_file_transfer_server',
+					   'linphone_proxy_config_get_file_transfer_server']
 	
 	renderer = pystache.Renderer()	
 	

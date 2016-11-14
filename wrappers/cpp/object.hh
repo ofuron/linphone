@@ -113,7 +113,11 @@ namespace linphone {
 		void setListener(const std::shared_ptr<Listener> &listener);
 	
 	protected:
-		template <class T> static std::shared_ptr<T> getListenerFromObject(::belle_sip_object_t *object);
+		template <class T>
+		static std::shared_ptr<T> getListenerFromObject(::belle_sip_object_t *object) {
+			std::shared_ptr<Listener> listener = *(std::shared_ptr<Listener> *)belle_sip_object_data_get(object, "cpp_listeners");
+			return std::static_pointer_cast<T, Listener>(listener);
+		}
 	
 	private:
 		static void deleteListenerPtr(std::shared_ptr<Listener> *ptr) {
