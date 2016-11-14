@@ -113,3 +113,4 @@ std::shared_ptr<T> ListenableObject::getListenerFromObject(::belle_sip_object_t 
 	std::shared_ptr<Listener> listener = *(std::shared_ptr<Listener> *)belle_sip_object_data_get(object, "cpp_listeners");
 	return static_pointer_cast<T, Listener>(listener);
 }
+
