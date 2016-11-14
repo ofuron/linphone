@@ -29,6 +29,14 @@ namespace linphone {
 	{{#_class}}
 	class {{name}}{{#inheritFrom}}: public {{{name}}}{{/inheritFrom}} {
 		public:
+		{{#islistenable}}
+			{{{name}}}(::belle_sip_object_t *ptr, bool takeRef=true);
+		{{/islistenable}}
+		{{#isnotlistenable}}
+			{{{name}}}(::belle_sip_object_t *ptr, bool takeRef=true): Object(ptr, takeRef) {}
+		{{/isnotlistenable}}
+	
+		public:
 			{{#methods}}
 			{{{prototype}}}
 			
@@ -37,11 +45,6 @@ namespace linphone {
 			{{{prototype}}}
 			
 			{{/staticMethods}}
-		
-		{{#constructor}}
-		private:
-			{{{name}}}(::belle_sip_object_t *ptr, bool takeRef=true);
-		{{/constructor}}
 		
 		{{#islistenable}}
 		private:

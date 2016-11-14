@@ -46,6 +46,7 @@ class CppTranslator(object):
 		
 		classDict = {}
 		classDict['islistenable'] = islistenable
+		classDict['isnotlistenable'] = not islistenable
 		classDict['inheritFrom'] = {'name': 'ListenableObject' if islistenable else 'Object'}
 		classDict['name'] = CppTranslator.translate_class_name(_class.name)
 		classDict['methods'] = []
