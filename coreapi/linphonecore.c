@@ -1797,7 +1797,9 @@ static void linphone_core_init(LinphoneCore * lc, const LinphoneCoreVTable *vtab
 	internal_vtable->notify_received = linphone_core_internal_notify_received;
 	internal_vtable->subscription_state_changed = linphone_core_internal_subscription_state_changed;
 	_linphone_core_add_listener(lc, internal_vtable, TRUE, TRUE);
-	memcpy(local_vtable,vtable,sizeof(LinphoneCoreVTable));
+	
+	
+	if (vtable != NULL) memcpy(local_vtable,vtable,sizeof(LinphoneCoreVTable));
 	_linphone_core_add_listener(lc, local_vtable, TRUE, FALSE);
 
 	linphone_core_set_state(lc,LinphoneGlobalStartup,"Starting up");
