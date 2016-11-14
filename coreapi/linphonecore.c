@@ -114,6 +114,7 @@ static void linphone_core_uninit(LinphoneCore *lc);
 const char *linphone_core_get_nat_address_resolved(LinphoneCore *lc);
 static void toggle_video_preview(LinphoneCore *lc, bool_t val);
 
+
 #if defined(LINPHONE_WINDOWS_PHONE) || defined(LINPHONE_WINDOWS_UNIVERSAL)
 #define SOUNDS_PREFIX "Assets/Sounds/"
 #else
@@ -1921,6 +1922,7 @@ int linphone_core_set_primary_contact(LinphoneCore *lc, const char *contact)
 static void update_primary_contact(LinphoneCore *lc){
 	char *guessed=NULL;
 	char tmp[LINPHONE_IPADDR_SIZE];
+	int port;
 
 	LinphoneAddress *url;
 	if (lc->sip_conf.guessed_contact!=NULL){
@@ -1938,7 +1940,9 @@ static void update_primary_contact(LinphoneCore *lc){
 		lc->sip_conf.loopback_only=TRUE;
 	}else lc->sip_conf.loopback_only=FALSE;
 	linphone_address_set_domain(url,tmp);
-	linphone_address_set_port(url,linphone_core_get_sip_port(lc));
+	port = linphone_core_get_sip_port(lc);
+	if (port > 0) linphone_address_set_port(url, port); /*if there is no listening socket the primary contact is somewhat useless,
+		it won't work. But we prefer to return something in all cases. It at least shows username and ip address.*/
 	guessed=linphone_address_as_string(url);
 	lc->sip_conf.guessed_contact=guessed;
 	linphone_address_destroy(url);
@@ -1995,7 +1999,7 @@ LinphoneAddress *linphone_core_get_primary_contact_parsed(LinphoneCore *lc){
 /**
  * Sets the list of audio codecs.
  * @param[in] lc The LinphoneCore object
- * @param[in] codecs \mslist{PayloadType}
+ * @param[in] codecs \bctbx_list{PayloadType}
  * @return 0
  *
  * @ingroup media_parameters
@@ -2013,7 +2017,7 @@ int linphone_core_set_audio_codecs(LinphoneCore *lc, bctbx_list_t *codecs){
 /**
  * Sets the list of video codecs.
  * @param[in] lc The LinphoneCore object
- * @param[in] codecs \mslist{PayloadType}
+ * @param[in] codecs \bctbx_list{PayloadType}
  * @return 0
  *
  * @ingroup media_parameters
@@ -3586,10 +3590,12 @@ int linphone_core_start_update_call(LinphoneCore *lc, LinphoneCall *call){
 #endif //BUILD_UPNP
 	if (call->params->in_conference){
 		subject="Conference";
-	}else if (!no_user_consent){
-		subject="Media change";
-	}else{
+	}else if (call->params->internal_call_update){
+		subject="ICE processing concluded";
+	}else if (no_user_consent){
 		subject="Refreshing";
+	}else{
+		subject="Media change";
 	}
 	linphone_core_notify_display_status(lc,_("Modifying call parameters..."));
 	if (!lc->sip_conf.sdp_200_ack){
@@ -4148,7 +4154,7 @@ int linphone_core_terminate_all_calls(LinphoneCore *lc){
 /**
  * Returns the current list of calls.
  * @param[in] lc The LinphoneCore object
- * @return \mslist{LinphoneCall}
+ * @return \bctbx_list{LinphoneCall}
  *
  * Note that this list is read-only and might be changed by the core after a function call to linphone_core_iterate().
  * Similarly the LinphoneCall objects inside it might be destroyed without prior notice.
@@ -5573,7 +5579,6 @@ static void toggle_video_preview(LinphoneCore *lc, bool_t val){
 				video_preview_set_native_window_id(lc->previewstream,lc->preview_window_id);
 			video_preview_set_fps(lc->previewstream,linphone_core_get_preferred_framerate(lc));
 			video_preview_start(lc->previewstream,lc->video_conf.device);
-			lc->previewstream->ms.factory = lc->factory;
 		}
 	}else{
 		if (lc->previewstream!=NULL){
@@ -5582,6 +5587,14 @@ static void toggle_video_preview(LinphoneCore *lc, bool_t val){
 		}
 	}
 #endif
+}
+
+static void relaunch_video_preview(LinphoneCore *lc){
+	if (lc->previewstream){
+		toggle_video_preview(lc,FALSE);
+	}
+	/* And nothing else, because linphone_core_iterate() will restart the preview stream if necessary.
+	 * This code will need to be revisited when linphone_core_iterate() will no longer be required*/
 }
 
 bool_t linphone_core_video_supported(LinphoneCore *lc){
@@ -5753,7 +5766,7 @@ int linphone_core_set_video_device(LinphoneCore *lc, const char *id){
 	if (lc->video_conf.device==NULL)
 		lc->video_conf.device=ms_web_cam_manager_get_default_cam(ms_factory_get_web_cam_manager(lc->factory));
 	if (olddev!=NULL && olddev!=lc->video_conf.device){
-		toggle_video_preview(lc,FALSE);/*restart the video local preview*/
+		relaunch_video_preview(lc);
 	}
 	if ( linphone_core_ready(lc) && lc->video_conf.device){
 		vd=ms_web_cam_get_string_id(lc->video_conf.device);
@@ -6109,10 +6122,11 @@ static bool_t video_size_supported(MSVideoSize vsize){
 	return FALSE;
 }
 
+
+
 static void update_preview_size(LinphoneCore *lc, MSVideoSize oldvsize, MSVideoSize vsize){
 	if (!ms_video_size_equal(oldvsize,vsize) && lc->previewstream!=NULL){
-		toggle_video_preview(lc,FALSE);
-		toggle_video_preview(lc,TRUE);
+		relaunch_video_preview(lc);
 	}
 }
 
@@ -6143,8 +6157,7 @@ void linphone_core_set_preview_video_size(LinphoneCore *lc, MSVideoSize vsize){
 	oldvsize=lc->video_conf.preview_vsize;
 	lc->video_conf.preview_vsize=vsize;
 	if (!ms_video_size_equal(oldvsize,vsize) && lc->previewstream!=NULL){
-		toggle_video_preview(lc,FALSE);
-		toggle_video_preview(lc,TRUE);
+		relaunch_video_preview(lc);
 	}
 	if (linphone_core_ready(lc))
 		lp_config_set_string(lc->config,"video","preview_size",video_size_get_name(vsize));

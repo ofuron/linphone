@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "vcard.h"
+#include "linphonecore.h"
 
 struct _LinphoneVcardContext {
 	void *user_data;
@@ -101,7 +102,7 @@ void linphone_vcard_remove_sip_address(LinphoneVcard *vCard, const char *sip_add
 void linphone_vcard_edit_main_sip_address(LinphoneVcard *vCard, const char *sip_address) {
 }
 
-bctbx_list_t* linphone_vcard_get_sip_addresses(const LinphoneVcard *vCard) {
+const bctbx_list_t* linphone_vcard_get_sip_addresses(LinphoneVcard *vCard) {
 	return NULL;
 }
 
@@ -156,4 +157,7 @@ bool_t linphone_vcard_compare_md5_hash(LinphoneVcard *vCard) {
 
 bool_t linphone_core_vcard_supported(void) {
 	return FALSE;
+}
+
+void linphone_vcard_clean_cache(LinphoneVcard *vCard) {
 }

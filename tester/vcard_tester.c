@@ -16,10 +16,12 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef VCARD_ENABLED
-
 #include "linphonecore.h"
 #include "private.h"
+
+#ifdef VCARD_ENABLED
+
+
 #include "liblinphone_tester.h"
 #include "carddav.h"
 
@@ -51,8 +53,8 @@ static void linphone_vcard_import_export_friends_test(void) {
 	linphone_friend_list_unref(lfl);
 
 	remove(export_filepath);
-	ms_free(import_filepath);
-	ms_free(export_filepath);
+	bc_free(import_filepath);
+	bc_free(export_filepath);
 	linphone_core_manager_destroy(manager);
 }
 
@@ -104,7 +106,7 @@ static void linphone_vcard_import_a_lot_of_friends_test(void) {
 
 	linphone_friend_list_unref(lfl);
 
-	ms_free(import_filepath);
+	bc_free(import_filepath);
 	linphone_core_manager_destroy(manager);
 }
 
@@ -145,32 +147,29 @@ static void linphone_vcard_phone_numbers_and_sip_addresses(void) {
 	LinphoneCoreManager* manager = linphone_core_manager_new2("empty_rc", FALSE);
 	LinphoneVcard *lvc = linphone_vcard_context_get_vcard_from_buffer(manager->lc->vcard_context, "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Sylvain Berfini\r\nIMPP:sip:sberfini@sip.linphone.org\r\nIMPP;TYPE=home:sip:sylvain@sip.linphone.org\r\nTEL;TYPE=work:0952636505\r\nEND:VCARD\r\n");
 	LinphoneFriend *lf = linphone_friend_new_from_vcard(lvc);
-	bctbx_list_t *sip_addresses = linphone_friend_get_addresses(lf);
+	const bctbx_list_t *sip_addresses = linphone_friend_get_addresses(lf);
 	bctbx_list_t *phone_numbers = linphone_friend_get_phone_numbers(lf);
 	LinphoneAddress *addr = NULL;
 
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(sip_addresses), 2, unsigned int, "%u");
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(phone_numbers), 1, unsigned int, "%u");
-	if (sip_addresses) bctbx_list_free_with_data(sip_addresses, (void (*)(void *))linphone_address_unref);
 	if (phone_numbers) bctbx_list_free(phone_numbers);
 	linphone_friend_unref(lf);
 
 	lvc = linphone_vcard_context_get_vcard_from_buffer(manager->lc->vcard_context, "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Sylvain Berfini\r\nTEL;TYPE=work:0952636505\r\nTEL:0476010203\r\nEND:VCARD\r\n");
 	lf = linphone_friend_new_from_vcard(lvc);
+	lf->lc = manager->lc;
 	sip_addresses = linphone_friend_get_addresses(lf);
 	phone_numbers = linphone_friend_get_phone_numbers(lf);
 
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(sip_addresses), 0, unsigned int, "%u");
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(phone_numbers), 2, unsigned int, "%u");
-	if (sip_addresses) bctbx_list_free_with_data(sip_addresses, (void (*)(void *))linphone_address_unref);
 	if (phone_numbers) bctbx_list_free(phone_numbers);
 
 	addr = linphone_address_new("sip:sylvain@sip.linphone.org");
 	linphone_friend_add_address(lf, addr);
-	linphone_address_unref(addr);
 	sip_addresses = linphone_friend_get_addresses(lf);
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(sip_addresses), 1, unsigned int, "%u");
-	if (sip_addresses) bctbx_list_free_with_data(sip_addresses, (void (*)(void *))linphone_address_unref);
 
 	linphone_friend_remove_phone_number(lf, "0952636505");
 	phone_numbers = linphone_friend_get_phone_numbers(lf);
@@ -182,18 +181,18 @@ static void linphone_vcard_phone_numbers_and_sip_addresses(void) {
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(phone_numbers), 0, unsigned int, "%u");
 	if (phone_numbers) bctbx_list_free(phone_numbers);
 
-	addr = linphone_address_new("sip:sylvain@sip.linphone.org");
+	linphone_friend_edit(lf);
 	linphone_friend_remove_address(lf, addr);
-	linphone_address_unref(addr);
+	linphone_friend_done(lf);
 	sip_addresses = linphone_friend_get_addresses(lf);
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(sip_addresses), 0, unsigned int, "%u");
-	if (sip_addresses) bctbx_list_free_with_data(sip_addresses, (void (*)(void *))linphone_address_unref);
 
 	linphone_friend_add_phone_number(lf, "+33952636505");
 	phone_numbers = linphone_friend_get_phone_numbers(lf);
 	BC_ASSERT_EQUAL((unsigned int)bctbx_list_size(phone_numbers), 1, unsigned int, "%u");
 	if (phone_numbers) bctbx_list_free(phone_numbers);
 
+	linphone_address_unref(addr);
 	linphone_friend_unref(lf);
 	lf = NULL;
 	lvc = NULL;
@@ -244,9 +243,9 @@ static void friends_migration(void) {
 	BC_ASSERT_EQUAL(lp_config_get_int(lpc, "misc", "friends_migration_done", 0), 1, int, "%i");
 
 	friends_from_db = bctbx_list_free_with_data(friends_from_db, (void (*)(void *))linphone_friend_unref);
-	unlink(friends_db);
-	ms_free(friends_db);
 	linphone_core_manager_destroy(manager);
+	unlink(friends_db);
+	bc_free(friends_db);
 }
 
 typedef struct _LinphoneFriendListStats {
@@ -369,11 +368,11 @@ static void friends_sqlite_storage(void) {
 
 end:
 	ms_free(stats);
-	unlink(friends_db);
-	ms_free(friends_db);
 	linphone_address_unref(addr);
 	linphone_core_destroy(lc);
 	linphone_core_v_table_destroy(v_table);
+	unlink(friends_db);
+	bc_free(friends_db);
 }
 #endif
 
@@ -473,10 +472,10 @@ static void carddav_sync_2(void) {
 	BC_ASSERT_EQUAL(stats->sync_done_count, 1, int, "%i");
 
 	ms_free(stats);
-	unlink(friends_db);
-	ms_free(friends_db);
 	linphone_carddav_context_destroy(c);
 	linphone_core_manager_destroy(manager);
+	unlink(friends_db);
+	bc_free(friends_db);
 }
 
 static void carddav_sync_3(void) {
@@ -513,11 +512,10 @@ static void carddav_sync_3(void) {
 	BC_ASSERT_EQUAL(stats->sync_done_count, 1, int, "%i");
 
 	ms_free(stats);
-	unlink(friends_db);
-	ms_free(friends_db);
 	linphone_carddav_context_destroy(c);
-	c = NULL;
 	linphone_core_manager_destroy(manager);
+	unlink(friends_db);
+	bc_free(friends_db);
 }
 
 static void carddav_sync_4(void) {
@@ -799,8 +797,8 @@ test_t vcard_tests[] = {
 	TEST_NO_TAG("vCard creation for existing friends", linphone_vcard_update_existing_friends_test),
 	TEST_NO_TAG("vCard phone numbers and SIP addresses", linphone_vcard_phone_numbers_and_sip_addresses),
 #ifdef SQLITE_STORAGE_ENABLED
-	TEST_ONE_TAG("Friends working if no db set", friends_if_no_db_set, "LeaksMemory"),
-	TEST_ONE_TAG("Friends storage migration from rc to db", friends_migration, "LeaksMemory"),
+	TEST_NO_TAG("Friends working if no db set", friends_if_no_db_set),
+	TEST_NO_TAG("Friends storage migration from rc to db", friends_migration),
 	TEST_NO_TAG("Friends storage in sqlite database", friends_sqlite_storage),
 #endif
 	TEST_NO_TAG("CardDAV clean", carddav_clean), // This is to ensure the content of the test addressbook is in the correct state for the following tests

@@ -650,7 +650,12 @@ static void call_updated_by_remote(LinphoneCore *lc, LinphoneCall *call){
 	linphone_core_notify_display_status(lc,_("Call is updated by remote."));
 	linphone_call_set_state(call, LinphoneCallUpdatedByRemote,"Call updated by remote");
 	if (call->defer_update == FALSE){
-		linphone_core_accept_call_update(lc,call,NULL);
+		if (call->state == LinphoneCallUpdatedByRemote){
+			linphone_core_accept_call_update(lc,call,NULL);
+		}else{
+			/*otherwise it means that the app responded by linphone_core_accept_call_update
+			 * within the callback, so job is already done.*/
+		}
 	}else{
 		if (call->state == LinphoneCallUpdatedByRemote){
 			ms_message("LinphoneCall [%p]: UpdatedByRemoted was signaled but defered. LinphoneCore expects the application to call "
@@ -943,10 +948,6 @@ static void call_failure(SalOp *op){
 			msg=_("Incompatible media parameters.");
 			linphone_core_notify_display_status(lc,msg);
 		break;
-		case SalReasonNoMatch:
-			/* Call leg does not exist response for case of section 5.5 of RFC 6141 */
-			linphone_call_reinvite_to_recover_from_connection_loss(call);
-			return; /* Do not continue... */
 		default:
 			linphone_core_notify_display_status(lc,_("Call failed."));
 	}
@@ -956,9 +957,11 @@ static void call_failure(SalOp *op){
 	case LinphoneCallUpdating:
 	case LinphoneCallPausing:
 	case LinphoneCallResuming:
-		ms_message("Call error on state [%s], restoring previous state",linphone_call_state_to_string(call->prevstate));
-		linphone_call_set_state(call, call->prevstate,ei->full_string);
-		return;
+		if (ei->reason != SalReasonNoMatch){
+			ms_message("Call error on state [%s], restoring previous state",linphone_call_state_to_string(call->prevstate));
+			linphone_call_set_state(call, call->prevstate,ei->full_string);
+			return;
+		}
 	default:
 		break; /*nothing to do*/
 	}
@@ -974,7 +977,11 @@ static void call_failure(SalOp *op){
 		if (ei->reason==SalReasonDeclined){
 			linphone_call_set_state(call,LinphoneCallEnd,"Call declined.");
 		}else{
-			linphone_call_set_state(call,LinphoneCallError,ei->full_string);
+			if (linphone_call_state_is_early(call->state)){
+				linphone_call_set_state(call,LinphoneCallError,ei->full_string);
+			}else{
+				linphone_call_set_state(call, LinphoneCallEnd, ei->full_string);
+			}
 		}
 		if (ei->reason!=SalReasonNone) linphone_core_play_call_error_tone(lc,linphone_reason_from_sal(ei->reason));
 	}
@@ -995,6 +1002,14 @@ static void call_released(SalOp *op){
 		/*we can arrive here when the core manages call at Sal level without creating a LinphoneCall object. Typicially:
 		 * - when declining an incoming call with busy because maximum number of calls is reached.
 		 */
+	}
+}
+
+static void call_cancel_done(SalOp *op) {
+	LinphoneCall *call = (LinphoneCall *)sal_op_get_user_pointer(op);
+	if (call->reinvite_on_cancel_response_requested == TRUE) {
+		call->reinvite_on_cancel_response_requested = FALSE;
+		linphone_call_reinvite_to_recover_from_connection_loss(call);
 	}
 }
 
@@ -1463,6 +1478,7 @@ SalCallbacks linphone_sal_callbacks={
 	call_terminated,
 	call_failure,
 	call_released,
+	call_cancel_done,
 	auth_failure,
 	register_success,
 	register_failure,

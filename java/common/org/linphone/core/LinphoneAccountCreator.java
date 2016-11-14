@@ -32,6 +32,7 @@ public interface LinphoneAccountCreator {
 		void onAccountCreatorPhoneAccountRecovered(LinphoneAccountCreator accountCreator, Status status);
 		void onAccountCreatorIsAccountLinked(LinphoneAccountCreator accountCreator, Status status);
 		void onAccountCreatorIsPhoneNumberUsed(LinphoneAccountCreator accountCreator, Status status);
+		void onAccountCreatorPasswordUpdated(LinphoneAccountCreator accountCreator, Status status);
 	}
 
 	public static class Status {
@@ -137,6 +138,8 @@ public interface LinphoneAccountCreator {
 
 	String getEmail();
 
+	String getPrefix(String phone);
+
 	Status isAccountUsed();
 
 	Status createAccount();
@@ -154,6 +157,8 @@ public interface LinphoneAccountCreator {
 	Status isPhoneNumberUsed();
 
 	Status recoverPhoneAccount();
+
+	Status updatePassword(String newPassword);
 
 	LinphoneProxyConfig configure();
 }

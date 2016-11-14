@@ -166,6 +166,12 @@ public class LinphoneAccountCreatorImpl implements LinphoneAccountCreator {
 		return getEmail(nativePtr);
 	}
 
+	private native String getPrefix(long ptr, String s);
+	@Override
+	public String getPrefix(String phone) {
+		return getPrefix(nativePtr, phone);
+	}
+
 	private native int isAccountUsed(long ptr);
 	@Override
 	public Status isAccountUsed() {
@@ -218,6 +224,12 @@ public class LinphoneAccountCreatorImpl implements LinphoneAccountCreator {
 	@Override
 	public Status recoverPhoneAccount() {
 		return Status.fromInt(recoverPhoneAccount(nativePtr));
+	}
+
+	private native int updatePassword(long ptr, String newPassword);
+	@Override
+	public Status updatePassword(String newPassword) {
+		return Status.fromInt(updatePassword(nativePtr, newPassword));
 	}
 
 	private native LinphoneProxyConfig configure(long ptr);

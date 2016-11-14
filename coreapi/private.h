@@ -371,6 +371,7 @@ struct _LinphoneCall{
 	bool_t broken; /*set to TRUE when the call is in broken state due to network disconnection or transport */
 	bool_t defer_notify_incoming;
 	bool_t need_localip_refresh;
+	bool_t reinvite_on_cancel_response_requested;
 };
 
 BELLE_SIP_DECLARE_VPTR(LinphoneCall);
@@ -946,6 +947,7 @@ struct _LinphoneCore
 	belle_sip_object_t base;
 	MSFactory* factory;
 	MSList* vtable_refs;
+	int vtable_notify_recursion;
 	Sal *sal;
 	LinphoneGlobalState state;
 	struct _LpConfig *config;
@@ -1341,6 +1343,7 @@ struct _LinphoneAccountCreatorCbs {
 	LinphoneAccountCreatorCbsStatusCb activate_phone_number_link;
 	LinphoneAccountCreatorCbsStatusCb recover_phone_account;
 	LinphoneAccountCreatorCbsStatusCb is_account_linked;
+	LinphoneAccountCreatorCbsStatusCb update_hash;
 };
 
 BELLE_SIP_DECLARE_VPTR(LinphoneAccountCreatorCbs);
@@ -1634,6 +1637,8 @@ char *linphone_presence_model_to_xml(LinphonePresenceModel *model) ;
 #define LINPHONE_SQLITE3_VFS "sqlite3bctbx_vfs"
 
 void linphone_call_check_ice_session(LinphoneCall *call, IceRole role, bool_t is_reinvite);
+
+bool_t linphone_call_state_is_early(LinphoneCallState state);
 
 #ifdef __cplusplus
 }

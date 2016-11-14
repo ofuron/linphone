@@ -592,12 +592,37 @@ static void transport_dont_bind(void){
 	tr.tls_port = LC_SIP_TRANSPORT_DONTBIND;
 	
 	linphone_core_set_sip_transports(pauline->lc, &tr);
-	BC_ASSERT_TRUE(wait_for_until(pauline->lc,pauline->lc,&counters->number_of_LinphoneRegistrationOk,2,9000));
+	BC_ASSERT_TRUE(wait_for_until(pauline->lc,pauline->lc,&counters->number_of_LinphoneRegistrationOk,2,15000));
 	memset(&tr, 0, sizeof(tr));
 	linphone_core_get_sip_transports_used(pauline->lc, &tr);
 	BC_ASSERT_EQUAL(tr.udp_port, 0, int, "%i");
 	BC_ASSERT_EQUAL(tr.tcp_port, LC_SIP_TRANSPORT_DONTBIND, int, "%i");
 	BC_ASSERT_EQUAL(tr.tls_port, LC_SIP_TRANSPORT_DONTBIND, int, "%i");
+	linphone_core_manager_destroy(pauline);
+}
+
+static void transport_busy(void){
+	LinphoneCoreManager *pauline = linphone_core_manager_new("pauline_tcp_rc");
+	LCSipTransports tr;
+	
+	memset(&tr, 0, sizeof(tr));
+	tr.udp_port = 5070;
+	tr.tcp_port = 5070;
+	tr.tls_port = 5071;
+	
+	linphone_core_set_sip_transports(pauline->lc, &tr);
+	
+	{
+		LinphoneCoreManager *marie = linphone_core_manager_new("marie_rc");
+		linphone_core_set_sip_transports(marie->lc, &tr);
+		memset(&tr, 0, sizeof(tr));
+		linphone_core_get_sip_transports_used(pauline->lc, &tr);
+		/*BC_ASSERT_EQUAL(tr.udp_port, 0, int, "%i");
+		BC_ASSERT_EQUAL(tr.tcp_port, 0, int, "%i");
+		BC_ASSERT_EQUAL(tr.tls_port, 0, int, "%i");*/
+		linphone_core_manager_destroy(marie);
+	}
+	
 	linphone_core_manager_destroy(pauline);
 }
 
@@ -1144,6 +1169,7 @@ test_t register_tests[] = {
 	TEST_NO_TAG("Multi account", multiple_proxy),
 	TEST_NO_TAG("Transport changes", transport_change),
 	TEST_NO_TAG("Transport configured with dontbind option", transport_dont_bind),
+	TEST_NO_TAG("Transport busy", transport_busy),
 	TEST_NO_TAG("Proxy transport changes", proxy_transport_change),
 	TEST_NO_TAG("Proxy transport changes with wrong address at first", proxy_transport_change_with_wrong_port),
 	TEST_NO_TAG("Proxy transport changes with wrong address, giving up",proxy_transport_change_with_wrong_port_givin_up),

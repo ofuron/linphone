@@ -88,10 +88,10 @@ const char *linphone_online_status_to_string(LinphoneOnlineStatus ss){
 static int friend_compare(const void * a, const void * b) {
 	LinphoneFriend *lfa = (LinphoneFriend *)a;
 	LinphoneFriend *lfb = (LinphoneFriend *)b;
-	bctbx_list_t *addressesa = linphone_friend_get_addresses(lfa);
-	bctbx_list_t *addressesb = linphone_friend_get_addresses(lfb);
-	bctbx_list_t *iteratora = addressesa;
-	bctbx_list_t *iteratorb = addressesb;
+	const bctbx_list_t *addressesa = linphone_friend_get_addresses(lfa);
+	const bctbx_list_t *addressesb = linphone_friend_get_addresses(lfb);
+	bctbx_list_t *iteratora = (bctbx_list_t *)addressesa;
+	bctbx_list_t *iteratorb = (bctbx_list_t *)addressesb;
 	int ret = 1;
 
 	while (iteratora && (ret == 1)) {
@@ -102,13 +102,6 @@ static int friend_compare(const void * a, const void * b) {
 			iteratorb = bctbx_list_next(iteratorb);
 		}
 		iteratora = bctbx_list_next(iteratora);
-	}
-
-	if (addressesa) {
-		bctbx_list_free_with_data(addressesa, (bctbx_list_free_func)linphone_address_unref);
-	}
-	if (addressesb) {
-		bctbx_list_free_with_data(addressesb, (bctbx_list_free_func)linphone_address_unref);
 	}
 
 	return ret;
@@ -264,16 +257,9 @@ void linphone_core_interpret_friend_uri(LinphoneCore *lc, const char *uri, char 
 const LinphoneAddress * linphone_friend_get_address(const LinphoneFriend *lf) {
 	if (linphone_core_vcard_supported()) {
 		if (lf->vcard) {
-			bctbx_list_t *sip_addresses = linphone_vcard_get_sip_addresses(lf->vcard);
+			const bctbx_list_t *sip_addresses = linphone_vcard_get_sip_addresses(lf->vcard);
 			if (sip_addresses) {
-				const char *uri = (const char *)bctbx_list_nth_data(sip_addresses, 0);
-				LinphoneAddress *addr = NULL;
-				if (uri) addr = linphone_address_new(uri);
-				bctbx_list_free(sip_addresses);
-				if (lf->uri){
-					linphone_address_unref(lf->uri);
-				}
-				((LinphoneFriend*)lf)->uri = addr;
+				LinphoneAddress *addr = (LinphoneAddress *)bctbx_list_nth_data(sip_addresses, 0);
 				return addr;
 			}
 		}
@@ -326,28 +312,15 @@ void linphone_friend_add_address(LinphoneFriend *lf, const LinphoneAddress *addr
 	}
 }
 
-bctbx_list_t* linphone_friend_get_addresses(const LinphoneFriend *lf) {
-	bctbx_list_t *sip_addresses = NULL;
-	bctbx_list_t *addresses = NULL;
-	bctbx_list_t *iterator = NULL;
-
+const bctbx_list_t* linphone_friend_get_addresses(const LinphoneFriend *lf) {
 	if (!lf) return NULL;
 
 	if (linphone_core_vcard_supported()) {
-		sip_addresses = linphone_vcard_get_sip_addresses(lf->vcard);
-		iterator = sip_addresses;
-		while (iterator) {
-			const char *sip_address = (const char *)bctbx_list_get_data(iterator);
-			LinphoneAddress *addr = linphone_address_new(sip_address);
-			if (addr) {
-				addresses = bctbx_list_append(addresses, addr);
-			}
-			iterator = bctbx_list_next(iterator);
-		}
-		if (sip_addresses) bctbx_list_free(sip_addresses);
+		const bctbx_list_t * addresses = linphone_vcard_get_sip_addresses(lf->vcard);
 		return addresses;
 	} else {
-		return lf->uri ? bctbx_list_append(addresses, linphone_address_clone(lf->uri)) : NULL;
+		bctbx_list_t *addresses = NULL;
+		return lf->uri ? bctbx_list_append(addresses, lf->uri) : NULL;
 	}
 }
 
@@ -622,18 +595,17 @@ LinphoneOnlineStatus linphone_friend_get_status(const LinphoneFriend *lf){
 const LinphonePresenceModel * linphone_friend_get_presence_model(const LinphoneFriend *lf) {
 	const LinphonePresenceModel *presence = NULL;
 	LinphoneFriend* fuckconst = (LinphoneFriend*)lf;
-	bctbx_list_t* addrs = linphone_friend_get_addresses(fuckconst);
+	const bctbx_list_t* addrs = linphone_friend_get_addresses(fuckconst);
 	bctbx_list_t* phones = NULL;
 	bctbx_list_t *it;
 
-	for (it = addrs; it!= NULL; it = it->next) {
+	for (it = (bctbx_list_t *)addrs; it!= NULL; it = it->next) {
 		LinphoneAddress *addr = (LinphoneAddress*)it->data;
 		char *uri = linphone_address_as_string_uri_only(addr);
 		presence = linphone_friend_get_presence_model_for_uri_or_tel(fuckconst, uri);
 		ms_free(uri);
 		if (presence) break;
 	}
-	bctbx_list_free_with_data(addrs, (bctbx_list_free_func) linphone_address_unref);
 	if (presence) return presence;
 
 	phones = linphone_friend_get_phone_numbers(fuckconst);
@@ -771,16 +743,19 @@ void linphone_friend_edit(LinphoneFriend *fr) {
 
 void linphone_friend_done(LinphoneFriend *fr) {
 	ms_return_if_fail(fr);
-	if (!fr->lc || !fr->friend_list) return;
-	linphone_friend_apply(fr, fr->lc);
-	linphone_friend_save(fr, fr->lc);
+	if (!fr->lc) return;
 
 	if (fr && linphone_core_vcard_supported() && fr->vcard) {
 		if (linphone_vcard_compare_md5_hash(fr->vcard) != 0) {
-			ms_debug("vCard's md5 has changed, mark friend as dirty");
-			fr->friend_list->dirty_friends_to_update = bctbx_list_append(fr->friend_list->dirty_friends_to_update, linphone_friend_ref(fr));
+			ms_debug("vCard's md5 has changed, mark friend as dirty and clear sip addresses list cache");
+			linphone_vcard_clean_cache(fr->vcard);
+			if (fr->friend_list) {
+				fr->friend_list->dirty_friends_to_update = bctbx_list_append(fr->friend_list->dirty_friends_to_update, linphone_friend_ref(fr));
+			}
 		}
 	}
+	linphone_friend_apply(fr, fr->lc);
+	linphone_friend_save(fr, fr->lc);
 }
 
 #if __clang__ || ((__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || __GNUC__ > 4)
@@ -1246,7 +1221,7 @@ void linphone_core_friends_storage_init(LinphoneCore *lc) {
 	linphone_create_table(db);
 	if (linphone_update_table(db)) {
 		// After updating schema, database need to be closed/reopenned
-		sqlite3_close(lc->friends_db);
+		sqlite3_close(db);
 		_linphone_sqlite3_open(lc->friends_db_file, &db);
 	}
 
