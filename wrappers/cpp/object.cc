@@ -44,8 +44,10 @@ Object::Object(::belle_sip_object_t *ptr, bool takeRef):
 }
 
 Object::~Object() {
-	if(mPrivPtr != NULL) belle_sip_object_unref(mPrivPtr);
-	belle_sip_object_data_set(mPrivPtr, "cpp_object", NULL, NULL);
+	if(mPrivPtr != NULL) {
+		belle_sip_object_data_set(mPrivPtr, "cpp_object", NULL, NULL);
+		belle_sip_object_unref(mPrivPtr);
+	}
 }
 
 // template <class T>
