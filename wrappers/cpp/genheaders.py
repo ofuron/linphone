@@ -224,10 +224,7 @@ class CppTranslator(object):
 	def _wrap_cpp_expression_to_c(self, cppExpr, exprtype, usedNamespace=None):
 		if type(exprtype) is AbsApi.BaseType:
 			if exprtype.name == 'string':
-				if type(exprtype.parent) is AbsApi.Argument:
-					cExpr = cppExpr + '->c_str()'
-				else:
-					cExpr = cppExpr + '.c_str()'
+				cExpr = 'cppStringToC({0})'.format(cppExpr);
 			elif exprtype not in ['void', 'string', 'string_array'] and exprtype.isref:
 				cExpr = '&' + cppExpr
 			else:
@@ -254,8 +251,8 @@ class CppTranslator(object):
 		if type(exprtype) is AbsApi.BaseType:
 			if exprtype.name == 'void' and not exprtype.isref:
 				return cExpr
-			elif exprtype.name == 'string' and type(exprtype.parent) is AbsApi.Argument:
-				return 'std::unique_ptr<std::string>(new std::string({0})).get()'.format(cExpr)
+			elif exprtype.name == 'string':
+				return 'cStringToCpp({0})'.format(cExpr)
 			elif exprtype.name == 'string_array':
 				return 'cStringArrayToCppList({0})'.format(cExpr)
 			else:
@@ -323,7 +320,7 @@ class CppTranslator(object):
 		elif _type.name == 'string':
 			res = 'std::string'
 			if type(_type.parent) is AbsApi.Argument:
-				res += ' *'
+				res += ' &'
 		elif _type.name == 'string_array':
 			res = 'std::list<std::string>'
 			if type(_type.parent) is AbsApi.Argument:

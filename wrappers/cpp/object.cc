@@ -68,6 +68,22 @@ void *Object::sharedPtrToCPtr(const std::shared_ptr<T> &sharedPtr) {
 	else return static_pointer_cast<Object,T>(sharedPtr)->mPrivPtr;
 }
 
+std::string Object::cStringToCpp(const char *cstr) {
+	if (cstr == NULL) {
+		return std::string();
+	} else {
+		return std::string(cstr);
+	}
+}
+
+const char *Object::cppStringToC(const std::string &cppstr) {
+	if (cppstr.empty()) {
+		return NULL;
+	} else {
+		return cppstr.c_str();
+	}
+}
+
 template <class T>
 list<shared_ptr<T> > Object::bctbxObjectListToCppList(const ::bctbx_list_t *bctbxList) {
 	list<shared_ptr<T> > cppList;

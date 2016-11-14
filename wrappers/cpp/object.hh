@@ -56,6 +56,8 @@ namespace linphone {
 	protected:
 		template <class T> static std::shared_ptr<T> cPtrToSharedPtr(const void *ptr, bool takeRef=true);
 		template <class T> static void *sharedPtrToCPtr(const std::shared_ptr<T> &sharedPtr);
+		static std::string cStringToCpp(const char *cstr);
+		static const char *cppStringToC(const std::string &cppstr);
 		template <class T> static std::list<std::shared_ptr<T> > bctbxObjectListToCppList(const ::bctbx_list_t *bctbxList);
 		static std::list<std::string> bctbxStringListToCppList(const ::bctbx_list_t *bctbxList);
 		static std::list<std::string> cStringArrayToCppList(const char **cArray);
