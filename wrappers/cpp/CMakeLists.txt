@@ -19,6 +19,7 @@ set(GENERATED_SOURCES
 	src/core_v_table.cc
 	src/error_info.cc
 	src/event.cc
+	src/factory.cc
 	src/friend.cc
 	src/friend_list.cc
 	src/nat_policy.cc
@@ -68,6 +69,7 @@ set(HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/enums.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/error_info.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/event.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/factory.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/friend.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/friend_list.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/friend_list_listener.hh

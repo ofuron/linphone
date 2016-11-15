@@ -2547,8 +2547,9 @@ LINPHONE_PUBLIC	LINPHONE_DEPRECATED const char *linphone_core_get_user_agent_ver
  * @param userdata an opaque user pointer that can be retrieved at any time (for example in
  *        callbacks) using linphone_core_get_user_data().
  * @see linphone_core_new_with_config
+ * @deprecated Use linphone_factory_create_core() instead.
 **/
-LINPHONE_PUBLIC LinphoneCore *linphone_core_new(const LinphoneCoreVTable *vtable,
+LINPHONE_DEPRECATED LINPHONE_PUBLIC LinphoneCore *linphone_core_new(const LinphoneCoreVTable *vtable,
 						const char *config_path, const char *factory_config_path, void* userdata);
 
 /**
@@ -2562,11 +2563,12 @@ LINPHONE_PUBLIC LinphoneCore *linphone_core_new(const LinphoneCoreVTable *vtable
  * @param userdata an opaque user pointer that can be retrieved at any time (for example in
  *        callbacks) using linphone_core_get_user_data().
  * @see linphone_core_new
+ * @deprecated Use linphone_factory_create_core_with_config() instead.
 **/
-LINPHONE_PUBLIC LinphoneCore *linphone_core_new_with_config(const LinphoneCoreVTable *vtable, LpConfig *config, void *userdata);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC LinphoneCore *linphone_core_new_with_config(const LinphoneCoreVTable *vtable, LpConfig *config, void *userdata);
 
 /**
- * Increment the reference counter of a #LinphoneCone.
+ * Increment the reference counter of a #LinphoneCore object.
  * @param lc The #LinphoneCore which the ref counter is to be incremented.
  * @return A pointer on the #LinphoneCore passed as parameter.
  * @ingroup initializing
@@ -2574,7 +2576,7 @@ LINPHONE_PUBLIC LinphoneCore *linphone_core_new_with_config(const LinphoneCoreVT
 LINPHONE_PUBLIC LinphoneCore *linphone_core_ref(LinphoneCore *lc);
 
 /**
- * Decrement the ref counter of a #LinphoneCore and destroy it
+ * Decrement the ref counter of a #LinphoneCore object and destroy it
  * if the counter reach 0.
  * @param lc The #LinphoneCore which the reference counter is to be decreased.
  * @ingroup initializing
@@ -4751,6 +4753,58 @@ LINPHONE_PUBLIC const char *linphone_core_get_tls_cert_path(const LinphoneCore *
  * @return the TLS key path or NULL if not set yet
  */
 LINPHONE_PUBLIC const char *linphone_core_get_tls_key_path(const LinphoneCore *lc);
+
+
+/**
+ * @ingroup initializing
+ * #LinphoneFactory is a singleton object devoted to the creation of all the object
+ * of Liblinphone that cannot created by #LinphoneCore or #LinphoneCore itself.
+ */
+typedef struct _LinphoneFactory LinphoneFactory;
+
+/**
+ * @ingroup initializing
+ * Create the #LinphoneFactory if that has not been done and return
+ * a pointer on it.
+ * @return A pointer on the #LinphoneFactory
+ */
+LINPHONE_PUBLIC LinphoneFactory *linphone_factory_get(void);
+
+/**
+ * Instanciate a #LinphoneCore object.
+ * @ingroup initializing
+ *
+ * The LinphoneCore object is the primary handle for doing all phone actions.
+ * It should be unique within your application.
+ * @param vtable a LinphoneCoreVTable structure holding your application callbacks
+ * @param config_path a path to a config file. If it does not exists it will be created.
+ *        The config file is used to store all settings, call logs, friends, proxies... so that all these settings
+ *	       become persistent over the life of the LinphoneCore object.
+ *	       It is allowed to set a NULL config file. In that case LinphoneCore will not store any settings.
+ * @param factory_config_path a path to a read-only config file that can be used to
+ *        to store hard-coded preference such as proxy settings or internal preferences.
+ *        The settings in this factory file always override the one in the normal config file.
+ *        It is OPTIONAL, use NULL if unneeded.
+ * @param userdata an opaque user pointer that can be retrieved at any time (for example in
+ *        callbacks) using linphone_core_get_user_data().
+ * @see linphone_core_new_with_config
+ */
+LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable,
+						const char *config_path, const char *factory_config_path, void* userdata);
+
+/**
+ * Instantiates a LinphoneCore object with a given LpConfig.
+ * @ingroup initializing
+ *
+ * The LinphoneCore object is the primary handle for doing all phone actions.
+ * It should be unique within your application.
+ * @param vtable a LinphoneCoreVTable structure holding your application callbacks
+ * @param config a pointer to an LpConfig object holding the configuration of the LinphoneCore to be instantiated.
+ * @param userdata an opaque user pointer that can be retrieved at any time (for example in
+ *        callbacks) using linphone_core_get_user_data().
+ * @see linphone_core_new
+ */
+LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable, LinphoneConfig *config, void *userdata);
 
 #include "ringtoneplayer.h"
 
