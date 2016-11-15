@@ -50,6 +50,20 @@ Object::~Object() {
 	}
 }
 
+void Object::setData(const std::string &key, const std::string &data) {
+	std::string *str = new std::string(data);
+	belle_sip_object_data_set(mPrivPtr, key.c_str(), str, (belle_sip_data_destroy)deleteString);
+}
+
+const std::string &Object::getData(const std::string &key) const {
+	const std::string *str = (std::string *)belle_sip_object_data_get(mPrivPtr, key.c_str());
+	if (str == NULL) {
+		throw std::out_of_range("unkown key '" + key + '"');
+	} else {
+		return *str;
+	}
+}
+
 // template <class T>
 // std::shared_ptr<T> Object::cPtrToSharedPtr(const void *ptr, bool takeRef) {
 // 	if (ptr == NULL) {
