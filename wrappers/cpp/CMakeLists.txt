@@ -45,57 +45,57 @@ set(SOURCES
 )
 set(HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/account_creator.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/account_creator_listener.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/address.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/auth_info.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/buffer.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/call.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/call_log.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/call_params.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/call_stats.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_context.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_query.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_response.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/chat_message.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/chat_message_listener.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/chat_room.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/conference.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/conference_params.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/config.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/content.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/core.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/core_v_table.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/enums.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/error_info.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/event.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/friend.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/friend_list.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/friend_list_listener.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/linphone.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/nat_policy.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/payload_type.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/player.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/presence_activity.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/presence_model.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/presence_note.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/presence_person.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/presence_service.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/proxy_config.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/sip_transports.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/tunnel_config.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/tunnel.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/vcard_context.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/vcard.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/video_policy.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request_listener.hh
-${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_session.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/account_creator_listener.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/address.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/auth_info.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/buffer.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/call.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/call_log.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/call_params.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/call_stats.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_context.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_query.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_response.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/chat_message.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/chat_message_listener.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/chat_room.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/conference.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/conference_params.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/config.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/content.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/core.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/core_v_table.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/enums.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/error_info.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/event.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/friend.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/friend_list.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/friend_list_listener.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/linphone.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/nat_policy.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/payload_type.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/player.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/presence_activity.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/presence_model.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/presence_note.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/presence_person.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/presence_service.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/proxy_config.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/sip_transports.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/tunnel_config.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/tunnel.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/vcard_context.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/vcard.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/video_policy.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request_listener.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_session.hh
 	object.hh
 )
 
 add_custom_command(OUTPUT ${GENERATED_SOURCES}
 	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/genheaders.py" "${CMAKE_CURRENT_SOURCE_DIR}/../../work/coreapi/help/doc/xml"
-	DEPENDS genheaders.py class_header.mustache class_impl.mustache enums_header.mustache linphone-doc
+	DEPENDS genheaders.py abstractapi.py class_header.mustache class_impl.mustache enums_header.mustache linphone-doc
 )
 
 add_compile_options(-Wall -Werror -Wno-deprecated-declarations -Wextra)

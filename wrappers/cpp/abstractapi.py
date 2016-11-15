@@ -389,10 +389,6 @@ class Interface(DocumentableObject):
 
 
 class CParser(object):
-	cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
-	cListType = 'bctbx_list_t'
-	regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
-	
 	def __init__(self, cProject):
 		self.cProject = cProject
 		
@@ -413,7 +409,12 @@ class CParser(object):
 		
 		name = NamespaceName()
 		name.from_snake_case('linphone')
+		
 		self.namespace = Namespace(name)
+		self.cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
+		self.cListType = 'bctbx_list_t'
+		self.regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
+		self.methodBl = ['ref', 'unref', 'new', 'destroy']
 		
 	def parse_all(self):
 		for enum in self.cProject.enums:
@@ -472,7 +473,7 @@ class CParser(object):
 				type.containedTypeDesc = EnumType(type.containedTypeName, enumDesc=self.enumsIndex[type.containedTypeName])
 			else:
 				if type.containedTypeName is not None:
-					type.containedTypeDesc = CParser.parse_c_base_type(type.containedTypeName)
+					type.containedTypeDesc = CParser.parse_c_base_type(self, type.containedTypeName)
 				else:
 					raise Error('bctbx_list_t type without specified contained type')
 	
@@ -623,6 +624,10 @@ class CParser(object):
 	def parse_method(self, cfunction, namespace, type=Method.Type.Instance):
 		name = MethodName()
 		name.from_snake_case(cfunction.name, namespace=namespace)
+		
+		if name.to_camel_case(lower=True) in self.methodBl:
+			raise Error('{0} is blacklisted'.format(name.to_c()));
+		
 		method = Method(name, type=type)
 		method.returnType = CParser.parse_type(self, cfunction.returnArgument)
 		
@@ -639,8 +644,8 @@ class CParser(object):
 		return method
 	
 	def parse_type(self, cType):
-		if cType.ctype in CParser.cBaseType or re.match(CParser.regexFixedSizeInteger, cType.ctype):
-			absType = CParser.parse_c_base_type(cType.completeType)
+		if cType.ctype in self.cBaseType or re.match(self.regexFixedSizeInteger, cType.ctype):
+			absType = CParser.parse_c_base_type(self, cType.completeType)
 		elif cType.ctype in self.enumsIndex:
 			absType = EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
 		elif cType.ctype in self.classesIndex:
@@ -648,7 +653,7 @@ class CParser(object):
 			if 'const' in cType.completeType.split(' '):
 				params['isconst'] = True
 			absType = ClassType(cType.ctype, **params)
-		elif cType.ctype == CParser.cListType:
+		elif cType.ctype == self.cListType:
 			absType = ListType(cType.containedType)
 		else:
 			raise Error('Unknown C type \'{0}\''.format(cType.ctype))
@@ -656,8 +661,7 @@ class CParser(object):
 		absType.cname = cType.completeType
 		return absType
 	
-	@staticmethod
-	def parse_c_base_type(cDecl):
+	def parse_c_base_type(self, cDecl):
 		declElems = cDecl.split(' ')
 		param = {}
 		name = None
@@ -701,7 +705,7 @@ class CParser(object):
 					else:
 						raise Error('Unhandled double-pointer')
 			else:
-				matchCtx = re.match(CParser.regexFixedSizeInteger, elem)
+				matchCtx = re.match(self.regexFixedSizeInteger, elem)
 				if matchCtx:
 					name = 'integer'
 					if matchCtx.group(1) == 'u':
