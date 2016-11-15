@@ -264,7 +264,8 @@ class CppTranslator(object):
 		elif type(exprtype) is AbsApi.ClassType:
 			cppReturnType = CppTranslator.translate_class_type(self, exprtype, namespace=usedNamespace)
 			cppReturnType = CppTranslator.sharedPtrTypeExtractor.match(cppReturnType).group(2)
-			if type(exprtype.parent) is AbsApi.Method and exprtype.parent.name.to_snake_case() == 'new':
+			
+			if type(exprtype.parent) is AbsApi.Method and len(exprtype.parent.name.words) >=1 and (exprtype.parent.name.words == ['new'] or exprtype.parent.name.words[0] == 'create'):
 				return 'cPtrToSharedPtr<{0}>({1}, false)'.format(cppReturnType, cExpr)
 			else:
 				return 'cPtrToSharedPtr<{0}>({1})'.format(cppReturnType, cExpr)
