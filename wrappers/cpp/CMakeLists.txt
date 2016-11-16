@@ -44,7 +44,7 @@ set(SOURCES
 	${GENERATED_SOURCES}
 	object.cc
 )
-set(HEADERS
+set(GENERATED_HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/account_creator.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/account_creator_listener.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/address.hh
@@ -92,12 +92,15 @@ set(HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request_listener.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_session.hh
+)
+set(HEADERS
+	${GENERATED_HEADERS}
 	object.hh
 )
 
-add_custom_command(OUTPUT ${GENERATED_SOURCES}
+add_custom_command(OUTPUT ${GENERATED_SOURCES} ${GENERATED_HEADERS}
 	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/genheaders.py" "${CMAKE_CURRENT_SOURCE_DIR}/../../work/coreapi/help/doc/xml"
-	DEPENDS genheaders.py abstractapi.py class_header.mustache class_impl.mustache enums_header.mustache linphone-doc
+	DEPENDS *.py *.mustache linphone-doc
 )
 
 add_compile_options(-Wall -Werror -Wno-deprecated-declarations -Wextra)
