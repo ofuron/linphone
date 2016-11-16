@@ -18,9 +18,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-#include "linphonecore.h"
-#include "sipsetup.h"
-#include "lpconfig.h"
+#include "linphone/core.h"
+#include "linphone/sipsetup.h"
+#include "linphone/lpconfig.h"
 #include "private.h"
 #include "quality_reporting.h"
 #include "lime.h"
@@ -1478,11 +1478,20 @@ bool_t linphone_core_adaptive_rate_control_enabled(const LinphoneCore *lc){
 }
 
 void linphone_core_set_adaptive_rate_algorithm(LinphoneCore *lc, const char* algorithm){
+	if (ms_qos_analyzer_algorithm_from_string(algorithm) != MSQosAnalyzerAlgorithmSimple) {
+		ms_warning("Unsupported adaptive rate algorithm [%s] on core [%p], using Simple",algorithm,lc);
+		linphone_core_set_adaptive_rate_algorithm(lc,ms_qos_analyzer_algorithm_to_string(MSQosAnalyzerAlgorithmSimple));
+		return;
+	}
 	lp_config_set_string(lc->config,"net","adaptive_rate_algorithm",algorithm);
 }
 
 const char * linphone_core_get_adaptive_rate_algorithm(const LinphoneCore *lc){
-	return lp_config_get_string(lc->config, "net", "adaptive_rate_algorithm", "Simple");
+	const char* saved_value = lp_config_get_string(lc->config, "net", "adaptive_rate_algorithm", "Simple");
+	if (ms_qos_analyzer_algorithm_from_string(saved_value) != MSQosAnalyzerAlgorithmSimple) {
+		ms_warning("Unsupported adaptive rate algorithm [%s] on core [%p], using Simple",saved_value,lc);
+	}
+	return ms_qos_analyzer_algorithm_to_string(MSQosAnalyzerAlgorithmSimple);
 }
 
 bool_t linphone_core_rtcp_enabled(const LinphoneCore *lc){
@@ -2924,7 +2933,16 @@ void linphone_core_iterate(LinphoneCore *lc){
 
 LinphoneAddress * linphone_core_interpret_url(LinphoneCore *lc, const char *url){
 	LinphoneProxyConfig *proxy = linphone_core_get_default_proxy_config(lc);
-	return linphone_proxy_config_normalize_sip_uri(proxy, url);
+	LinphoneAddress *result=NULL;
+	
+	if (linphone_proxy_config_is_phone_number(proxy,url)) {
+		char *normalized_number = linphone_proxy_config_normalize_phone_number(proxy, url);
+		result = linphone_proxy_config_normalize_sip_uri(proxy, normalized_number);
+		ms_free(normalized_number);
+	} else {
+		result = linphone_proxy_config_normalize_sip_uri(proxy, url);
+	}
+	return result;
 }
 
 /**
