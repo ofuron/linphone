@@ -131,6 +131,127 @@ static void toggle_video_preview(LinphoneCore *lc, bool_t val);
 
 extern SalCallbacks linphone_sal_callbacks;
 
+struct _LinphoneCoreCbs {
+	belle_sip_object_t base;
+	LinphoneCoreVTable callbacks;
+};
+
+typedef belle_sip_object_t_vptr_t LinphoneCoreCbs_vptr_t;
+BELLE_SIP_DECLARE_NO_IMPLEMENTED_INTERFACES(LinphoneCoreCbs);
+BELLE_SIP_INSTANCIATE_VPTR(LinphoneCoreCbs, belle_sip_object_t,
+	NULL, // destroy
+	NULL, // clone
+	NULL, // Marshall
+	FALSE
+);
+
+static LinphoneCoreCbs *_linphone_core_cbs_new(void) {
+	LinphoneCoreCbs *obj = belle_sip_object_new(LinphoneCoreCbs);
+	memset(&obj->callbacks, 0, sizeof(obj->callbacks));
+	return obj;
+}
+
+void linphone_core_cbs_set_registration_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsRegistrationStateChangedCb cb) {
+	cbs->callbacks.registration_state_changed = cb;
+}
+
+void linphone_core_cbs_set_call_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallStateChangedCb cb) {
+	cbs->callbacks.call_state_changed = cb;
+}
+
+void linphone_core_cbs_set_notify_presence_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsNotifyPresenceReceivedCb cb) {
+	cbs->callbacks.notify_presence_received = cb;
+}
+
+void linphone_core_cbs_set_notify_presence_received_for_uri_or_tel(LinphoneCoreCbs *cbs, LinphoneCoreCbsNotifyPresenceReceivedForUriOrTelCb cb) {
+	cbs->callbacks.notify_presence_received_for_uri_or_tel = cb;
+}
+
+void linphone_core_cbs_set_new_subscription_requested(LinphoneCoreCbs *cbs, LinphoneCoreCbsNewSubscriptionRequestedCb cb) {
+	cbs->callbacks.new_subscription_requested = cb;
+}
+
+void linphone_core_cbs_set_authentication_requested(LinphoneCoreCbs *cbs, LinphoneCoreCbsAuthenticationRequestedCb cb) {
+	cbs->callbacks.authentication_requested = cb;
+}
+
+void linphone_core_cbs_set_call_log_updated(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallLogUpdatedCb cb) {
+	cbs->callbacks.call_log_updated = cb;
+}
+
+void linphone_core_cbs_set_message_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsMessageReceivedCb cb) {
+	cbs->callbacks.message_received = cb;
+}
+
+void linphone_core_cbs_set_is_composing_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsIsComposingReceivedCb cb) {
+	cbs->callbacks.is_composing_received = cb;
+}
+
+void linphone_core_cbs_set_dtmf_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsDtmfReceivedCb cb) {
+	cbs->callbacks.dtmf_received = cb;
+}
+
+void linphone_core_cbs_set_refer_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsReferReceivedCb cb) {
+	cbs->callbacks.refer_received = cb;
+}
+
+void linphone_core_cbs_set_call_encryption_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallEncryptionChangedCb cb) {
+	cbs->callbacks.call_encryption_changed = cb;
+}
+
+void linphone_core_cbs_set_transfer_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsTransferStateChangedCb cb) {
+	cbs->callbacks.transfer_state_changed = cb;
+}
+
+void linphone_core_cbs_set_buddy_info_updated(LinphoneCoreCbs *cbs, LinphoneCoreCbsBuddyInfoUpdatedCb cb) {
+	cbs->callbacks.buddy_info_updated = cb;
+}
+
+void linphone_core_cbs_set_call_stats_updated(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallStatsUpdatedCb cb) {
+	cbs->callbacks.call_stats_updated = cb;
+}
+
+void linphone_core_cbs_set_info_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsInfoReceivedCb cb) {
+	cbs->callbacks.info_received = cb;
+}
+
+void linphone_core_cbs_set_subscription_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsSubscriptionStateChangedCb cb) {
+	cbs->callbacks.subscription_state_changed = cb;
+}
+
+void linphone_core_cbs_set_notify_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsNotifyReceivedCb cb) {
+	cbs->callbacks.notify_received = cb;
+}
+
+void linphone_core_cbs_set_publish_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsPublishStateChangedCb cb) {
+	cbs->callbacks.publish_state_changed = cb;
+}
+
+void linphone_core_cbs_set_configuring_status(LinphoneCoreCbs *cbs, LinphoneCoreCbsConfiguringStatusCb cb) {
+	cbs->callbacks.configuring_status = cb;
+}
+
+void linphone_core_cbs_set_network_reachable(LinphoneCoreCbs *cbs, LinphoneCoreCbsNetworkReachableCb cb) {
+	cbs->callbacks.network_reachable = cb;
+}
+
+void linphone_core_cbs_set_log_collection_upload_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsLogCollectionUploadStateChangedCb cb) {
+	cbs->callbacks.log_collection_upload_state_changed = cb;
+}
+
+void linphone_core_cbs_set_log_collection_upload_progress_indication(LinphoneCoreCbs *cbs, LinphoneCoreCbsLogCollectionUploadProgressIndicationCb cb) {
+	cbs->callbacks.log_collection_upload_progress_indication = cb;
+}
+
+void linphone_core_cbs_set_friend_list_created(LinphoneCoreCbs *cbs, LinphoneCoreCbsFriendListCreatedCb cb) {
+	cbs->callbacks.friend_list_created = cb;
+}
+
+void linphone_core_cbs_set_friend_list_removed(LinphoneCoreCbs *cbs, LinphoneCoreCbsFriendListRemovedCb cb) {
+	cbs->callbacks.friend_list_removed = cb;
+}
+
+
 typedef belle_sip_object_t_vptr_t LinphoneCore_vptr_t;
 BELLE_SIP_DECLARE_NO_IMPLEMENTED_INTERFACES(LinphoneCore);
 BELLE_SIP_INSTANCIATE_VPTR(LinphoneCore, belle_sip_object_t,
@@ -8093,4 +8214,8 @@ LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, const
 
 LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable, LinphoneConfig *config, void *userdata) {
 	return _linphone_core_new_with_config(vtable, config, userdata);
+}
+
+LinphoneCoreCbs *linphone_core_factory_create_core_cbs(const LinphoneFactory *factory) {
+	return _linphone_core_cbs_new();
 }
