@@ -6,9 +6,6 @@ set(GENERATED_SOURCES
 	src/call_log.cc
 	src/call_params.cc
 	src/call_stats.cc
-	src/card_dav_context.cc
-	src/card_dav_query.cc
-	src/card_dav_response.cc
 	src/chat_message.cc
 	src/chat_room.cc
 	src/conference.cc
@@ -35,7 +32,6 @@ set(GENERATED_SOURCES
 	src/tunnel.cc
 	src/tunnel_config.cc
 	src/vcard.cc
-	src/vcard_context.cc
 	src/video_policy.cc
 	src/xml_rpc_request.cc
 	src/xml_rpc_session.cc
@@ -54,9 +50,6 @@ set(GENERATED_HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/call_log.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/call_params.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/call_stats.hh
-	${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_context.hh
-	${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_query.hh
-	${CMAKE_CURRENT_BINARY_DIR}/include/card_dav_response.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/chat_message.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/chat_message_listener.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/chat_room.hh
@@ -86,7 +79,6 @@ set(GENERATED_HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/sip_transports.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/tunnel_config.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/tunnel.hh
-	${CMAKE_CURRENT_BINARY_DIR}/include/vcard_context.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/vcard.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/video_policy.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/xml_rpc_request.hh
