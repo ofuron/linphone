@@ -943,6 +943,16 @@ void linphone_task_list_remove(LinphoneTaskList *t, LinphoneCoreIterateHook hook
 void linphone_task_list_run(LinphoneTaskList *t);
 void linphone_task_list_free(LinphoneTaskList *t);
 
+
+struct _LinphoneCoreCbs {
+	belle_sip_object_t base;
+	LinphoneCoreVTable *vtable;
+	bool_t autorelease;
+};
+
+void _linphone_core_cbs_set_v_table(LinphoneCoreCbs *cbs, LinphoneCoreVTable *vtable, bool_t autorelease);
+
+
 struct _LinphoneCore
 {
 	belle_sip_object_t base;
@@ -1050,7 +1060,7 @@ struct _LinphoneCore
 	char *file_transfer_server;
 	const char **supported_formats;
 	LinphoneContent *log_collection_upload_information;
-	LinphoneCoreVTable *current_vtable; // the latest vtable to call a callback, see linphone_core_get_current_vtable
+	LinphoneCoreCbs *current_cbs; // the latest LinphoneCoreCbs object to call a callback, see linphone_core_get_current_cbs()
 	LinphoneRingtonePlayer *ringtoneplayer;
 #ifdef ANDROID
 	jobject wifi_lock;
@@ -1613,7 +1623,7 @@ void linphone_core_multicast_lock_release(LinphoneCore *lc);
 #endif
 
 struct _VTableReference{
-	LinphoneCoreVTable *vtable;
+	LinphoneCoreCbs *cbs;
 	bool_t valid;
 	bool_t autorelease;
 	bool_t internal;
@@ -1623,7 +1633,7 @@ typedef struct _VTableReference  VTableReference;
 
 void v_table_reference_destroy(VTableReference *ref);
 
-LINPHONE_PUBLIC void _linphone_core_add_listener(LinphoneCore *lc, LinphoneCoreVTable *vtable, bool_t autorelease, bool_t internal);
+LINPHONE_PUBLIC void _linphone_core_add_callbacks(LinphoneCore *lc, LinphoneCoreCbs *vtable, bool_t internal);
 
 #ifdef VIDEO_ENABLED
 LINPHONE_PUBLIC MSWebCam *linphone_call_get_video_device(const LinphoneCall *call);

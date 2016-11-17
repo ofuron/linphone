@@ -2284,135 +2284,211 @@ LINPHONE_PUBLIC LinphoneCoreVTable *linphone_core_get_current_vtable(LinphoneCor
 LINPHONE_PUBLIC void linphone_core_v_table_destroy(LinphoneCoreVTable* table);
 
 
-
+/**
+ * That class holds all the callbacks which are called by #LinphoneCore.
+ * 
+ * Use linphone_factory_create_core_cbs() to create an instance. Then, call the
+ * callback setters on the events you need to monitor and pass the object to
+ * a #LinphoneCore instance through linphone_core_add_listener().
+ * 
+ * That class is inherited from #belle_sip_object_t.
+ */
 typedef struct _LinphoneCoreCbs LinphoneCoreCbs;
 
+/**
+ * Increment the reference counter.
+ */
+LINPHONE_PUBLIC LinphoneCoreCbs *linphone_core_cbs_ref(LinphoneCoreCbs *cbs);
+
+/**
+ * Decrement the reference counter.
+ */
+LINPHONE_PUBLIC void linphone_core_cbs_unref(LinphoneCoreCbs *cbs);
+
+/**
+ * Set private data to be get from each callbacks.
+ */
+LINPHONE_PUBLIC void linphone_core_cbs_set_user_data(LinphoneCoreCbs *cbs, void *user_data);
+
+/**
+ * Get the user pointer.
+ */
+LINPHONE_PUBLIC void *linphone_core_cbs_get_user_data(LinphoneCoreCbs *cbs);
 
 /**
  * Set the #LinphoneCoreCbsRegistrationStateChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_registration_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsRegistrationStateChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsCallStateChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_call_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallStateChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsNotifyPresenceReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_notify_presence_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsNotifyPresenceReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsNotifyPresenceReceivedForUriOrTelCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_notify_presence_received_for_uri_or_tel(LinphoneCoreCbs *cbs, LinphoneCoreCbsNotifyPresenceReceivedForUriOrTelCb cb);
 
 /**
  * Set the #LinphoneCoreCbsNewSubscriptionRequestedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_new_subscription_requested(LinphoneCoreCbs *cbs, LinphoneCoreCbsNewSubscriptionRequestedCb cb);
 
 /**
- * Set the #LinphoneCoreCbsAuthenticationRequestedCb callback.
+ * Set the #LinphoneCoreCbsAuthenticationRequestedCb callback.'
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_authentication_requested(LinphoneCoreCbs *cbs, LinphoneCoreCbsAuthenticationRequestedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsCallLogUpdatedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_call_log_updated(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallLogUpdatedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsMessageReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_message_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsMessageReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsIsComposingReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_is_composing_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsIsComposingReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsDtmfReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_dtmf_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsDtmfReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsReferReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_refer_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsReferReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsCallEncryptionChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_call_encryption_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallEncryptionChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsTransferStateChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_transfer_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsTransferStateChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsBuddyInfoUpdatedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_buddy_info_updated(LinphoneCoreCbs *cbs, LinphoneCoreCbsBuddyInfoUpdatedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsCallStatsUpdatedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_call_stats_updated(LinphoneCoreCbs *cbs, LinphoneCoreCbsCallStatsUpdatedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsInfoReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_info_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsInfoReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsSubscriptionStateChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_subscription_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsSubscriptionStateChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsNotifyReceivedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_notify_received(LinphoneCoreCbs *cbs, LinphoneCoreCbsNotifyReceivedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsPublishStateChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_publish_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsPublishStateChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsConfiguringStatusCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_configuring_status(LinphoneCoreCbs *cbs, LinphoneCoreCbsConfiguringStatusCb cb);
 
 /**
  * Set the #LinphoneCoreCbsNetworkReachableCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_network_reachable(LinphoneCoreCbs *cbs, LinphoneCoreCbsNetworkReachableCb cb);
 
 /**
  * Set the #LinphoneCoreCbsLogCollectionUploadStateChangedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_log_collection_upload_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsLogCollectionUploadStateChangedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsLogCollectionUploadProgressIndicationCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_log_collection_upload_progress_indication(LinphoneCoreCbs *cbs, LinphoneCoreCbsLogCollectionUploadProgressIndicationCb cb);
 
 /**
  * Set the #LinphoneCoreCbsFriendListCreatedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_friend_list_created(LinphoneCoreCbs *cbs, LinphoneCoreCbsFriendListCreatedCb cb);
 
 /**
  * Set the #LinphoneCoreCbsFriendListRemovedCb callback.
+ * @param[in] cbs A #LinphoneCoreCbs.
+ * @param[in] cb The callback.
  */
 LINPHONE_PUBLIC void linphone_core_cbs_set_friend_list_removed(LinphoneCoreCbs *cbs, LinphoneCoreCbsFriendListRemovedCb cb);
-
 
 /**
  * @}
@@ -2687,17 +2763,32 @@ LINPHONE_PUBLIC	void linphone_core_iterate(LinphoneCore *lc);
  * add a listener to be notified of linphone core events. Once events are received, registered vtable are invoked in order.
  * @param vtable a LinphoneCoreVTable structure holding your application callbacks. Object is owned by linphone core until linphone_core_remove_listener.
  * @param lc object
- *
+ * @deprecated Use linphone_core_add_callbacks() instead.
  */
-LINPHONE_PUBLIC void linphone_core_add_listener(LinphoneCore *lc, LinphoneCoreVTable *vtable);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC void linphone_core_add_listener(LinphoneCore *lc, LinphoneCoreVTable *vtable);
+/**
+ * @ingroup initializing
+ * Add a listener in order to be notified of #LinphoneCore events. Once an event is received, registred #LinphoneCoreCbs are sequencially
+ * invoked in order.
+ * @param lc The #LinphoneCore object to monitor.
+ * @param cbs A #LinphoneCoreCbs object holding the callbakcs you need. A reference is take by #LinphoneCore until you invoke linphone_core_remove_cbs().
+ */
+LINPHONE_PUBLIC void linphone_core_add_callbacks(LinphoneCore *lc, LinphoneCoreCbs *cbs);
 /**
  * @ingroup initializing
  * remove a listener registred by linphone_core_add_listener.
  * @param lc object
- * @param vtable a LinphoneCoreVTable structure holding your application callbacks
- *
+ * @param vtable a LinphoneCoreVTable structure holding your application callbacks.
+ * @deprecated Use linphone_core_remove_callbacks() instead.
  */
-LINPHONE_PUBLIC void linphone_core_remove_listener(LinphoneCore *lc, const LinphoneCoreVTable *vtable);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC void linphone_core_remove_listener(LinphoneCore *lc, const LinphoneCoreVTable *vtable);
+/**
+ * @ingroup initializing
+ * Remove a listener from a #LinphoneCore
+ * @param lc The #LinphoneCore
+ * @param cbs The pointer on the #LinphoneCoreCbs to remove.
+ */
+LINPHONE_PUBLIC void linphone_core_remove_callbacks(LinphoneCore *lc, const LinphoneCoreCbs *cbs);
 
 
 /*sets the user-agent string in sip messages, ideally called just after linphone_core_new() or linphone_core_init() */
@@ -4905,7 +4996,7 @@ LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core_with_config(const Lin
  * Instanciate a #LinphoneCoreCbs object.
  * @return a new #LinponeCoreCbs.
  */
-LINPHONE_PUBLIC LinphoneCoreCbs *linphone_core_factory_create_core_cbs(const LinphoneFactory *factory);
+LINPHONE_PUBLIC LinphoneCoreCbs *linphone_factory_create_core_cbs(const LinphoneFactory *factory);
 
 #include "linphone/ringtoneplayer.h"
 
