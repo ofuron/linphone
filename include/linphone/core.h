@@ -4962,7 +4962,9 @@ LINPHONE_PUBLIC LinphoneFactory *linphone_factory_get(void);
  *
  * The LinphoneCore object is the primary handle for doing all phone actions.
  * It should be unique within your application.
- * @param vtable a LinphoneCoreVTable structure holding your application callbacks
+ * @param cbs a #LinphoneCoreCbs object holding your application callbacks. A reference
+ * will be taken on it until the destruciton of the core or the unregistration
+ * with linphone_core_remove_cbs().
  * @param config_path a path to a config file. If it does not exists it will be created.
  *        The config file is used to store all settings, call logs, friends, proxies... so that all these settings
  *	       become persistent over the life of the LinphoneCore object.
@@ -4971,12 +4973,10 @@ LINPHONE_PUBLIC LinphoneFactory *linphone_factory_get(void);
  *        to store hard-coded preference such as proxy settings or internal preferences.
  *        The settings in this factory file always override the one in the normal config file.
  *        It is OPTIONAL, use NULL if unneeded.
- * @param userdata an opaque user pointer that can be retrieved at any time (for example in
- *        callbacks) using linphone_core_get_user_data().
  * @see linphone_core_new_with_config
  */
-LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable,
-						const char *config_path, const char *factory_config_path, void* userdata);
+LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, LinphoneCoreCbs *cbs,
+						const char *config_path, const char *factory_config_path);
 
 /**
  * Instantiates a LinphoneCore object with a given LpConfig.
@@ -4984,13 +4984,13 @@ LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core(const LinphoneFactory
  *
  * The LinphoneCore object is the primary handle for doing all phone actions.
  * It should be unique within your application.
- * @param vtable a LinphoneCoreVTable structure holding your application callbacks
+ * @param cbs a #LinphoneCoreCbs object holding your application callbacks. A reference
+ * will be taken on it until the destruciton of the core or the unregistration
+ * with linphone_core_remove_cbs().
  * @param config a pointer to an LpConfig object holding the configuration of the LinphoneCore to be instantiated.
- * @param userdata an opaque user pointer that can be retrieved at any time (for example in
- *        callbacks) using linphone_core_get_user_data().
  * @see linphone_core_new
  */
-LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable, LinphoneConfig *config, void *userdata);
+LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, LinphoneCoreCbs *cbs, LinphoneConfig *config);
 
 /**
  * Instanciate a #LinphoneCoreCbs object.

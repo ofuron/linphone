@@ -602,7 +602,7 @@ class CParser(object):
 		if property.getter is not None:
 			eventName = property.getter.returnArgument.ctype
 		elif property.setter is not None and len(property.setter.arguments) == 2:
-			eventName = property.setter.arguments[1].type
+			eventName = property.setter.arguments[1].ctype
 		else:
 			raise Error('event name for {0} property of {1} listener not found'.format(property.name, listener.name.to_snake_case(fullName=True)))
 		

@@ -121,9 +121,16 @@ namespace linphone {
 		}
 	
 	private:
-		static void deleteListenerPtr(std::shared_ptr<Listener> *ptr) {
-			delete ptr;
-		}
+		static void deleteListenerPtr(std::shared_ptr<Listener> *ptr) {delete ptr;}
+	};
+	
+	
+	class MultiListenableObject: public Object {
+	protected:
+		MultiListenableObject(::belle_sip_object_t *ptr, bool takeRef=true): Object(ptr, takeRef) {}
+		
+	protected:
+		
 	};
 	
 };

@@ -1937,11 +1937,8 @@ static void linphone_core_internal_subscription_state_changed(LinphoneCore *lc, 
 	}
 }
 
-static void linphone_core_init(LinphoneCore * lc, const LinphoneCoreVTable *vtable, LpConfig *config, void * userdata){
+static void linphone_core_init(LinphoneCore * lc, LinphoneCoreCbs *cbs, LpConfig *config, void * userdata){
 	const char *remote_provisioning_uri = NULL;
-	LinphoneCoreVTable* local_vtable= linphone_core_v_table_new();
-	LinphoneCoreVTable *internal_vtable = linphone_core_v_table_new();
-	LinphoneCoreCbs *local_cbs = _linphone_core_cbs_new();
 	LinphoneCoreCbs *internal_cbs = _linphone_core_cbs_new();
 
 	ms_message("Initializing LinphoneCore %s", linphone_core_get_version());
@@ -1952,18 +1949,20 @@ static void linphone_core_init(LinphoneCore * lc, const LinphoneCoreVTable *vtab
 
 	linphone_task_list_init(&lc->hooks);
 
-	internal_vtable->notify_received = linphone_core_internal_notify_received;
-	internal_vtable->subscription_state_changed = linphone_core_internal_subscription_state_changed;
-	_linphone_core_cbs_set_v_table(internal_cbs, internal_vtable, TRUE);
+	linphone_core_cbs_set_notify_received(internal_cbs, linphone_core_internal_notify_received);
+	linphone_core_cbs_set_subscription_state_changed(internal_cbs, linphone_core_internal_subscription_state_changed);
 	_linphone_core_add_callbacks(lc, internal_cbs, TRUE);
 	belle_sip_object_unref(internal_cbs);
 	
 	
-	if (vtable != NULL) memcpy(local_vtable,vtable,sizeof(LinphoneCoreVTable));
+	if (cbs != NULL) {
+		_linphone_core_add_callbacks(lc, cbs, FALSE);
+	} else {
+		LinphoneCoreCbs *fallback_cbs = linphone_factory_create_core_cbs(linphone_factory_get());
+		_linphone_core_add_callbacks(lc, fallback_cbs, FALSE);
+		belle_sip_object_unref(fallback_cbs);
+	}
 	
-	_linphone_core_cbs_set_v_table(local_cbs, local_vtable, TRUE);
-	_linphone_core_add_callbacks(lc, local_cbs, FALSE);
-	belle_sip_object_unref(local_cbs);
 
 	linphone_core_set_state(lc,LinphoneGlobalStartup,"Starting up");
 	ortp_init();
@@ -2013,21 +2012,28 @@ static void linphone_core_init(LinphoneCore * lc, const LinphoneCoreVTable *vtab
 	} // else linphone_core_start will be called after the remote provisioning (see linphone_core_iterate)
 }
 
-static LinphoneCore *_linphone_core_new_with_config(const LinphoneCoreVTable *vtable, struct _LpConfig *config, void *userdata) {
+static LinphoneCore *_linphone_core_new_with_config(LinphoneCoreCbs *cbs, struct _LpConfig *config, void *userdata) {
 	LinphoneCore *core = belle_sip_object_new(LinphoneCore);
-	linphone_core_init(core, vtable, config, userdata);
+	linphone_core_init(core, cbs, config, userdata);
 	return core;
 }
 
 LinphoneCore *linphone_core_new_with_config(const LinphoneCoreVTable *vtable, struct _LpConfig *config, void *userdata) {
-	return _linphone_core_new_with_config(vtable, config, userdata);
+	LinphoneCoreCbs *cbs = linphone_factory_create_core_cbs(linphone_factory_get());;
+	LinphoneCoreVTable *local_vtable = linphone_core_v_table_new();
+	LinphoneCore *core = NULL;
+	if (vtable != NULL) *local_vtable = *vtable;
+	_linphone_core_cbs_set_v_table(cbs, local_vtable, TRUE);
+	core = _linphone_core_new_with_config(cbs, config, userdata);
+	linphone_core_cbs_unref(cbs);
+	return core;
 }
 
 static LinphoneCore *_linphone_core_new(const LinphoneCoreVTable *vtable,
 						const char *config_path, const char *factory_config_path, void * userdata) {
 	LinphoneCore *lc;
 	LpConfig *config = lp_config_new_with_factory(config_path, factory_config_path);
-	lc=_linphone_core_new_with_config(vtable, config, userdata);
+	lc=linphone_core_new_with_config(vtable, config, userdata);
 	lp_config_unref(config);
 	return lc;
 }
@@ -8239,13 +8245,16 @@ LinphoneFactory *linphone_factory_get(void) {
 	return _factory;
 }
 
-LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable,
-		const char *config_path, const char *factory_config_path, void* userdata) {
-	return _linphone_core_new(vtable, config_path, factory_config_path, userdata);
+LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, LinphoneCoreCbs *cbs,
+		const char *config_path, const char *factory_config_path) {
+	LpConfig *config = lp_config_new_with_factory(config_path, factory_config_path);
+	LinphoneCore *lc = _linphone_core_new_with_config(cbs, config, NULL);
+	lp_config_unref(config);
+	return lc;
 }
 
-LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, const LinphoneCoreVTable *vtable, LinphoneConfig *config, void *userdata) {
-	return _linphone_core_new_with_config(vtable, config, userdata);
+LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, LinphoneCoreCbs *cbs, LinphoneConfig *config) {
+	return _linphone_core_new_with_config(cbs, config, NULL);
 }
 
 LinphoneCoreCbs *linphone_factory_create_core_cbs(const LinphoneFactory *factory) {
