@@ -38,7 +38,7 @@ namespace linphone {
 	
 	
 	class Object: public std::enable_shared_from_this<Object> {
-	protected:
+	public:
 		Object(::belle_sip_object_t *ptr, bool takeRef=true);
 		virtual ~Object();
 		
@@ -55,33 +55,11 @@ namespace linphone {
 		void setData(const std::string &key, const std::string &data);
 		const std::string &getData(const std::string &key) const;
 	
+	public:
+		static std::shared_ptr<Object> cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef=true);
+		static ::belle_sip_object_t *sharedPtrToCPtr(const std::shared_ptr<const Object> &sharedPtr);
+		
 	protected:
-		template <class T>
-		static std::shared_ptr<T> cPtrToSharedPtr(const void *ptr, bool takeRef=true) {
-			if (ptr == NULL) {
-				return nullptr;
-			} else {
-				T *cppPtr = (T *)belle_sip_object_data_get((::belle_sip_object_t *)ptr, "cpp_object");
-				if (cppPtr == NULL) {
-					return std::make_shared<T>((::belle_sip_object_t *)ptr, takeRef);
-				} else {
-					return std::shared_ptr<T>(cppPtr);
-				}
-			}
-		}
-		
-		template <class T>
-		static ::belle_sip_object_t *sharedPtrToCPtr(const std::shared_ptr<T> &sharedPtr) {
-			if (sharedPtr == nullptr) return NULL;
-			else return sharedPtr->mPrivPtr;
-		}
-		
-		template <class T>
-		static ::belle_sip_object_t *sharedPtrToCPtr(const std::shared_ptr<const T> &sharedPtr) {
-			if (sharedPtr == nullptr) return NULL;
-			else return sharedPtr->mPrivPtr;
-		}
-		
 		static std::string cStringToCpp(const char *cstr);
 		static const char *cppStringToC(const std::string &cppstr);
 		
@@ -89,7 +67,7 @@ namespace linphone {
 		static std::list<std::shared_ptr<T> > bctbxObjectListToCppList(const ::bctbx_list_t *bctbxList) {
 			std::list<std::shared_ptr<T> > cppList;
 			for(const ::bctbx_list_t *it=bctbxList; it!=NULL; it=it->next) {
-				std::shared_ptr<T> newObj = cPtrToSharedPtr<T>((::belle_sip_object_t *)it->data);
+				std::shared_ptr<T> newObj = std::static_pointer_cast<T,Object>(Object::cPtrToSharedPtr((::belle_sip_object_t *)it->data));
 				cppList.push_back(newObj);
 			}
 			return cppList;
