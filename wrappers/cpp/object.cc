@@ -86,6 +86,16 @@ std::string Object::cStringToCpp(const char *cstr) {
 	}
 }
 
+std::string Object::cStringToCpp(char *cstr) {
+	if (cstr == NULL) {
+		return std::string();
+	} else {
+		std::string cppStr = cstr;
+		bctbx_free(cstr);
+		return cppStr;
+	}
+}
+
 const char *Object::cppStringToC(const std::string &cppstr) {
 	if (cppstr.empty()) {
 		return NULL;
