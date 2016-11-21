@@ -61,6 +61,7 @@ namespace linphone {
 		
 	protected:
 		static std::string cStringToCpp(const char *cstr);
+		static std::string cStringToCpp(char *cstr);
 		static const char *cppStringToC(const std::string &cppstr);
 		
 		template <class T>
