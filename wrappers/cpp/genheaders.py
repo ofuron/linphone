@@ -233,9 +233,13 @@ class CppTranslator(object):
 		elif type(exprtype) is AbsApi.EnumType:
 			cExpr = '(::{0}){1}'.format(exprtype.desc.name.to_c(), cppExpr)
 		elif type(exprtype) is AbsApi.ClassType:
-			ptrType = CppTranslator.translate_class_type(self, exprtype, namespace=usedNamespace)
-			ptrType = CppTranslator.sharedPtrTypeExtractor.match(ptrType).group(2)
-			cExpr = '(::{0} *)sharedPtrToCPtr<{1}>({2})'.format(exprtype.desc.name.to_c(), ptrType, cppExpr)
+			param = {}
+			param['ptrType'] = CppTranslator.translate_class_type(self, exprtype, namespace=usedNamespace)
+			param['ptrType'] = CppTranslator.sharedPtrTypeExtractor.match(param['ptrType']).group(2)
+			param['cPtrType'] = exprtype.desc.name.to_c()
+			param['cppExpr'] = cppExpr
+			param['object'] = 'const Object' if exprtype.isconst else 'Object'
+			cExpr = '(::{cPtrType} *)sharedPtrToCPtr(std::static_pointer_cast<{object},{ptrType}>({cppExpr}))'.format(**param)
 		elif type(exprtype) is AbsApi.ListType:
 			if type(exprtype.containedTypeDesc) is AbsApi.BaseType and exprtype.containedTypeDesc.name == 'string':
 				cExpr = 'StringBctbxListWrapper({0}).c_list()'.format(cppExpr)
@@ -266,9 +270,9 @@ class CppTranslator(object):
 			cppReturnType = CppTranslator.sharedPtrTypeExtractor.match(cppReturnType).group(2)
 			
 			if type(exprtype.parent) is AbsApi.Method and len(exprtype.parent.name.words) >=1 and (exprtype.parent.name.words == ['new'] or exprtype.parent.name.words[0] == 'create'):
-				return 'cPtrToSharedPtr<{0}>({1}, false)'.format(cppReturnType, cExpr)
+				return 'std::static_pointer_cast<{0},Object>(cPtrToSharedPtr((::belle_sip_object_t *){1}, false))'.format(cppReturnType, cExpr)
 			else:
-				return 'cPtrToSharedPtr<{0}>({1})'.format(cppReturnType, cExpr)
+				return 'std::static_pointer_cast<{0},Object>(cPtrToSharedPtr((::belle_sip_object_t *){1}))'.format(cppReturnType, cExpr)
 		elif type(exprtype) is AbsApi.ListType:
 			if type(exprtype.containedTypeDesc) is AbsApi.BaseType and exprtype.containedTypeDesc.name == 'string':
 				return 'bctbxStringListToCppList({0})'.format(cExpr)

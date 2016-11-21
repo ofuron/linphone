@@ -10,7 +10,7 @@ using namespace std;
 template <class T>
 ObjectBctbxListWrapper<T>::ObjectBctbxListWrapper(const std::list<std::shared_ptr<T> > &cppList): AbstractBctbxListWrapper() {
 	for(auto it=cppList.cbegin(); it!=cppList.cend(); it++) {
-		void *cPtr = Object::sharedPtrToCPtr<T>(*it);
+		::belle_sip_object_t *cPtr = Object::sharedPtrToCPtr(static_pointer_cast<Object,T>(*it));
 		if (cPtr != NULL) belle_sip_object_ref(cPtr);
 		mCList = bctbx_list_append(mCList, cPtr);
 	}
@@ -62,6 +62,24 @@ const std::string &Object::getData(const std::string &key) const {
 	} else {
 		return *str;
 	}
+}
+
+std::shared_ptr<Object> Object::cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef) {
+	if (ptr == NULL) {
+		return nullptr;
+	} else {
+		Object *cppPtr = (Object *)belle_sip_object_data_get((::belle_sip_object_t *)ptr, "cpp_object");
+		if (cppPtr == NULL) {
+			return std::make_shared<Object>((::belle_sip_object_t *)ptr, takeRef);
+		} else {
+			return std::shared_ptr<Object>(cppPtr->shared_from_this());
+		}
+	}
+}
+
+::belle_sip_object_t *Object::sharedPtrToCPtr(const std::shared_ptr<const Object> &sharedPtr) {
+	if (sharedPtr == nullptr) return NULL;
+	else return sharedPtr->mPrivPtr;
 }
 
 std::string Object::cStringToCpp(const char *cstr) {
