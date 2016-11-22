@@ -91,7 +91,7 @@ set(HEADERS
 )
 
 add_custom_command(OUTPUT ${GENERATED_SOURCES} ${GENERATED_HEADERS}
-	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/genheaders.py" "${CMAKE_CURRENT_SOURCE_DIR}/../../work/coreapi/help/doc/xml"
+	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/genheaders.py" "${PROJECT_BINARY_DIR}/coreapi/help/doc/xml"
 	DEPENDS *.py *.mustache linphone-doc
 )
 

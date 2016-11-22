@@ -1287,6 +1287,13 @@ typedef LinphoneBuffer * (*LinphoneChatMessageCbsFileTransferSendCb)(LinphoneCha
  */
 typedef void (*LinphoneChatMessageCbsFileTransferProgressIndicationCb)(LinphoneChatMessage *message, const LinphoneContent* content, size_t offset, size_t total);
 
+/**
+ * Sets the database filename where chat messages will be stored.
+ * If the file does not exist, it will be created.
+ * @ingroup initializing
+ * @param lc the linphone core
+ * @param path filesystem path
+**/
 LINPHONE_PUBLIC void linphone_core_set_chat_database_path(LinphoneCore *lc, const char *path);
 
 /**
