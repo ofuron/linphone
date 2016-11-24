@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <list>
+#include <map>
 #include <belle-sip/object.h>
 #include <bctoolbox/list.h>
 
@@ -43,17 +44,21 @@ namespace linphone {
 		virtual ~Object();
 		
 	public:
-		template <class T> void setData(const std::string &key, const std::shared_ptr<T> &data) {
-			std::shared_ptr<T> *newSharedPtr = new std::shared_ptr<T>(data);
-			belle_sip_object_data_set(mPrivPtr, key.c_str(), newSharedPtr, deleteSharedPtr<T>);
+		template <class T>
+		void setData(const std::string &key, T &data) {
+			mUserData[key] = &data;
 		}
-		template <class T> std::shared_ptr<T> getData(const std::string &key) const {
-			void *dataPtr = belle_sip_object_data_get((::belle_sip_object_t *)mPrivPtr, key.c_str());
-			if (dataPtr == NULL) return nullptr;
-			else return *dynamic_cast<T*>(dataPtr);
+		template <class T>
+		T &getData(const std::string &key) {
+			void *ptr = mUserData[key];
+			if (ptr == NULL) {
+				throw std::out_of_range("unknown data key [" + key + "]");
+			} else {
+				return *(T *)ptr;
+			}
 		}
-		void setData(const std::string &key, const std::string &data);
-		const std::string &getData(const std::string &key) const;
+		void unsetData(const std::string &key);
+		bool dataExists(const std::string &key);
 	
 	public:
 		static std::shared_ptr<Object> cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef=true);
@@ -82,6 +87,9 @@ namespace linphone {
 	
 	protected:
 		::belle_sip_object_t *mPrivPtr;
+	
+	private:
+		std::map<std::string,void *> mUserData;
 	};
 	
 	class Listener {};

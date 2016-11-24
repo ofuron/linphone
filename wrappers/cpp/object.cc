@@ -50,18 +50,14 @@ Object::~Object() {
 	}
 }
 
-void Object::setData(const std::string &key, const std::string &data) {
-	std::string *str = new std::string(data);
-	belle_sip_object_data_set(mPrivPtr, key.c_str(), str, (belle_sip_data_destroy)deleteString);
+void Object::unsetData(const std::string &key) {
+	map<string,void *>::iterator it = mUserData.find(key);
+	if (it != mUserData.end()) mUserData.erase(it);
 }
 
-const std::string &Object::getData(const std::string &key) const {
-	const std::string *str = (std::string *)belle_sip_object_data_get(mPrivPtr, key.c_str());
-	if (str == NULL) {
-		throw std::out_of_range("unkown key '" + key + '"');
-	} else {
-		return *str;
-	}
+bool Object::dataExists(const std::string &key) {
+	map<string,void *>::iterator it = mUserData.find(key);
+	return mUserData.find(key) != mUserData.end();
 }
 
 std::shared_ptr<Object> Object::cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef) {
