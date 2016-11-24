@@ -4,36 +4,67 @@ using namespace {{{namespace}}};
 
 {{#_class}}
 
-{{#islistenable}}
 {{#constructor}}
-{{{name}}}::{{{name}}}(::belle_sip_object_t *ptr, bool takeRef): ListenableObject(ptr, takeRef) {
+{{{className}}}::{{{className}}}(::belle_sip_object_t *ptr, bool takeRef): {{{parentClassName}}}(ptr, takeRef) {
+{{#ismonolistenable}}
 	{{{cListenerName}}} *cbs = {{{cCbsGetter}}}(({{{cname}}} *)ptr);
-	{{#callbacks}}
-	{{{setter}}}(cbs, {{{wrapperCb}}});
-	{{/callbacks}}
+	{{#wrapperCbs}}
+	{{{callbackSetter}}}(cbs, {{{cbName}}});
+	{{/wrapperCbs}}
+{{/ismonolistenable}}
 }
 {{/constructor}}
 
-{{#wrapperCbs}}
-{{{returnType}}} {{{name}}}::{{{cbName}}}({{{declArgs}}}) {
-	std::shared_ptr<{{{cppListenerName}}}> listener = getListenerFromObject<{{{cppListenerName}}}>((::belle_sip_object_t *){{{firstArgName}}});
-	{{#hasNotReturnValue}}listener->{{{methodName}}}({{{wrappedArgs}}});{{/hasNotReturnValue}}
-	{{#hasReturnValue}}return ({{{returnType}}})sharedPtrToCPtr(listener->{{{methodName}}}({{{wrappedArgs}}}));{{/hasReturnValue}}
+{{#ismultilistenable}}
+{{{cListenerName}}} *{{{className}}}::createCallbacks(const std::shared_ptr<{{{listenerClassName}}}> &listener) {
+	{{{cListenerName}}} *cbs = {{{listenerCreator}}}(linphone_factory_get());
+	{{{userDataSetter}}}(cbs, listener.get());
+	{{#wrapperCbs}}
+	{{{callbackSetter}}}(cbs, {{{cbName}}});
+	{{/wrapperCbs}}
+	return cbs;
 }
 
-{{/wrapperCbs}}
-{{/islistenable}}
+void {{{className}}}::addListener(std::shared_ptr<{{{listenerClassName}}}> &listener) {
+	MultiListenableObject::addListener(std::static_pointer_cast<Listener,{{{listenerClassName}}}>(listener));
+	{{{cListenerName}}} *cbs = createCallbacks(listener);
+	{{{callbacksAdder}}}(({{{cClassName}}} *)mPrivPtr, cbs);
+	listener->setCallbacks((::belle_sip_object_t *)cbs);
+	belle_sip_object_unref(cbs);
+}
+
+void {{{className}}}::removeListener(std::shared_ptr<{{{listenerClassName}}}> &listener) {
+	::belle_sip_object_t *cbs = belle_sip_object_ref(listener->getCallbacks());
+	{{{callbacksRemover}}}(({{{cClassName}}} *)mPrivPtr, ({{{cListenerName}}} *)cbs);
+	listener->setCallbacks(NULL);
+	belle_sip_object_unref(cbs);
+	
+	MultiListenableObject::removeListener(listener);
+}
+{{/ismultilistenable}}
 
 {{#methods}}
 {{{implPrototype}}} {
 	{{{sourceCode}}}
 }
-
 {{/methods}}
+
 {{#staticmethods}}
 {{{implPrototype}}} {
 	{{{sourceCode}}}
 }
-
 {{/staticmethods}}
+
+{{#wrapperCbs}}
+{{{returnType}}} {{{className}}}::{{{cbName}}}({{{declArgs}}}) {
+	{{#ismonolistenable}}std::shared_ptr<{{{cppListenerName}}}> listener = std::static_pointer_cast<{{{cppListenerName}}},Listener>(getListenerFromObject((::belle_sip_object_t *){{{firstArgName}}}));{{/ismonolistenable}}
+	{{#ismultilistenable}}
+	LinphoneCoreCbs *cbs = linphone_core_get_current_callbacks(lc);
+	CoreListener *listener = (CoreListener *)linphone_core_cbs_get_user_data(cbs);
+	{{/ismultilistenable}}
+	{{#hasNotReturnValue}}listener->{{{methodName}}}({{{wrappedArgs}}});{{/hasNotReturnValue}}
+	{{#hasReturnValue}}return ({{{returnType}}})sharedPtrToCPtr(listener->{{{methodName}}}({{{wrappedArgs}}}));{{/hasReturnValue}}
+}
+{{/wrapperCbs}}
+
 {{/_class}}

@@ -349,6 +349,7 @@ class Class(DocumentableObject):
 		self.instanceMethods = []
 		self.classMethods = []
 		self._listenerInterface = None
+		self.multilistener = False
 	
 	def add_property(self, property):
 		self.properties.append(property)
@@ -414,7 +415,7 @@ class CParser(object):
 		self.cBaseType = ['void', 'bool_t', 'char', 'short', 'int', 'long', 'size_t', 'time_t', 'float', 'double']
 		self.cListType = 'bctbx_list_t'
 		self.regexFixedSizeInteger = '^(u?)int(\d?\d)_t$'
-		self.methodBl = ['ref', 'unref', 'new', 'destroy']
+		self.methodBl = ['ref', 'unref', 'new', 'destroy', 'getCurrentCallbacks']
 		
 	def parse_all(self):
 		for enum in self.cProject.enums:
@@ -513,24 +514,27 @@ class CParser(object):
 		_class = Class(name)
 		
 		for cproperty in cclass.properties.values():
-			if cproperty.name != 'callbacks':
-				try:
+			try:
+				if cproperty.name != 'callbacks':
 					absProperty = CParser._parse_property(self, cproperty, namespace=name)
 					_class.add_property(absProperty)
-				except Error as e:
-					print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
-			else:
-				try:
+				else:
 					listenerMethod = CParser._parse_callbacks_property(self, cproperty, namespace=name)
 					_class.add_instance_method(listenerMethod)
 					_class.listenerInterface = self.interfacesIndex[listenerMethod.args[0].type.name]
-				except Error as e:
-					print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
+			except Error as e:
+				print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
 		
 		for cMethod in cclass.instanceMethods.values():
 			try:
 				method = CParser.parse_method(self, cMethod, namespace=name)
-				_class.add_instance_method(method)
+				if method.name.to_snake_case() == 'add_callbacks' or method.name.to_snake_case() == 'remove_callbacks':
+					if _class.listenerInterface is None or not _class.multilistener:
+						_class.multilistener = True
+						_class.listenerInterface = self.interfacesIndex[_class.name.to_camel_case(fullName=True) + 'Cbs']
+				else:
+					_class.add_instance_method(method)
+					
 			except Error as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 				
@@ -588,8 +592,11 @@ class CParser(object):
 		
 		for property in cclass.properties.values():
 			if property.name != 'user_data':
-				method = CParser._parse_listener_property(self, property, listener, cclass.events)
-				listener.add_method(method)
+				try:
+					method = CParser._parse_listener_property(self, property, listener, cclass.events)
+					listener.add_method(method)
+				except Error as e:
+					print('Could not parse property \'{0}\' of listener \'{1}\': {2}'.format(property.name, cclass.name, e.args[0]))
 		
 		return listener
 	
@@ -648,11 +655,11 @@ class CParser(object):
 			absType = CParser.parse_c_base_type(self, cType.completeType)
 		elif cType.ctype in self.enumsIndex:
 			absType = EnumType(cType.ctype, enumDesc=self.enumsIndex[cType.ctype])
-		elif cType.ctype in self.classesIndex:
-			params = {'classDesc': self.classesIndex[cType.ctype]}
-			if 'const' in cType.completeType.split(' '):
-				params['isconst'] = True
-			absType = ClassType(cType.ctype, **params)
+		elif cType.ctype in self.classesIndex or cType.ctype in self.interfacesIndex:
+			#params = {'classDesc': self.classesIndex[cType.ctype]}
+			#if 'const' in cType.completeType.split(' '):
+				#params['isconst'] = True
+			absType = ClassType(cType.ctype)
 		elif cType.ctype == self.cListType:
 			absType = ListType(cType.containedType)
 		else:

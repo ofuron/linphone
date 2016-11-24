@@ -176,6 +176,10 @@ void *linphone_core_cbs_get_user_data(LinphoneCoreCbs *cbs) {
 	return cbs->vtable->user_data;
 }
 
+LinphoneCoreCbs *linphone_core_get_current_callbacks(const LinphoneCore *lc) {
+	return lc->current_cbs;
+}
+
 void linphone_core_cbs_set_registration_state_changed(LinphoneCoreCbs *cbs, LinphoneCoreCbsRegistrationStateChangedCb cb) {
 	cbs->vtable->registration_state_changed = cb;
 }

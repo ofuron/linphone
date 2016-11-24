@@ -9,6 +9,7 @@
 namespace linphone {
 	
 	class Object;
+	class Listener;
 	
 	
 	class AbstractBctbxListWrapper {
@@ -48,9 +49,9 @@ namespace linphone {
 			belle_sip_object_data_set(mPrivPtr, key.c_str(), newSharedPtr, deleteSharedPtr<T>);
 		}
 		template <class T> std::shared_ptr<T> getData(const std::string &key) const {
-			void *dataPtr = belle_sip_object_data_get((::belle_sip_object_t *)mPrivPtr, key.c_str());
+			void *dataPtr = belle_sip_object_data_get(mPrivPtr, key.c_str());
 			if (dataPtr == NULL) return nullptr;
-			else return *dynamic_cast<T*>(dataPtr);
+			else return *(std::shared_ptr<T> *)dataPtr;
 		}
 		void setData(const std::string &key, const std::string &data);
 		const std::string &getData(const std::string &key) const;
@@ -85,7 +86,23 @@ namespace linphone {
 		::belle_sip_object_t *mPrivPtr;
 	};
 	
-	class Listener {};
+	
+	class Listener {
+		public:
+			Listener(): mCbs(NULL) {}
+			virtual ~Listener() {setCallbacks(NULL);}
+		
+		public:
+			void setCallbacks(::belle_sip_object_t *cbs) {
+				if (mCbs != NULL) belle_sip_object_unref(mCbs);
+				mCbs = belle_sip_object_ref(cbs);
+			}
+			belle_sip_object_t *getCallbacks() {return mCbs;}
+		
+		private:
+			::belle_sip_object_t *mCbs;
+	};
+	
 	
 	class ListenableObject: public Object {
 	protected:
@@ -93,23 +110,31 @@ namespace linphone {
 		void setListener(const std::shared_ptr<Listener> &listener);
 	
 	protected:
-		template <class T>
-		static std::shared_ptr<T> getListenerFromObject(::belle_sip_object_t *object) {
-			std::shared_ptr<Listener> listener = *(std::shared_ptr<Listener> *)belle_sip_object_data_get(object, "cpp_listeners");
-			return std::static_pointer_cast<T, Listener>(listener);
-		}
+		static std::shared_ptr<Listener> & getListenerFromObject(::belle_sip_object_t *object);
 	
 	private:
 		static void deleteListenerPtr(std::shared_ptr<Listener> *ptr) {delete ptr;}
+	
+	private:
+		static std::string sListenerDataName;
 	};
 	
-	
 	class MultiListenableObject: public Object {
-	protected:
-		MultiListenableObject(::belle_sip_object_t *ptr, bool takeRef=true): Object(ptr, takeRef) {}
+		friend class Factory;
 		
 	protected:
+		MultiListenableObject(::belle_sip_object_t *ptr, bool takeRef=true);
+		virtual ~MultiListenableObject();
 		
+	protected:
+		void addListener(const std::shared_ptr<Listener> &listener);
+		void removeListener(const std::shared_ptr<Listener> &listener);
+	
+	private:
+		static void deleteListenerList(std::list<std::shared_ptr<Listener> > *listeners) {delete listeners;}
+	
+	private:
+		static std::string sListenerListName;
 	};
 	
 };

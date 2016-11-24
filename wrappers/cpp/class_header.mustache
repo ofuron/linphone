@@ -21,16 +21,21 @@ namespace linphone {
 	{{/priorDeclarations}}
 
 	{{#_class}}
-	class {{name}}{{#inheritFrom}}: public {{{name}}}{{/inheritFrom}} {
+	class {{className}}: public {{{parentClassName}}} {
 		public:
-		{{#islistenable}}
-			{{{name}}}(::belle_sip_object_t *ptr, bool takeRef=true);
-		{{/islistenable}}
-		{{#isnotlistenable}}
-			{{{name}}}(::belle_sip_object_t *ptr, bool takeRef=true): Object(ptr, takeRef) {}
-		{{/isnotlistenable}}
+			{{#constructor}}{{{className}}}(::belle_sip_object_t *ptr, bool takeRef=true);{{/constructor}}
+
+			{{#ismultilistenable}}
+			void addListener(std::shared_ptr<{{{listenerClassName}}}> &listener);
+			void removeListener(std::shared_ptr<{{{listenerClassName}}}> &listener);
+			{{/ismultilistenable}}
 	
 		public:
+			{{#isfactory}}
+			std::shared_ptr<Core> createCore(const std::shared_ptr<CoreListener> & cbs, const std::string & configPath, const std::string & factoryConfigPath) const;
+			std::shared_ptr<Core> createCoreWithConfig(const std::shared_ptr<CoreListener> & cbs, const std::shared_ptr<Config> & config) const;
+			{{/isfactory}}
+		
 			{{#methods}}
 			{{{prototype}}}
 			
@@ -39,6 +44,11 @@ namespace linphone {
 			{{{prototype}}}
 			
 			{{/staticMethods}}
+		
+		{{#ismultilistenable}}
+		private:
+			static {{{cListenerName}}} *createCallbacks(const std::shared_ptr<{{{listenerClassName}}}> &listener);
+		{{/ismultilistenable}}
 		
 		{{#islistenable}}
 		private:

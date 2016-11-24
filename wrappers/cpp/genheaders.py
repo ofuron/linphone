@@ -43,33 +43,43 @@ class CppTranslator(object):
 			raise AbsApi.Error('{0} has been escaped'.format(_class.name.to_camel_case(fullName=True)))
 		
 		islistenable = _class.listenerInterface is not None
+		ismonolistenable = (islistenable and not _class.multilistener)
+		ismultilistenable = (islistenable and _class.multilistener)
 		
 		classDict = {}
 		classDict['islistenable'] = islistenable
 		classDict['isnotlistenable'] = not islistenable
-		classDict['inheritFrom'] = {'name': 'ListenableObject' if islistenable else 'Object'}
-		classDict['name'] = CppTranslator.translate_class_name(_class.name)
+		classDict['ismonolistenable'] = ismonolistenable
+		classDict['ismultilistenable'] = ismultilistenable
+		classDict['isfactory'] = (_class.name.to_c() == 'LinphoneFactory')
+		classDict['parentClassName'] = None
+		classDict['className'] = CppTranslator.translate_class_name(_class.name)
+		classDict['cClassName'] = '::' + _class.name.to_c()
+		classDict['parentClassName'] = 'Object'
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
 		classDict['wrapperCbs'] = []
 		
 		if islistenable:
+			classDict['listenerClassName'] = CppTranslator.translate_class_name(_class.listenerInterface.name)
+			classDict['cListenerName'] = _class.listenerInterface.name.to_c()
+			for method in _class.listenerInterface.methods:
+				classDict['wrapperCbs'].append(CppTranslator._generate_wrapper_callback(self, _class, method))
+		
+		if ismonolistenable:
 			constructorDict = {}
-			constructorDict['name'] = classDict['name']
 			constructorDict['cCbsGetter'] = _class.name.to_snake_case(fullName=True) + '_get_callbacks'
 			constructorDict['cname'] = _class.name.to_c()
-			constructorDict['callbacks'] = []
-			for method in _class.listenerInterface.methods:
-				cbDict = {}
-				cbDict['setter'] = _class.name.to_snake_case(fullName=True) + '_cbs_set_' + method.name.to_snake_case()[3:]
-				cbDict['wrapperCb'] = method.name.to_camel_case(lower=True)[2:] + 'Cb'
-				cbDict['wrapperCb'] = cbDict['wrapperCb'][0].lower() + cbDict['wrapperCb'][1:]
-				constructorDict['callbacks'].append(cbDict)
-				classDict['wrapperCbs'].append(CppTranslator._generate_wrapper_callback(self, method))
-				
+			
 			classDict['constructor'] = constructorDict
-			classDict['cListenerName'] = _class.listenerInterface.name.to_c()
 			classDict['cppListenerName'] = CppTranslator.translate_class_name(_class.listenerInterface.name)
+			classDict['parentClassName'] = 'ListenableObject'
+		elif ismultilistenable:
+			classDict['parentClassName'] = 'MultiListenableObject'
+			classDict['listenerCreator'] = 'linphone_factory_create_' + _class.listenerInterface.name.to_snake_case()[:-len('_listener')] + '_cbs'
+			classDict['callbacksAdder'] = _class.name.to_snake_case(fullName=True)+ '_add_callbacks'
+			classDict['callbacksRemover'] = _class.name.to_snake_case(fullName=True)+ '_remove_callbacks'
+			classDict['userDataSetter'] = _class.listenerInterface.name.to_snake_case(fullName=True)[:-len('_listener')] + '_cbs_set_user_data'
 		
 		for property in _class.properties:
 			try:
@@ -93,8 +103,9 @@ class CppTranslator(object):
 		
 		return classDict
 	
-	def _generate_wrapper_callback(self, method):
+	def _generate_wrapper_callback(self, listenedClass, method):
 		namespace = method.find_first_ancestor_by_type(AbsApi.Namespace)
+		listenedClass = method.find_first_ancestor_by_type(AbsApi.Interface).listenedClass
 		
 		params = {}
 		params['name'] = method.name.to_camel_case(lower=True)[2:] + 'Cb'
@@ -117,6 +128,7 @@ class CppTranslator(object):
 		wrapperCbDict['returnType'] = params['returnType']
 		wrapperCbDict['hasReturnValue'] = (params['returnType'] != 'void')
 		wrapperCbDict['hasNotReturnValue'] = not wrapperCbDict['hasReturnValue']
+		wrapperCbDict['callbackSetter'] = listenedClass.name.to_snake_case(fullName=True) + '_cbs_set_' + method.name.to_snake_case()[3:]
 		return wrapperCbDict
 	
 	def translate_interface(self, interface):
@@ -125,7 +137,9 @@ class CppTranslator(object):
 		
 		intDict = {}
 		intDict['inheritFrom'] = {'name': 'Listener'}
-		intDict['name'] = CppTranslator.translate_class_name(interface.name)
+		intDict['className'] = CppTranslator.translate_class_name(interface.name)
+		intDict['constructor'] = None
+		intDict['parentClassName'] = 'Listener'
 		intDict['methods'] = []
 		for method in interface.methods:
 			try:
@@ -499,7 +513,7 @@ class ClassHeader(object):
 		self.includes = {'internal': [], 'external': []}
 		includes = ClassHeader.needed_includes(self, _class)
 		for include in includes['internal']:
-			if _class.name.to_camel_case(fullName=True) == 'LinphoneCore' or (isinstance(_class, AbsApi.Interface) and include == _class.listenedClass.name.to_snake_case()):
+			if _class.name.to_camel_case(fullName=True) == 'LinphoneCore' or (isinstance(_class, AbsApi.Interface) and _class.listenedClass is not None and include == _class.listenedClass.name.to_snake_case()):
 				className = AbsApi.ClassName()
 				className.from_snake_case(include)
 				self.priorDeclarations.append({'name': className.to_camel_case()})
@@ -530,6 +544,9 @@ class ClassHeader(object):
 			ClassHeader._needed_includes_from_type(self, method.returnType, includes)
 			for arg in method.args:
 				ClassHeader._needed_includes_from_type(self, arg.type, includes)
+		
+		if isinstance(_class, AbsApi.Class) and _class.listenerInterface is not None:
+			includes['internal'].add(_class.listenerInterface.name.to_snake_case())
 		
 		currentClassInclude = _class.name.to_snake_case()
 		if currentClassInclude in includes['internal']:
@@ -602,9 +619,14 @@ def main():
 	translator.ignore += ['linphone_tunnel_get_http_proxy',
 					   'linphone_core_can_we_add_call',
 					   'linphone_core_get_default_proxy',
+					   'linphone_core_add_listener',
+					   'linphone_core_remove_listener',
+					   'linphone_core_get_current_callbacks',
 					   'linphone_proxy_config_normalize_number',
 					   'linphone_proxy_config_set_file_transfer_server',
-					   'linphone_proxy_config_get_file_transfer_server']
+					   'linphone_proxy_config_get_file_transfer_server',
+					   'linphone_factory_create_core',
+					   'linphone_factory_create_core_with_config']
 	
 	renderer = pystache.Renderer()	
 	

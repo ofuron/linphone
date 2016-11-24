@@ -38,7 +38,8 @@ void linphone_core_v_table_destroy(LinphoneCoreVTable* table) {
 }
 
 LinphoneCoreVTable *linphone_core_get_current_vtable(LinphoneCore *lc) {
-	return lc->current_cbs->vtable;
+	if (lc->current_cbs != NULL) return lc->current_cbs->vtable;
+	else return NULL;
 }
 
 static void cleanup_dead_vtable_refs(LinphoneCore *lc){
