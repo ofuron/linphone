@@ -22,6 +22,10 @@ namespace linphone {
 
 	{{#_class}}
 	class {{className}}: public {{{parentClassName}}} {
+		{{#friendClasses}}
+		friend class {{name}};
+		{{/friendClasses}}
+	
 		public:
 			{{#constructor}}{{{className}}}(::belle_sip_object_t *ptr, bool takeRef=true);{{/constructor}}
 

@@ -59,6 +59,10 @@ class CppTranslator(object):
 		classDict['methods'] = []
 		classDict['staticMethods'] = []
 		classDict['wrapperCbs'] = []
+		classDict['friendClasses'] = []
+		
+		if _class.name.to_c() == 'LinphoneCore':
+			classDict['friendClasses'].append({'name': 'Factory'});
 		
 		if islistenable:
 			classDict['listenerClassName'] = CppTranslator.translate_class_name(_class.listenerInterface.name)
