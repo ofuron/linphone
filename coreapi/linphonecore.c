@@ -143,7 +143,7 @@ BELLE_SIP_INSTANCIATE_VPTR(LinphoneCoreCbs, belle_sip_object_t,
 	FALSE
 );
 
-static LinphoneCoreCbs *_linphone_core_cbs_new(void) {
+LinphoneCoreCbs *_linphone_core_cbs_new(void) {
 	LinphoneCoreCbs *obj = belle_sip_object_new(LinphoneCoreCbs);
 	obj->vtable = ms_new0(LinphoneCoreVTable, 1);
 	obj->autorelease = TRUE;
@@ -2016,7 +2016,7 @@ static void linphone_core_init(LinphoneCore * lc, LinphoneCoreCbs *cbs, LpConfig
 	} // else linphone_core_start will be called after the remote provisioning (see linphone_core_iterate)
 }
 
-static LinphoneCore *_linphone_core_new_with_config(LinphoneCoreCbs *cbs, struct _LpConfig *config, void *userdata) {
+LinphoneCore *_linphone_core_new_with_config(LinphoneCoreCbs *cbs, struct _LpConfig *config, void *userdata) {
 	LinphoneCore *core = belle_sip_object_new(LinphoneCore);
 	linphone_core_init(core, cbs, config, userdata);
 	return core;
@@ -8214,53 +8214,4 @@ const char *linphone_core_get_tls_cert_path(const LinphoneCore *lc) {
 const char *linphone_core_get_tls_key_path(const LinphoneCore *lc) {
 	const char *tls_key_path = lp_config_get_string(lc->config, "sip", "client_cert_key", NULL);
 	return tls_key_path;
-}
-
-
-
-typedef belle_sip_object_t_vptr_t LinphoneFactory_vptr_t;
-
-struct _LinphoneFactory {
-	belle_sip_object_t base;
-};
-
-BELLE_SIP_DECLARE_NO_IMPLEMENTED_INTERFACES(LinphoneFactory);
-BELLE_SIP_INSTANCIATE_VPTR(LinphoneFactory, belle_sip_object_t,
-	NULL, // destroy
-	NULL, // clone
-	NULL, // Marshall
-	FALSE
-);
-
-static LinphoneFactory *_factory = NULL;
-
-static void _linphone_factory_destroying_cb(void) {
-	if (_factory != NULL) {
-		belle_sip_object_unref(_factory);
-		_factory = NULL;
-	}
-}
-
-LinphoneFactory *linphone_factory_get(void) {
-	if (_factory == NULL) {
-		_factory = belle_sip_object_new(LinphoneFactory);
-		atexit(_linphone_factory_destroying_cb);
-	}
-	return _factory;
-}
-
-LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, LinphoneCoreCbs *cbs,
-		const char *config_path, const char *factory_config_path) {
-	LpConfig *config = lp_config_new_with_factory(config_path, factory_config_path);
-	LinphoneCore *lc = _linphone_core_new_with_config(cbs, config, NULL);
-	lp_config_unref(config);
-	return lc;
-}
-
-LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, LinphoneCoreCbs *cbs, LinphoneConfig *config) {
-	return _linphone_core_new_with_config(cbs, config, NULL);
-}
-
-LinphoneCoreCbs *linphone_factory_create_core_cbs(const LinphoneFactory *factory) {
-	return _linphone_core_cbs_new();
 }

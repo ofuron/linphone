@@ -4956,64 +4956,8 @@ LINPHONE_PUBLIC const char *linphone_core_get_tls_cert_path(const LinphoneCore *
 LINPHONE_PUBLIC const char *linphone_core_get_tls_key_path(const LinphoneCore *lc);
 
 
-/**
- * @ingroup initializing
- * #LinphoneFactory is a singleton object devoted to the creation of all the object
- * of Liblinphone that cannot created by #LinphoneCore or #LinphoneCore itself.
- */
-typedef struct _LinphoneFactory LinphoneFactory;
-
-/**
- * @ingroup initializing
- * Create the #LinphoneFactory if that has not been done and return
- * a pointer on it.
- * @return A pointer on the #LinphoneFactory
- */
-LINPHONE_PUBLIC LinphoneFactory *linphone_factory_get(void);
-
-/**
- * Instanciate a #LinphoneCore object.
- * @ingroup initializing
- *
- * The LinphoneCore object is the primary handle for doing all phone actions.
- * It should be unique within your application.
- * @param cbs a #LinphoneCoreCbs object holding your application callbacks. A reference
- * will be taken on it until the destruciton of the core or the unregistration
- * with linphone_core_remove_cbs().
- * @param config_path a path to a config file. If it does not exists it will be created.
- *        The config file is used to store all settings, call logs, friends, proxies... so that all these settings
- *	       become persistent over the life of the LinphoneCore object.
- *	       It is allowed to set a NULL config file. In that case LinphoneCore will not store any settings.
- * @param factory_config_path a path to a read-only config file that can be used to
- *        to store hard-coded preference such as proxy settings or internal preferences.
- *        The settings in this factory file always override the one in the normal config file.
- *        It is OPTIONAL, use NULL if unneeded.
- * @see linphone_core_new_with_config
- */
-LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core(const LinphoneFactory *factory, LinphoneCoreCbs *cbs,
-						const char *config_path, const char *factory_config_path);
-
-/**
- * Instantiates a LinphoneCore object with a given LpConfig.
- * @ingroup initializing
- *
- * The LinphoneCore object is the primary handle for doing all phone actions.
- * It should be unique within your application.
- * @param cbs a #LinphoneCoreCbs object holding your application callbacks. A reference
- * will be taken on it until the destruciton of the core or the unregistration
- * with linphone_core_remove_cbs().
- * @param config a pointer to an LpConfig object holding the configuration of the LinphoneCore to be instantiated.
- * @see linphone_core_new
- */
-LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core_with_config(const LinphoneFactory *factory, LinphoneCoreCbs *cbs, LinphoneConfig *config);
-
-/**
- * Instanciate a #LinphoneCoreCbs object.
- * @return a new #LinponeCoreCbs.
- */
-LINPHONE_PUBLIC LinphoneCoreCbs *linphone_factory_create_core_cbs(const LinphoneFactory *factory);
-
 #include "linphone/ringtoneplayer.h"
+#include "linphone/factory.h"
 
 #ifdef __cplusplus
 }

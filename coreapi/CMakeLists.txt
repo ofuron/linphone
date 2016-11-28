@@ -79,6 +79,7 @@ set(LINPHONE_SOURCE_FILES_C
 	echo-tester.c
 	enum.c
 	event.c
+	factory.c
 	friend.c
 	friendlist.c
 	info.c
