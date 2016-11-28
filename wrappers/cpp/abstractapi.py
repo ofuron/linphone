@@ -532,6 +532,8 @@ class CParser(object):
 					if _class.listenerInterface is None or not _class.multilistener:
 						_class.multilistener = True
 						_class.listenerInterface = self.interfacesIndex[_class.name.to_camel_case(fullName=True) + 'Cbs']
+				elif isinstance(method.returnType, ClassType) and method.returnType.name.endswith('Cbs'):
+					pass
 				else:
 					_class.add_instance_method(method)
 					
