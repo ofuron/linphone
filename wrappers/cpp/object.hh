@@ -103,7 +103,8 @@ namespace linphone {
 		public:
 			void setCallbacks(::belle_sip_object_t *cbs) {
 				if (mCbs != NULL) belle_sip_object_unref(mCbs);
-				mCbs = belle_sip_object_ref(cbs);
+				if (cbs == NULL) mCbs = NULL;
+				else mCbs = belle_sip_object_ref(cbs);
 			}
 			belle_sip_object_t *getCallbacks() {return mCbs;}
 		

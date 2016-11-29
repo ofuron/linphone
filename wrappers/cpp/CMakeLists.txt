@@ -97,7 +97,7 @@ add_custom_command(OUTPUT ${GENERATED_SOURCES} ${GENERATED_HEADERS}
 	DEPENDS *.py *.mustache linphone-doc
 )
 
-add_compile_options(-Wall -Werror -Wno-deprecated-declarations -Wextra)
+add_compile_options(-Wall -Wextra -Wno-deprecated-declarations -Wno-unused-parameter -Werror)
 add_definitions(-DWRAPPER_BUILD)
 
 add_library(linphone++ SHARED ${SOURCES})

@@ -184,7 +184,10 @@ class CppTranslator(object):
 			methodElems['methodType'] = 'static '
 		elif type(method.parent) is AbsApi.Interface:
 			methodElems['methodType'] = 'virtual '
-			methodElems['semicolon'] = ' = 0;'
+			if isinstance(method.returnType, AbsApi.BaseType) and method.returnType.name == 'void':
+				methodElems['semicolon'] = ' {}'
+			else:
+				methodElems['semicolon'] = ' = 0;'
 		else:
 			methodElems['methodType'] = ''
 		
