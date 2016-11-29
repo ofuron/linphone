@@ -2,6 +2,7 @@ set(GENERATED_SOURCES
 	src/account_creator.cc
 	src/address.cc
 	src/auth_info.cc
+	#src/buffer.cc
 	src/call.cc
 	src/call_log.cc
 	src/call_params.cc
@@ -58,6 +59,7 @@ set(GENERATED_HEADERS
 	${CMAKE_CURRENT_BINARY_DIR}/include/config.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/content.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/core.hh
+	${CMAKE_CURRENT_BINARY_DIR}/include/core_listener.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/core_v_table.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/enums.hh
 	${CMAKE_CURRENT_BINARY_DIR}/include/error_info.hh
