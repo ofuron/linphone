@@ -32,6 +32,7 @@ set(HEADER_FILES
 	core.h
 	core_utils.h
 	event.h
+	factory.h
 	friend.h
 	friendlist.h
 	lpconfig.h
