@@ -73,3 +73,7 @@ LinphoneCoreCbs *linphone_factory_create_core_cbs(const LinphoneFactory *factory
 LinphoneAddress *linphone_factory_create_address(const LinphoneFactory *factory, const char *addr) {
 	return _linphone_address_new(addr);
 }
+
+LinphoneAuthInfo *linphone_factory_create_auth_info(const LinphoneFactory *factory, const char *username, const char *userid, const char *passwd, const char *ha1, const char *realm, const char *domain) {
+	return linphone_auth_info_new(username, userid, passwd, ha1, realm, domain);
+}
