@@ -26,11 +26,6 @@
 #include "private.h"
 #include "linphone/lpconfig.h"
 
-/**
- * @addtogroup authentication
- * @{
-**/
-
 LinphoneAuthInfo *linphone_auth_info_new(const char *username, const char *userid, const char *passwd, const char *ha1, const char *realm, const char *domain){
 	LinphoneAuthInfo *obj=ms_new0(LinphoneAuthInfo,1);
 	if (username!=NULL && (strlen(username)>0) ) obj->username=ms_strdup(username);
@@ -178,9 +173,6 @@ void linphone_auth_info_set_tls_key_path(LinphoneAuthInfo *info, const char *tls
 	if (tls_key_path && strlen(tls_key_path) > 0) info->tls_key_path = ms_strdup(tls_key_path);
 }
 
-/**
- * Destroys a LinphoneAuthInfo object.
-**/
 void linphone_auth_info_destroy(LinphoneAuthInfo *obj){
 	if (obj->username != NULL) ms_free(obj->username);
 	if (obj->userid != NULL) ms_free(obj->userid);
@@ -389,11 +381,6 @@ LinphoneAuthInfo * linphone_core_create_auth_info(LinphoneCore *lc, const char *
 	return linphone_auth_info_new(username, userid, passwd, ha1, realm, domain);
 }
 
-/**
- * Adds authentication information to the LinphoneCore.
- *
- * This information will be used during all SIP transactions that require authentication.
-**/
 void linphone_core_add_auth_info(LinphoneCore *lc, const LinphoneAuthInfo *info){
 	LinphoneAuthInfo *ai;
 	bctbx_list_t *elem;
@@ -460,17 +447,9 @@ void linphone_core_add_auth_info(LinphoneCore *lc, const LinphoneAuthInfo *info)
 	write_auth_infos(lc);
 }
 
-
-/**
- * This method is used to abort a user authentication request initiated by LinphoneCore
- * from the auth_info_requested callback of LinphoneCoreVTable.
-**/
 void linphone_core_abort_authentication(LinphoneCore *lc,  LinphoneAuthInfo *info){
 }
 
-/**
- * Removes an authentication information object.
-**/
 void linphone_core_remove_auth_info(LinphoneCore *lc, const LinphoneAuthInfo *info){
 	LinphoneAuthInfo *r;
 	r=(LinphoneAuthInfo*)linphone_core_find_auth_info(lc,info->realm,info->username,info->domain);
@@ -481,18 +460,10 @@ void linphone_core_remove_auth_info(LinphoneCore *lc, const LinphoneAuthInfo *in
 	}
 }
 
-/**
- * Returns an unmodifiable list of currently entered LinphoneAuthInfo.
- * @param[in] lc The LinphoneCore object
- * @return \bctbx_list{LinphoneAuthInfo}
-**/
 const bctbx_list_t *linphone_core_get_auth_info_list(const LinphoneCore *lc){
 	return lc->auth_info;
 }
 
-/**
- * Clear all authentication information.
-**/
 void linphone_core_clear_all_auth_info(LinphoneCore *lc){
 	bctbx_list_t *elem;
 	int i;
@@ -504,7 +475,3 @@ void linphone_core_clear_all_auth_info(LinphoneCore *lc){
 	bctbx_list_free(lc->auth_info);
 	lc->auth_info=NULL;
 }
-
-/**
- * @}
-**/

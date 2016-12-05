@@ -272,11 +272,6 @@ int lc_callback_obj_invoke(LCCallbackObj *obj, LinphoneCore *lc){
 	return 0;
 }
 
-
-/**
- * Returns TRUE if the LinphoneCall asked to autoanswer
- *
-**/
 bool_t linphone_call_asked_to_autoanswer(LinphoneCall *call){
 	//return TRUE if the unique(for the moment) incoming call asked to be autoanswered
 	if(call)
@@ -2133,16 +2128,6 @@ LinphoneAddress *linphone_core_get_primary_contact_parsed(LinphoneCore *lc){
 	return linphone_address_new(linphone_core_get_primary_contact(lc));
 }
 
-/**
- * Sets the list of audio codecs.
- * @param[in] lc The LinphoneCore object
- * @param[in] codecs \bctbx_list{PayloadType}
- * @return 0
- *
- * @ingroup media_parameters
- * The list is taken by the LinphoneCore thus the application should not free it.
- * This list is made of struct PayloadType describing the codec parameters.
-**/
 int linphone_core_set_audio_codecs(LinphoneCore *lc, bctbx_list_t *codecs){
 	if (lc->codecs_conf.audio_codecs!=NULL) bctbx_list_free(lc->codecs_conf.audio_codecs);
 	lc->codecs_conf.audio_codecs=codecs;
@@ -2151,16 +2136,6 @@ int linphone_core_set_audio_codecs(LinphoneCore *lc, bctbx_list_t *codecs){
 	return 0;
 }
 
-/**
- * Sets the list of video codecs.
- * @param[in] lc The LinphoneCore object
- * @param[in] codecs \bctbx_list{PayloadType}
- * @return 0
- *
- * @ingroup media_parameters
- * The list is taken by the LinphoneCore thus the application should not free it.
- * This list is made of struct PayloadType describing the codec parameters.
-**/
 int linphone_core_set_video_codecs(LinphoneCore *lc, bctbx_list_t *codecs){
 	if (lc->codecs_conf.video_codecs!=NULL) bctbx_list_free(lc->codecs_conf.video_codecs);
 	lc->codecs_conf.video_codecs=codecs;
@@ -2177,21 +2152,10 @@ int linphone_core_set_text_codecs(LinphoneCore *lc, bctbx_list_t *codecs) {
 	return 0;
 }
 
-/**
- * Enable RFC3389 generic confort noise algorithm (CN payload type).
- * It is disabled by default, because this algorithm is only relevant for legacy codecs (PCMU, PCMA, G722).
- * @param lc the LinphoneCore
- * @param enabled TRUE if enabled, FALSE otherwise.
-**/
 void linphone_core_enable_generic_confort_noise(LinphoneCore *lc, bool_t enabled){
 	lp_config_set_int(lc->config, "misc", "use_cn", enabled);
 }
 
-/**
- * Returns enablement of RFC3389 generic confort noise algorithm.
- * @param lc the LinphoneCore
- * @return TRUE or FALSE.
-**/
 bool_t linphone_core_generic_confort_noise_enabled(const LinphoneCore *lc){
 	return lp_config_get_int(lc->config, "misc", "use_cn", FALSE);
 }
@@ -2251,11 +2215,6 @@ bool_t linphone_core_audio_adaptive_jittcomp_enabled(LinphoneCore* lc)
 	return lc->rtp_conf.audio_adaptive_jitt_comp_enabled;
 }
 
-/**
- * Returns the nominal audio jitter buffer size in milliseconds.
- *
- * @ingroup media_parameters
-**/
 int linphone_core_get_audio_jittcomp(LinphoneCore *lc)
 {
 	return lc->rtp_conf.audio_jitt_comp;
@@ -2271,85 +2230,41 @@ bool_t linphone_core_video_adaptive_jittcomp_enabled(LinphoneCore* lc)
 	return lc->rtp_conf.video_adaptive_jitt_comp_enabled;
 }
 
-/**
- * Returns the nominal video jitter buffer size in milliseconds.
- *
- * @ingroup media_parameters
-**/
 int linphone_core_get_video_jittcomp(LinphoneCore *lc)
 {
 	return lc->rtp_conf.video_jitt_comp;
 }
 
-/**
- * Returns the UDP port used for audio streaming.
- *
- * @ingroup network_parameters
-**/
 int linphone_core_get_audio_port(const LinphoneCore *lc)
 {
 	return lc->rtp_conf.audio_rtp_min_port;
 }
 
-/**
- * Get the audio port range from which is randomly chosen the UDP port used for audio streaming.
- *
- * @ingroup network_parameters
- */
 void linphone_core_get_audio_port_range(const LinphoneCore *lc, int *min_port, int *max_port)
 {
 	*min_port = lc->rtp_conf.audio_rtp_min_port;
 	*max_port = lc->rtp_conf.audio_rtp_max_port;
 }
 
-/**
- * Returns the UDP port used for video streaming.
- *
- * @ingroup network_parameters
-**/
 int linphone_core_get_video_port(const LinphoneCore *lc){
 	return lc->rtp_conf.video_rtp_min_port;
 }
 
-/**
- * Get the video port range from which is randomly chosen the UDP port used for video streaming.
- *
- * @ingroup network_parameters
- */
 void linphone_core_get_video_port_range(const LinphoneCore *lc, int *min_port, int *max_port)
 {
 	*min_port = lc->rtp_conf.video_rtp_min_port;
 	*max_port = lc->rtp_conf.video_rtp_max_port;
 }
 
-/**
- * Returns the UDP port used for text streaming.
- *
- * @ingroup network_parameters
-**/
 int linphone_core_get_text_port(const LinphoneCore *lc) {
 	return lc->rtp_conf.text_rtp_min_port;
 }
 
-/**
- * Get the video port range from which is randomly chosen the UDP port used for text streaming.
- *
- * @ingroup network_parameters
- */
 void linphone_core_get_text_port_range(const LinphoneCore *lc, int *min_port, int *max_port) {
 	*min_port = lc->rtp_conf.text_rtp_min_port;
 	*max_port = lc->rtp_conf.text_rtp_max_port;
 }
 
-/**
- * Returns the value in seconds of the no-rtp timeout.
- *
- * @ingroup media_parameters
- * When no RTP or RTCP packets have been received for a while
- * LinphoneCore will consider the call is broken (remote end crashed or
- * disconnected from the network), and thus will terminate the call.
- * The no-rtp timeout is the duration above which the call is considered broken.
-**/
 int linphone_core_get_nortp_timeout(const LinphoneCore *lc){
 	return lc->rtp_conf.nortp_timeout;
 }
@@ -2397,94 +2312,45 @@ void linphone_core_set_rtp_no_xmit_on_audio_mute(LinphoneCore *lc,bool_t rtp_no_
 	lc->rtp_conf.rtp_no_xmit_on_audio_mute=rtp_no_xmit_on_audio_mute;
 }
 
-/**
- * Sets the UDP port used for audio streaming.
- * A value if -1 will request the system to allocate the local port randomly.
- * This is recommended in order to avoid firewall warnings.
- *
- * @ingroup network_parameters
-**/
 void linphone_core_set_audio_port(LinphoneCore *lc, int port)
 {
 	lc->rtp_conf.audio_rtp_min_port=lc->rtp_conf.audio_rtp_max_port=port;
 }
 
-/**
- * Sets the UDP port range from which to randomly select the port used for audio streaming.
- * @ingroup media_parameters
- */
 void linphone_core_set_audio_port_range(LinphoneCore *lc, int min_port, int max_port)
 {
 	lc->rtp_conf.audio_rtp_min_port=min_port;
 	lc->rtp_conf.audio_rtp_max_port=max_port;
 }
 
-/**
- * Sets the UDP port used for video streaming.
- * A value if -1 will request the system to allocate the local port randomly.
- * This is recommended in order to avoid firewall warnings.
- *
- * @ingroup network_parameters
-**/
 void linphone_core_set_video_port(LinphoneCore *lc, int port){
 	lc->rtp_conf.video_rtp_min_port=lc->rtp_conf.video_rtp_max_port=port;
 }
 
-/**
- * Sets the UDP port range from which to randomly select the port used for video streaming.
- * @ingroup media_parameters
- */
 void linphone_core_set_video_port_range(LinphoneCore *lc, int min_port, int max_port)
 {
 	lc->rtp_conf.video_rtp_min_port=min_port;
 	lc->rtp_conf.video_rtp_max_port=max_port;
 }
 
-/**
- * Sets the UDP port used for text streaming.
- * A value if -1 will request the system to allocate the local port randomly.
- * This is recommended in order to avoid firewall warnings.
- *
- * @ingroup network_parameters
-**/
 void linphone_core_set_text_port(LinphoneCore *lc, int port) {
 	lc->rtp_conf.text_rtp_min_port = lc->rtp_conf.text_rtp_max_port = port;
 }
 
-/**
- * Sets the UDP port range from which to randomly select the port used for text streaming.
- * @ingroup media_parameters
- */
 void linphone_core_set_text_port_range(LinphoneCore *lc, int min_port, int max_port) {
 	lc->rtp_conf.text_rtp_min_port = min_port;
 	lc->rtp_conf.text_rtp_max_port = max_port;
 }
 
-/**
- * Sets the no-rtp timeout value in seconds.
- *
- * @ingroup media_parameters
- * See linphone_core_get_nortp_timeout() for details.
-**/
 void linphone_core_set_nortp_timeout(LinphoneCore *lc, int nortp_timeout){
 	lc->rtp_conf.nortp_timeout=nortp_timeout;
 }
 
-/**
- * Indicates whether SIP INFO is used for sending digits.
- *
- * @ingroup media_parameters
-**/
 bool_t linphone_core_get_use_info_for_dtmf(LinphoneCore *lc)
 {
 	return lp_config_get_int(lc->config, "sip", "use_info", 0);
 }
 
-/**
- * Sets whether SIP INFO is to be used for sending digits.
- *
- * @ingroup media_parameters
-**/
 void linphone_core_set_use_info_for_dtmf(LinphoneCore *lc,bool_t use_info)
 {
 	if (linphone_core_ready(lc)) {
@@ -2492,21 +2358,11 @@ void linphone_core_set_use_info_for_dtmf(LinphoneCore *lc,bool_t use_info)
 	}
 }
 
-/**
- * Indicates whether RFC2833 is used for sending digits.
- *
- * @ingroup media_parameters
-**/
 bool_t linphone_core_get_use_rfc2833_for_dtmf(LinphoneCore *lc)
 {
 	return lp_config_get_int(lc->config, "sip", "use_rfc2833", 1);
 }
 
-/**
- * Sets whether RFC2833 is to be used for sending digits.
- *
- * @ingroup media_parameters
-**/
 void linphone_core_set_use_rfc2833_for_dtmf(LinphoneCore *lc,bool_t use_rfc2833)
 {
 	if (linphone_core_ready(lc)) {
@@ -2514,12 +2370,6 @@ void linphone_core_set_use_rfc2833_for_dtmf(LinphoneCore *lc,bool_t use_rfc2833)
 	}
 }
 
-/**
- * Returns the UDP port used by SIP.
- *
- * @deprecated use linphone_core_get_sip_transports() instead.
- * @ingroup network_parameters
-**/
 int linphone_core_get_sip_port(LinphoneCore *lc){
 	LCSipTransports tr;
 	linphone_core_get_sip_transports_used(lc,&tr);
@@ -2529,11 +2379,6 @@ int linphone_core_get_sip_port(LinphoneCore *lc){
 static char _ua_name[64]="Linphone";
 static char _ua_version[64]=LIBLINPHONE_VERSION;
 
-/**
- * Sets the user agent string used in SIP messages.
- *
- * @ingroup misc
-**/
 void linphone_core_set_user_agent(LinphoneCore *lc, const char *name, const char *ver){
 	char ua_string[256];
 	snprintf(ua_string, sizeof(ua_string) - 1, "%s/%s", name?name:"", ver?ver:"");
@@ -2626,21 +2471,10 @@ int _linphone_core_apply_transports(LinphoneCore *lc){
 	return 0;
 }
 
-/**
- * Returns TRUE if given transport type is supported by the library, FALSE otherwise.
-**/
 bool_t linphone_core_sip_transport_supported(const LinphoneCore *lc, LinphoneTransportType tp){
 	return sal_transport_available(lc->sal,(SalTransport)tp);
 }
 
-/**
- * Sets the ports to be used for each of transport (UDP or TCP)
- *
- * A zero value port for a given transport means the transport
- * is not used. A value of LC_SIP_TRANSPORT_RANDOM (-1) means the port is to be choosen randomly by the system.
- *
- * @ingroup network_parameters
-**/
 int linphone_core_set_sip_transports(LinphoneCore *lc, const LinphoneSipTransports * tr_config /*config to be saved*/){
 	LCSipTransports tr=*tr_config;
 
@@ -2675,36 +2509,17 @@ int linphone_core_set_sip_transports(LinphoneCore *lc, const LinphoneSipTranspor
 	return _linphone_core_apply_transports(lc);
 }
 
-/**
- * Retrieves the port configuration used for each transport (udp, tcp, tls).
- * A zero value port for a given transport means the transport
- * is not used. A value of LC_SIP_TRANSPORT_RANDOM (-1) means the port is to be chosen randomly by the system.
- * @ingroup network_parameters
-**/
 int linphone_core_get_sip_transports(LinphoneCore *lc, LinphoneSipTransports *tr){
 	memcpy(tr,&lc->sip_conf.transports,sizeof(*tr));
 	return 0;
 }
 
-/**
- * Retrieves the real port number assigned for each sip transport (udp, tcp, tls).
- * A zero value means that the transport is not activated.
- * If LC_SIP_TRANSPORT_RANDOM was passed to linphone_core_set_sip_transports(), the random port choosed by the system is returned.
- * @ingroup network_parameters
- * @param lc the LinphoneCore
- * @param tr a LCSipTransports structure.
-**/
 void linphone_core_get_sip_transports_used(LinphoneCore *lc, LinphoneSipTransports *tr){
 	tr->udp_port=sal_get_listening_port(lc->sal,SalTransportUDP);
 	tr->tcp_port=sal_get_listening_port(lc->sal,SalTransportTCP);
 	tr->tls_port=sal_get_listening_port(lc->sal,SalTransportTLS);
 }
-/**
- * Sets the UDP port to be used by SIP.
- *
- * @deprecated use linphone_core_set_sip_transports() instead.
- * @ingroup network_parameters
-**/
+
 void linphone_core_set_sip_port(LinphoneCore *lc,int port)
 {
 	LCSipTransports tr;
@@ -2713,22 +2528,10 @@ void linphone_core_set_sip_port(LinphoneCore *lc,int port)
 	linphone_core_set_sip_transports (lc,&tr);
 }
 
-/**
- * Returns TRUE if IPv6 is enabled.
- *
- * @ingroup network_parameters
- * See linphone_core_enable_ipv6() for more details on how IPv6 is supported in liblinphone.
-**/
 bool_t linphone_core_ipv6_enabled(LinphoneCore *lc){
 	return lc->sip_conf.ipv6_enabled;
 }
 
-/**
- * Turns IPv6 support on or off.
- *
- * @ingroup network_parameters
- *
-**/
 void linphone_core_enable_ipv6(LinphoneCore *lc, bool_t val){
 	if (lc->sip_conf.ipv6_enabled!=val){
 		lc->sip_conf.ipv6_enabled=val;
@@ -2865,20 +2668,6 @@ static void linphone_core_do_plugin_tasks(LinphoneCore *lc){
 	}
 }
 
-/**
- * Main loop function. It is crucial that your application call it periodically.
- *
- * @ingroup initializing
- * linphone_core_iterate() performs various backgrounds tasks:
- * - receiving of SIP messages
- * - handles timers and timeout
- * - performs registration to proxies
- * - authentication retries
- * The application MUST call this function periodically, in its main loop.
- * Be careful that this function must be called from the same thread as
- * other liblinphone methods. If it is not the case make sure all liblinphone calls are
- * serialized with a mutex.
-**/
 void linphone_core_iterate(LinphoneCore *lc){
 	bctbx_list_t *calls;
 	LinphoneCall *call;
@@ -3066,16 +2855,6 @@ LinphoneAddress * linphone_core_interpret_url(LinphoneCore *lc, const char *url)
 	return result;
 }
 
-/**
- * Returns the default identity SIP address.
- *
- * @ingroup proxies
- * This is an helper function:
- *
- * If no default proxy is set, this will return the primary contact (
- * see linphone_core_get_primary_contact() ). If a default proxy is set
- * it returns the registered identity on the proxy.
-**/
 const char * linphone_core_get_identity(LinphoneCore *lc){
 	LinphoneProxyConfig *proxy=linphone_core_get_default_proxy_config(lc);
 	const char *from;
@@ -3094,16 +2873,6 @@ const char * linphone_core_get_route(LinphoneCore *lc){
 	return route;
 }
 
-/**
- * Start a new call as a consequence of a transfer request received from a call.
- * This function is for advanced usage: the execution of transfers is automatically managed by the LinphoneCore. However if an application
- * wants to have control over the call parameters for the new call, it should call this function immediately during the LinphoneCallRefered notification.
- * @see LinphoneCoreVTable::call_state_changed
- * @param lc the LinphoneCore
- * @param call a call that has just been notified about LinphoneCallRefered state event.
- * @param params the call parameters to be applied to the new call.
- * @return a LinphoneCall corresponding to the new call that is attempted to the transfer destination.
-**/
 LinphoneCall * linphone_core_start_refered_call(LinphoneCore *lc, LinphoneCall *call, const LinphoneCallParams *params){
 	LinphoneCallParams *cp=params ? linphone_call_params_copy(params) : linphone_core_create_call_params(lc, NULL);
 	LinphoneCall *newcall;
@@ -3330,18 +3099,6 @@ end:
 	return err;
 }
 
-/**
- * Initiates an outgoing call
- *
- * @ingroup call_control
- * @param lc the LinphoneCore object
- * @param url the destination of the call (sip address, or phone number).
- *
- * The application doesn't own a reference to the returned LinphoneCall object.
- * Use linphone_call_ref() to safely keep the LinphoneCall pointer valid within your application.
- *
- * @return a LinphoneCall object or NULL in case of failure
-**/
 LinphoneCall * linphone_core_invite(LinphoneCore *lc, const char *url){
 	LinphoneCall *call;
 	LinphoneCallParams *p=linphone_core_create_call_params(lc, NULL);
@@ -3351,20 +3108,6 @@ LinphoneCall * linphone_core_invite(LinphoneCore *lc, const char *url){
 	return call;
 }
 
-
-/**
- * Initiates an outgoing call according to supplied call parameters
- *
- * @ingroup call_control
- * @param lc the LinphoneCore object
- * @param url the destination of the call (sip address, or phone number).
- * @param p call parameters
- *
- * The application doesn't own a reference to the returned LinphoneCall object.
- * Use linphone_call_ref() to safely keep the LinphoneCall pointer valid within your application.
- *
- * @return a LinphoneCall object or NULL in case of failure
-**/
 LinphoneCall * linphone_core_invite_with_params(LinphoneCore *lc, const char *url, const LinphoneCallParams *p){
 	LinphoneAddress *addr=linphone_core_interpret_url(lc,url);
 	if (addr){
@@ -3376,20 +3119,6 @@ LinphoneCall * linphone_core_invite_with_params(LinphoneCore *lc, const char *ur
 	return NULL;
 }
 
-/**
- * Initiates an outgoing call given a destination LinphoneAddress
- *
- * @ingroup call_control
- * @param lc the LinphoneCore object
- * @param addr the destination of the call (sip address).
- *
- * The LinphoneAddress can be constructed directly using linphone_address_new(), or
- * created by linphone_core_interpret_url().
- * The application doesn't own a reference to the returned LinphoneCall object.
- * Use linphone_call_ref() to safely keep the LinphoneCall pointer valid within your application.
- *
- * @return a LinphoneCall object or NULL in case of failure
-**/
 LinphoneCall * linphone_core_invite_address(LinphoneCore *lc, const LinphoneAddress *addr){
 	LinphoneCall *call;
 	LinphoneCallParams *p=linphone_core_create_call_params(lc, NULL);
@@ -3541,17 +3270,6 @@ LinphoneCall * linphone_core_invite_address_with_params(LinphoneCore *lc, const 
 	return call;
 }
 
-/**
- * Performs a simple call transfer to the specified destination.
- *
- * @ingroup call_control
- * The remote endpoint is expected to issue a new call to the specified destination.
- * The current call remains active and thus can be later paused or terminated.
- *
- * It is possible to follow the progress of the transfer provided that transferee sends notification about it.
- * In this case, the transfer_state_changed callback of the #LinphoneCoreVTable is invoked to notify of the state of the new call at the other party.
- * The notified states are #LinphoneCallOutgoingInit , #LinphoneCallOutgoingProgress, #LinphoneCallOutgoingRinging and #LinphoneCallConnected.
-**/
 int linphone_core_transfer_call(LinphoneCore *lc, LinphoneCall *call, const char *url)
 {
 	char *real_url=NULL;
@@ -3574,24 +3292,6 @@ int linphone_core_transfer_call(LinphoneCore *lc, LinphoneCall *call, const char
 	return 0;
 }
 
-/**
- * Transfer a call to destination of another running call. This is used for "attended transfer" scenarios.
- * @param lc linphone core object
- * @param call a running call you want to transfer
- * @param dest a running call whose remote person will receive the transfer
- *
- * @ingroup call_control
- *
- * The transfered call is supposed to be in paused state, so that it is able to accept the transfer immediately.
- * The destination call is a call previously established to introduce the transfered person.
- * This method will send a transfer request to the transfered person. The phone of the transfered is then
- * expected to automatically call to the destination of the transfer. The receiver of the transfer will then automatically
- * close the call with us (the 'dest' call).
- *
- * It is possible to follow the progress of the transfer provided that transferee sends notification about it.
- * In this case, the transfer_state_changed callback of the #LinphoneCoreVTable is invoked to notify of the state of the new call at the other party.
- * The notified states are #LinphoneCallOutgoingInit , #LinphoneCallOutgoingProgress, #LinphoneCallOutgoingRinging and #LinphoneCallConnected.
-**/
 int linphone_core_transfer_call_to_another(LinphoneCore *lc, LinphoneCall *call, LinphoneCall *dest){
 	int result = sal_call_refer_with_replaces (call->op,dest->op);
 	linphone_call_set_transfer_state(call, LinphoneCallOutgoingInit);
@@ -3668,18 +3368,6 @@ void linphone_core_notify_incoming_call(LinphoneCore *lc, LinphoneCall *call){
 	ms_free(tmp);
 }
 
-
-/**
- * When receiving an incoming, accept to start a media session as early-media.
- * This means the call is not accepted but audio & video streams can be established if the remote party supports early media.
- * However, unlike after call acceptance, mic and camera input are not sent during early-media, though received audio & video are played normally.
- * The call can then later be fully accepted using linphone_core_accept_call() or linphone_core_accept_call_with_params().
- * @param lc the linphonecore
- * @param call the call
- * @param params the call params, can be NULL.
- * @return 0 if successful, -1 otherwise.
- * @ingroup call_control
-**/
 int linphone_core_accept_early_media_with_params(LinphoneCore* lc, LinphoneCall* call, const LinphoneCallParams* params) {
 	if (call->state==LinphoneCallIncomingReceived){
 		SalMediaDescription* md;
@@ -3708,15 +3396,6 @@ int linphone_core_accept_early_media_with_params(LinphoneCore* lc, LinphoneCall*
 	return -1;
 }
 
-/**
- * Accept an early media session for an incoming call.
- * This is identical as calling linphone_core_accept_early_media_with_params() with NULL call parameters.
- * @see linphone_core_accept_early_media_with_params()
- * @param lc the core
- * @param call the incoming call
- * @return 0 if successful, -1 otherwise.
- * @ingroup call_control
-**/
 int linphone_core_accept_early_media(LinphoneCore* lc, LinphoneCall* call){
 	return linphone_core_accept_early_media_with_params(lc, call, NULL);
 }
@@ -3762,20 +3441,6 @@ int linphone_core_start_update_call(LinphoneCore *lc, LinphoneCall *call){
 	return err;
 }
 
-/**
- * @ingroup call_control
- * Updates a running call according to supplied call parameters or parameters changed in the LinphoneCore.
- *
- * In this version this is limited to the following use cases:
- * - setting up/down the video stream according to the video parameter of the LinphoneCallParams (see linphone_call_params_enable_video() ).
- * - changing the size of the transmitted video after calling linphone_core_set_preferred_video_size()
- *
- * In case no changes are requested through the LinphoneCallParams argument, then this argument can be omitted and set to NULL.
- * @param lc the core
- * @param call the call to be updated
- * @param params the new call parameters to use. (may be NULL)
- * @return 0 if successful, -1 otherwise.
-**/
 int linphone_core_update_call(LinphoneCore *lc, LinphoneCall *call, const LinphoneCallParams *params){
 	int err=0;
 	LinphoneCallState nextstate, initial_state;
@@ -3868,25 +3533,6 @@ int linphone_core_update_call(LinphoneCore *lc, LinphoneCall *call, const Linpho
 	return err;
 }
 
-/**
- * @ingroup call_control
- * When receiving a #LinphoneCallUpdatedByRemote state notification, prevent LinphoneCore from performing an automatic answer.
- *
- * When receiving a #LinphoneCallUpdatedByRemote state notification (ie an incoming reINVITE), the default behaviour of
- * LinphoneCore is defined by the "defer_update_default" option of the "sip" section of the config. If this option is 0 (the default)
- * then the LinphoneCore automatically answers the reINIVTE with call parameters unchanged.
- * However when for example when the remote party updated the call to propose a video stream, it can be useful
- * to prompt the user before answering. This can be achieved by calling linphone_core_defer_call_update() during
- * the call state notification, to deactivate the automatic answer that would just confirm the audio but reject the video.
- * Then, when the user responds to dialog prompt, it becomes possible to call linphone_core_accept_call_update() to answer
- * the reINVITE, with eventually video enabled in the LinphoneCallParams argument.
- *
- * The #LinphoneCallUpdatedByRemote notification can also arrive when receiving an INVITE without SDP. In such case, an unchanged offer is made
- * in the 200Ok, and when the ACK containing the SDP answer is received, #LinphoneCallUpdatedByRemote is triggered to notify the application of possible
- * changes in the media session. However in such case defering the update has no meaning since we just generating an offer.
- *
- * @return 0 if successful, -1 if the linphone_core_defer_call_update() was done outside a valid #LinphoneCallUpdatedByRemote notification.
-**/
 int linphone_core_defer_call_update(LinphoneCore *lc, LinphoneCall *call){
 	if (call->state==LinphoneCallUpdatedByRemote){
 		if (call->expect_media_in_ack){
@@ -3923,25 +3569,6 @@ int linphone_core_start_accept_call_update(LinphoneCore *lc, LinphoneCall *call,
 	return 0;
 }
 
-/**
- * @ingroup call_control
- * Accept call modifications initiated by other end.
- *
- * This call may be performed in response to a #LinphoneCallUpdatedByRemote state notification.
- * When such notification arrives, the application can decide to call linphone_core_defer_update_call() so that it can
- * have the time to prompt the user. linphone_call_get_remote_params() can be used to get information about the call parameters
- * requested by the other party, such as whether a video stream is requested.
- *
- * When the user accepts or refuse the change, linphone_core_accept_call_update() can be done to answer to the other party.
- * If params is NULL, then the same call parameters established before the update request will continue to be used (no change).
- * If params is not NULL, then the update will be accepted according to the parameters passed.
- * Typical example is when a user accepts to start video, then params should indicate that video stream should be used
- * (see linphone_call_params_enable_video()).
- * @param lc the linphone core object.
- * @param call the LinphoneCall object
- * @param params a LinphoneCallParams object describing the call parameters to accept.
- * @return 0 if successful, -1 otherwise (actually when this function call is performed outside ot #LinphoneCallUpdatedByRemote state).
-**/
 int linphone_core_accept_call_update(LinphoneCore *lc, LinphoneCall *call, const LinphoneCallParams *params){
 	if (call->state != LinphoneCallUpdatedByRemote){
 		ms_error("linphone_core_accept_update(): invalid state %s to call this function.",
@@ -4015,36 +3642,10 @@ int _linphone_core_accept_call_update(LinphoneCore *lc, LinphoneCall *call, cons
 	return 0;
 }
 
-/**
- * Accept an incoming call.
- *
- * @ingroup call_control
- * Basically the application is notified of incoming calls within the
- * call_state_changed callback of the #LinphoneCoreVTable structure, where it will receive
- * a LinphoneCallIncoming event with the associated LinphoneCall object.
- * The application can later accept the call using this method.
- * @param lc the LinphoneCore object
- * @param call the LinphoneCall object representing the call to be answered.
- *
-**/
 int linphone_core_accept_call(LinphoneCore *lc, LinphoneCall *call){
 	return linphone_core_accept_call_with_params(lc,call,NULL);
 }
 
-/**
- * Accept an incoming call, with parameters.
- *
- * @ingroup call_control
- * Basically the application is notified of incoming calls within the
- * call_state_changed callback of the #LinphoneCoreVTable structure, where it will receive
- * a LinphoneCallIncoming event with the associated LinphoneCall object.
- * The application can later accept the call using
- * this method.
- * @param lc the LinphoneCore object
- * @param call the LinphoneCall object representing the call to be answered.
- * @param params the specific parameters for this call, for example whether video is accepted or not. Use NULL to use default parameters.
- *
-**/
 int linphone_core_accept_call_with_params(LinphoneCore *lc, LinphoneCall *call, const LinphoneCallParams *params){
 	SalOp *replaced;
 	SalMediaDescription *new_md;
@@ -4213,14 +3814,6 @@ int linphone_core_redirect_call(LinphoneCore *lc, LinphoneCall *call, const char
 	return 0;
 }
 
-
-/**
- * Terminates a call.
- *
- * @ingroup call_control
- * @param lc the LinphoneCore
- * @param the_call the LinphoneCall object representing the call to be terminated.
-**/
 int linphone_core_terminate_call(LinphoneCore *lc, LinphoneCall *the_call)
 {
 	LinphoneCall *call;
@@ -4261,15 +3854,6 @@ int linphone_core_terminate_call(LinphoneCore *lc, LinphoneCall *the_call)
 	return 0;
 }
 
-/**
- * Decline a pending incoming call, with a reason.
- *
- * @ingroup call_control
- *
- * @param lc the linphone core
- * @param call the LinphoneCall, must be in the IncomingReceived state.
- * @param reason the reason for rejecting the call: LinphoneReasonDeclined or LinphoneReasonBusy
-**/
 int linphone_core_decline_call(LinphoneCore *lc, LinphoneCall * call, LinphoneReason reason){
 	if (call->state!=LinphoneCallIncomingReceived && call->state!=LinphoneCallIncomingEarlyMedia){
 		ms_error("linphone_core_decline_call(): Cannot decline a call that is in state %s",linphone_call_state_to_string(call->state));
@@ -4281,12 +3865,6 @@ int linphone_core_decline_call(LinphoneCore *lc, LinphoneCall * call, LinphoneRe
 	return 0;
 }
 
-/**
- * Terminates all the calls.
- *
- * @ingroup call_control
- * @param lc The LinphoneCore
-**/
 int linphone_core_terminate_all_calls(LinphoneCore *lc){
 	bctbx_list_t *calls=lc->calls;
 	while(calls) {
@@ -4297,46 +3875,19 @@ int linphone_core_terminate_all_calls(LinphoneCore *lc){
 	return 0;
 }
 
-/**
- * Returns the current list of calls.
- * @param[in] lc The LinphoneCore object
- * @return \bctbx_list{LinphoneCall}
- *
- * Note that this list is read-only and might be changed by the core after a function call to linphone_core_iterate().
- * Similarly the LinphoneCall objects inside it might be destroyed without prior notice.
- * To hold references to LinphoneCall object into your program, you must use linphone_call_ref().
- *
- * @ingroup call_control
-**/
 const bctbx_list_t *linphone_core_get_calls(LinphoneCore *lc)
 {
 	return lc->calls;
 }
 
-/**
- * Returns TRUE if there is a call running.
- *
- * @ingroup call_control
-**/
 bool_t linphone_core_in_call(const LinphoneCore *lc){
 	return linphone_core_get_current_call((LinphoneCore *)lc)!=NULL || linphone_core_is_in_conference(lc);
 }
 
-/**
- * Returns The _LinphoneCall struct of the current call if one is in call
- *
- * @ingroup call_control
-**/
 LinphoneCall *linphone_core_get_current_call(const LinphoneCore *lc){
 	return lc->current_call;
 }
 
-/**
- * Pauses the call. If a music file has been setup using linphone_core_set_play_file(),
- * this file will be played to the remote user.
- *
- * @ingroup call_control
-**/
 int linphone_core_pause_call(LinphoneCore *lc, LinphoneCall *call){
 	int err=_linphone_core_pause_call(lc,call);
 	if (err==0)  call->paused_by_app=TRUE;
@@ -4379,10 +3930,6 @@ int _linphone_core_pause_call(LinphoneCore *lc, LinphoneCall *call){
 	return 0;
 }
 
-/**
- * Pause all currently running calls.
- * @ingroup call_control
-**/
 int linphone_core_pause_all_calls(LinphoneCore *lc){
 	const bctbx_list_t *elem;
 	for(elem=lc->calls;elem!=NULL;elem=elem->next){
@@ -4415,11 +3962,6 @@ int linphone_core_preempt_sound_resources(LinphoneCore *lc){
 	return err;
 }
 
-/**
- * Resumes the call.
- *
- * @ingroup call_control
-**/
 int linphone_core_resume_call(LinphoneCore *lc, LinphoneCall *call){
 	char temp[255]={0};
 	const char *subject="Call resuming";
@@ -4481,14 +4023,6 @@ static int remote_address_compare(LinphoneCall *call, const LinphoneAddress *rad
 	return !linphone_address_weak_equal (addr,raddr);
 }
 
-/**
- * Get the call with the remote_address specified
- * @param lc
- * @param remote_address
- * @return the LinphoneCall of the call if found
- *
- * @ingroup call_control
- */
 LinphoneCall *linphone_core_get_call_by_remote_address(LinphoneCore *lc, const char *remote_address){
 	LinphoneCall *call=NULL;
 	LinphoneAddress *raddr=linphone_address_new(remote_address);
@@ -4516,13 +4050,6 @@ int linphone_core_send_publish(LinphoneCore *lc,
 	return 0;
 }
 
-/**
- * Set the incoming call timeout in seconds.
- *
- * @ingroup call_control
- * If an incoming call isn't answered for this timeout period, it is
- * automatically declined.
-**/
 void linphone_core_set_inc_timeout(LinphoneCore *lc, int seconds){
 	lc->sip_conf.inc_timeout=seconds;
 	if (linphone_core_ready(lc)){
@@ -4530,22 +4057,10 @@ void linphone_core_set_inc_timeout(LinphoneCore *lc, int seconds){
 	}
 }
 
-/**
- * Returns the incoming call timeout
- *
- * @ingroup call_control
- * See linphone_core_set_inc_timeout() for details.
-**/
 int linphone_core_get_inc_timeout(LinphoneCore *lc){
 	return lc->sip_conf.inc_timeout;
 }
 
-/**
- * Set the in call timeout in seconds.
- *
- * @ingroup call_control
- * After this timeout period, the call is automatically hangup.
-**/
 void linphone_core_set_in_call_timeout(LinphoneCore *lc, int seconds){
 	lc->sip_conf.in_call_timeout=seconds;
 	if( linphone_core_ready(lc)){
@@ -4553,32 +4068,14 @@ void linphone_core_set_in_call_timeout(LinphoneCore *lc, int seconds){
 	}
 }
 
-/**
- * Returns the in call timeout
- *
- * @ingroup call_control
- * See linphone_core_set_in_call_timeout() for details.
-**/
 int linphone_core_get_in_call_timeout(LinphoneCore *lc){
 	return lc->sip_conf.in_call_timeout;
 }
 
-/**
- * Returns the delayed timeout
- *
- * @ingroup call_control
- * See linphone_core_set_delayed_timeout() for details.
-**/
 int linphone_core_get_delayed_timeout(LinphoneCore *lc){
 	return lc->sip_conf.delayed_timeout;
 }
 
-/**
- * Set the in delayed timeout in seconds.
- *
- * @ingroup call_control
- * After this timeout period, a delayed call (internal call initialisation or resolution) is resumed.
-**/
 void linphone_core_set_delayed_timeout(LinphoneCore *lc, int seconds){
 	lc->sip_conf.delayed_timeout=seconds;
 }
@@ -4707,44 +4204,20 @@ LinphonePresenceModel * linphone_core_get_presence_model(const LinphoneCore *lc)
 	return lc->presence_model;
 }
 
-/**
- * Get playback sound level in 0-100 scale.
- *
- * @ingroup media_parameters
- * @deprecated
-**/
 int linphone_core_get_play_level(LinphoneCore *lc)
 {
 	return lc->sound_conf.play_lev;
 }
 
-/**
- * Get ring sound level in 0-100 scale
- *
- * @ingroup media_parameters
- * @deprecated
-**/
 int linphone_core_get_ring_level(LinphoneCore *lc)
 {
 	return lc->sound_conf.ring_lev;
 }
 
-/**
- * Get sound capture level in 0-100 scale
- *
- * @ingroup media_parameters
- * @deprecated
-**/
 int linphone_core_get_rec_level(LinphoneCore *lc){
 	return lc->sound_conf.rec_lev;
 }
 
-/**
- * Set sound ring level in 0-100 scale
- *
- * @ingroup media_parameters
- * @deprecated
-**/
 void linphone_core_set_ring_level(LinphoneCore *lc, int level){
 	MSSndCard *sndcard;
 	lc->sound_conf.ring_lev=level;
@@ -4752,11 +4225,6 @@ void linphone_core_set_ring_level(LinphoneCore *lc, int level){
 	if (sndcard) ms_snd_card_set_level(sndcard,MS_SND_CARD_PLAYBACK,level);
 }
 
-/**
- * Allow to control microphone level:  gain in db
- *
- * @ingroup media_parameters
-**/
 void linphone_core_set_mic_gain_db (LinphoneCore *lc, float gaindb){
 	float gain=gaindb;
 	LinphoneCall *call=linphone_core_get_current_call (lc);
@@ -4775,20 +4243,10 @@ void linphone_core_set_mic_gain_db (LinphoneCore *lc, float gaindb){
 	set_mic_gain_db(st,gain);
 }
 
-/**
- * Get microphone gain in db.
- *
- * @ingroup media_parameters
-**/
 float linphone_core_get_mic_gain_db(LinphoneCore *lc) {
 	return lc->sound_conf.soft_mic_lev;
 }
 
-/**
- * Allow to control play level before entering sound card:  gain in db
- *
- * @ingroup media_parameters
-**/
 void linphone_core_set_playback_gain_db (LinphoneCore *lc, float gaindb){
 	float gain=gaindb;
 	LinphoneCall *call=linphone_core_get_current_call (lc);
@@ -4806,20 +4264,10 @@ void linphone_core_set_playback_gain_db (LinphoneCore *lc, float gaindb){
 	set_playback_gain_db(st,gain);
 }
 
-/**
- * Get playback gain in db before entering  sound card.
- *
- * @ingroup media_parameters
-**/
 float linphone_core_get_playback_gain_db(LinphoneCore *lc) {
 	return lc->sound_conf.soft_play_lev;
 }
 
-/**
- * Set sound playback level in 0-100 scale
- * @deprecated
- * @ingroup media_parameters
-**/
 void linphone_core_set_play_level(LinphoneCore *lc, int level){
 	MSSndCard *sndcard;
 	lc->sound_conf.play_lev=level;
@@ -4827,11 +4275,6 @@ void linphone_core_set_play_level(LinphoneCore *lc, int level){
 	if (sndcard) ms_snd_card_set_level(sndcard,MS_SND_CARD_PLAYBACK,level);
 }
 
-/**
- * Set sound capture level in 0-100 scale
- * @deprecated
- * @ingroup media_parameters
-**/
 void linphone_core_set_rec_level(LinphoneCore *lc, int level)
 {
 	MSSndCard *sndcard;
@@ -4870,35 +4313,14 @@ static MSSndCard *get_card_from_string_id(const char *devid, unsigned int cap, M
 	return sndcard;
 }
 
-/**
- * Returns true if the specified sound device can capture sound.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
- * @param devid the device name as returned by linphone_core_get_sound_devices()
-**/
 bool_t linphone_core_sound_device_can_capture(LinphoneCore *lc, const char *devid){
 	return ms_snd_card_manager_get_capture_card(ms_factory_get_snd_card_manager(lc->factory),devid) != NULL;
 }
 
-/**
- * Returns true if the specified sound device can play sound.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
- * @param devid the device name as returned by linphone_core_get_sound_devices()
-**/
 bool_t linphone_core_sound_device_can_playback(LinphoneCore *lc, const char *devid){
 	return ms_snd_card_manager_get_playback_card(ms_factory_get_snd_card_manager(lc->factory),devid) != NULL;
 }
 
-/**
- * Sets the sound device used for ringing.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
- * @param devid the device name as returned by linphone_core_get_sound_devices()
-**/
 int linphone_core_set_ringer_device(LinphoneCore *lc, const char * devid){
 	MSSndCard *card=get_card_from_string_id(devid,MS_SND_CARD_CAP_PLAYBACK, lc->factory);
 	lc->sound_conf.ring_sndcard=card;
@@ -4907,13 +4329,6 @@ int linphone_core_set_ringer_device(LinphoneCore *lc, const char * devid){
 	return 0;
 }
 
-/**
- * Sets the sound device used for playback.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
- * @param devid the device name as returned by linphone_core_get_sound_devices()
-**/
 int linphone_core_set_playback_device(LinphoneCore *lc, const char * devid){
 	MSSndCard *card=get_card_from_string_id(devid,MS_SND_CARD_CAP_PLAYBACK, lc->factory);
 	lc->sound_conf.play_sndcard=card;
@@ -4922,13 +4337,6 @@ int linphone_core_set_playback_device(LinphoneCore *lc, const char * devid){
 	return 0;
 }
 
-/**
- * Sets the sound device used for capture.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
- * @param devid the device name as returned by linphone_core_get_sound_devices()
-**/
 int linphone_core_set_capture_device(LinphoneCore *lc, const char * devid){
 	MSSndCard *card=get_card_from_string_id(devid,MS_SND_CARD_CAP_CAPTURE, lc->factory);
 	lc->sound_conf.capt_sndcard=card;
@@ -4937,58 +4345,26 @@ int linphone_core_set_capture_device(LinphoneCore *lc, const char * devid){
 	return 0;
 }
 
-/**
- * Returns the name of the currently assigned sound device for ringing.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
-**/
 const char * linphone_core_get_ringer_device(LinphoneCore *lc)
 {
 	if (lc->sound_conf.ring_sndcard) return ms_snd_card_get_string_id(lc->sound_conf.ring_sndcard);
 	return NULL;
 }
 
-/**
- * Returns the name of the currently assigned sound device for playback.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
-**/
 const char * linphone_core_get_playback_device(LinphoneCore *lc)
 {
 	return lc->sound_conf.play_sndcard ? ms_snd_card_get_string_id(lc->sound_conf.play_sndcard) : NULL;
 }
 
-/**
- * Returns the name of the currently assigned sound device for capture.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
-**/
 const char * linphone_core_get_capture_device(LinphoneCore *lc)
 {
 	return lc->sound_conf.capt_sndcard ? ms_snd_card_get_string_id(lc->sound_conf.capt_sndcard) : NULL;
 }
 
-/**
- * Returns an unmodifiable array of available sound devices.
- *
- * The array is NULL terminated.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
-**/
 const char**  linphone_core_get_sound_devices(LinphoneCore *lc){
 	return lc->sound_conf.cards;
 }
 
-/**
- * Returns an unmodifiable array of available video capture devices.
- *
- * @ingroup media_parameters
- * The array is NULL terminated.
-**/
 const char**  linphone_core_get_video_devices(const LinphoneCore *lc){
 	return lc->video_conf.cams;
 }
@@ -5070,15 +4446,6 @@ void linphone_core_set_sound_source(LinphoneCore *lc, char source)
 
 }
 
-
-/**
- * Sets the path to a wav file used for ringing.
- *
- * @param path The file must be a wav 16bit linear. Local ring is disabled if null
- * @param lc The LinphoneCore object
- *
- * @ingroup media_parameters
-**/
 void linphone_core_set_ring(LinphoneCore *lc,const char *path){
 	if (lc->sound_conf.local_ring!=0){
 		ms_free(lc->sound_conf.local_ring);
@@ -5090,24 +4457,10 @@ void linphone_core_set_ring(LinphoneCore *lc,const char *path){
 		lp_config_set_string(lc->config,"sound","local_ring",lc->sound_conf.local_ring);
 }
 
-/**
- * Returns the path to the wav file used for ringing.
- *
- * @param lc The LinphoneCore object
- * @ingroup media_parameters
-**/
 const char *linphone_core_get_ring(const LinphoneCore *lc){
 	return lc->sound_conf.local_ring;
 }
 
-/**
- * Sets the path to a file or folder containing trusted root CAs (PEM format)
- *
- * @param path
- * @param lc The LinphoneCore object
- *
- * @ingroup initializing
-**/
 void linphone_core_set_root_ca(LinphoneCore *lc, const char *path) {
 	sal_set_root_ca(lc->sal, path);
 	if (lc->http_crypto_config) {
@@ -5116,14 +4469,6 @@ void linphone_core_set_root_ca(LinphoneCore *lc, const char *path) {
 	lp_config_set_string(lc->config,"sip", "root_ca", path);
 }
 
-/**
- * Sets the trusted root CAs (PEM format)
- *
- * @param path
- * @param lc The LinphoneCore object
- *
- * @ingroup initializing
-**/
 void linphone_core_set_root_ca_data(LinphoneCore *lc, const char *data) {
 	sal_set_root_ca(lc->sal, NULL);
 	sal_set_root_ca_data(lc->sal, data);
@@ -5132,22 +4477,10 @@ void linphone_core_set_root_ca_data(LinphoneCore *lc, const char *data) {
 	}
 }
 
-/**
- * Gets the path to a file or folder containing the trusted root CAs (PEM format)
- *
- * @param lc The LinphoneCore object
- *
- * @ingroup initializing
-**/
 const char *linphone_core_get_root_ca(LinphoneCore *lc){
 	return lp_config_get_string(lc->config,"sip","root_ca",NULL);
 }
 
-/**
- * Specify whether the tls server certificate must be verified when connecting to a SIP/TLS server.
- *
- * @ingroup initializing
-**/
 void linphone_core_verify_server_certificates(LinphoneCore *lc, bool_t yesno){
 	sal_verify_server_certificates(lc->sal,yesno);
 	if (lc->http_crypto_config){
@@ -5156,10 +4489,6 @@ void linphone_core_verify_server_certificates(LinphoneCore *lc, bool_t yesno){
 	lp_config_set_int(lc->config,"sip","verify_server_certs",yesno);
 }
 
-/**
- * Specify whether the tls server certificate common name must be verified when connecting to a SIP/TLS server.
- * @ingroup initializing
-**/
 void linphone_core_verify_server_cn(LinphoneCore *lc, bool_t yesno){
 	sal_verify_server_cn(lc->sal,yesno);
 	if (lc->http_crypto_config){
@@ -5200,14 +4529,7 @@ int linphone_core_preview_ring(LinphoneCore *lc, const char *ring,LinphoneCoreCb
 MSFactory *linphone_core_get_ms_factory(LinphoneCore *lc){
 	return lc->factory;
 }
-/**
- * Sets the path to a wav file used for ringing back.
- *
- * Ringback means the ring that is heard when it's ringing at the remote party.
- * The file must be a wav 16bit linear.
- *
- * @ingroup media_parameters
-**/
+
 void linphone_core_set_ringback(LinphoneCore *lc, const char *path){
 	if (lc->sound_conf.remote_ring!=0){
 		ms_free(lc->sound_conf.remote_ring);
@@ -5215,35 +4537,16 @@ void linphone_core_set_ringback(LinphoneCore *lc, const char *path){
 	lc->sound_conf.remote_ring=path?ms_strdup(path):NULL;
 }
 
-/**
- * Returns the path to the wav file used for ringing back.
- *
- * @ingroup media_parameters
-**/
 const char * linphone_core_get_ringback(const LinphoneCore *lc){
 	return lc->sound_conf.remote_ring;
 }
 
-/**
- * Enables or disable echo cancellation. Value is saved and used for subsequent calls.
- * This actually controls software echo cancellation. If hardware echo cancellation is available, it will be always used and activated for calls, regardless
- * of the value passed to this function.
- * When hardware echo cancellation is available, the software one is of course not activated.
- *
- * @ingroup media_parameters
-**/
 void linphone_core_enable_echo_cancellation(LinphoneCore *lc, bool_t val){
 	lc->sound_conf.ec=val;
 	if ( linphone_core_ready(lc))
 		lp_config_set_int(lc->config,"sound","echocancellation",val);
 }
 
-
-/**
- * Returns TRUE if echo cancellation is enabled.
- *
- * @ingroup media_parameters
-**/
 bool_t linphone_core_echo_cancellation_enabled(LinphoneCore *lc){
 	return lc->sound_conf.ec;
 }
@@ -5304,9 +4607,6 @@ bool_t linphone_core_mic_enabled(LinphoneCore *lc) {
 	return !call->audio_muted;
 }
 
-// returns rtp transmission status for an active stream
-// if audio is muted and config parameter rtp_no_xmit_on_audio_mute
-// was set on then rtp transmission is also muted
 bool_t linphone_core_is_rtp_muted(LinphoneCore *lc){
 	LinphoneCall *call=linphone_core_get_current_call(lc);
 	if (call==NULL){
@@ -5813,13 +5113,6 @@ bool_t linphone_core_video_display_enabled(LinphoneCore *lc) {
 	return lc->video_conf.display;
 }
 
-/**
- * Sets the default policy for video.
- * This policy defines whether:
- * - video shall be initiated by default for outgoing calls
- * - video shall be accepter by default for incoming calls
- * @ingroup media_parameters
-**/
 void linphone_core_set_video_policy(LinphoneCore *lc, const LinphoneVideoPolicy *policy){
 	lc->video_policy=*policy;
 	if (linphone_core_ready(lc)){
@@ -5828,44 +5121,20 @@ void linphone_core_set_video_policy(LinphoneCore *lc, const LinphoneVideoPolicy 
 	}
 }
 
-/**
- * Get the default policy for video.
- * See linphone_core_set_video_policy() for more details.
- * @ingroup media_parameters
-**/
 const LinphoneVideoPolicy *linphone_core_get_video_policy(const LinphoneCore *lc){
 	return &lc->video_policy;
 }
 
-/**
- * Controls video preview enablement.
- *
- * @ingroup media_parameters
- * Video preview refers to the action of displaying the local webcam image
- * to the user while not in call.
-**/
 void linphone_core_enable_video_preview(LinphoneCore *lc, bool_t val){
 	lc->video_conf.show_local=val;
 	if (linphone_core_ready(lc))
 		lp_config_set_int(lc->config,"video","show_local",val);
 }
 
-/**
- * Returns TRUE if video previewing is enabled.
- * @ingroup media_parameters
-**/
 bool_t linphone_core_video_preview_enabled(const LinphoneCore *lc){
 	return lc->video_conf.show_local;
 }
 
-/**
- * Enables or disable self view during calls.
- *
- * @ingroup media_parameters
- * Self-view refers to having local webcam image inserted in corner
- * of the video window during calls.
- * This function works at any time, including during calls.
-**/
 void linphone_core_enable_self_view(LinphoneCore *lc, bool_t val){
 #ifdef VIDEO_ENABLED
 	LinphoneCall *call=linphone_core_get_current_call (lc);
@@ -5882,24 +5151,10 @@ void linphone_core_enable_self_view(LinphoneCore *lc, bool_t val){
 #endif
 }
 
-/**
- * Returns TRUE if self-view is enabled, FALSE otherwise.
- *
- * @ingroup media_parameters
- *
- * Refer to linphone_core_enable_self_view() for details.
-**/
 bool_t linphone_core_self_view_enabled(const LinphoneCore *lc){
 	return lc->video_conf.selfview;
 }
 
-/**
- * Sets the active video device.
- *
- * @ingroup media_parameters
- * @param lc The LinphoneCore object
- * @param id the name of the video device as returned by linphone_core_get_video_devices()
-**/
 int linphone_core_set_video_device(LinphoneCore *lc, const char *id){
 	MSWebCam *olddev=lc->video_conf.device;
 	const char *vd;
@@ -5924,12 +5179,6 @@ int linphone_core_set_video_device(LinphoneCore *lc, const char *id){
 	return 0;
 }
 
-/**
- * Returns the name of the currently active video device.
- *
- * @param lc The LinphoneCore object
- * @ingroup media_parameters
-**/
 const char *linphone_core_get_video_device(const LinphoneCore *lc){
 	if (lc->video_conf.device) return ms_web_cam_get_string_id(lc->video_conf.device);
 	return NULL;
@@ -6024,11 +5273,6 @@ float linphone_core_get_static_picture_fps(LinphoneCore *lc) {
 	return 0;
 }
 
-/**
- * Returns the native window handle of the video window, casted as an unsigned long.
- *
- * @ingroup media_parameters
-**/
 void * linphone_core_get_native_video_window_id(const LinphoneCore *lc){
 	if (lc->video_window_id) {
 		/* case where the video id was previously set by the app*/
@@ -6091,11 +5335,6 @@ void linphone_core_set_native_video_window_id(LinphoneCore *lc, void *id){
 #endif
 }
 
-/**
- * Returns the native window handle of the video preview window, casted as an unsigned long.
- *
- * @ingroup media_parameters
-**/
 void * linphone_core_get_native_preview_window_id(const LinphoneCore *lc){
 	if (lc->preview_window_id){
 		/*case where the id was set by the app previously*/
@@ -6113,12 +5352,6 @@ void * linphone_core_get_native_preview_window_id(const LinphoneCore *lc){
 	return 0;
 }
 
-/**
- * @ingroup media_parameters
- * Set the native window id where the preview video (local camera) is to be displayed.
- * This has to be used in conjonction with linphone_core_use_preview_window().
- * MacOS, Linux, Windows: if not set or zero the core will create its own window, unless the special id -1 is given.
-**/
 void linphone_core_set_native_preview_window_id(LinphoneCore *lc, void *id){
 	if ((id == NULL)
 #ifndef _WIN32
@@ -6140,9 +5373,6 @@ void linphone_core_set_native_preview_window_id(LinphoneCore *lc, void *id){
 #endif
 }
 
-/**
- * Can be used to disable video showing to free XV port
-**/
 void linphone_core_show_video(LinphoneCore *lc, bool_t show){
 #ifdef VIDEO_ENABLED
 	LinphoneCall *call=linphone_core_get_current_call(lc);
@@ -6156,23 +5386,11 @@ void linphone_core_show_video(LinphoneCore *lc, bool_t show){
 void linphone_core_use_preview_window(LinphoneCore *lc, bool_t yesno){
 	lc->use_preview_window=yesno;
 }
-/**
- * @ingroup media_parameters
- *returns current device orientation
- */
+
 int linphone_core_get_device_rotation(LinphoneCore *lc ) {
 	return lc->device_rotation;
 }
-/**
- * @ingroup media_parameters
- * Tells the core the device current orientation. This can be used by capture filters
- * on mobile devices to select between portrait/landscape mode and to produce properly
- * oriented images. The exact meaning of the value in rotation if left to each device
- * specific implementations.
- *@param lc  object.
- *@param rotation . IOS supported values are 0 for UIInterfaceOrientationPortrait and 270 for UIInterfaceOrientationLandscapeRight.
- *
-**/
+
 void linphone_core_set_device_rotation(LinphoneCore *lc, int rotation) {
 	if (rotation!=lc->device_rotation) ms_message("%s : rotation=%d\n", __FUNCTION__, rotation);
 	lc->device_rotation = rotation;
@@ -6440,13 +5658,6 @@ static MSFilter *get_dtmf_gen(LinphoneCore *lc){
 	return get_audio_resource(lc,LinphoneToneGenerator);
 }
 
-/**
- * @ingroup media_parameters
- * Plays a dtmf sound to the local user.
- * @param lc #LinphoneCore
- * @param dtmf DTMF to play ['0'..'16'] | '#' | '#'
- * @param duration_ms duration in ms, -1 means play until next further call to #linphone_core_stop_dtmf()
-**/
 void linphone_core_play_dtmf(LinphoneCore *lc, char dtmf, int duration_ms){
 	MSFilter *f=get_dtmf_gen(lc);
 	if (f==NULL){
@@ -6459,14 +5670,6 @@ void linphone_core_play_dtmf(LinphoneCore *lc, char dtmf, int duration_ms){
 	else ms_filter_call_method(f, MS_DTMF_GEN_START, &dtmf);
 }
 
-/**
- * Plays an audio file to the local user.
- * This function works at any time, during calls, or when no calls are running.
- * It doesn't request the underlying audio system to support multiple playback streams.
- * @param lc the linphone core
- * @param audiofile path to audio file in wav PCM 16 bit format.
- * @ingroup misc
-**/
 int linphone_core_play_local(LinphoneCore *lc, const char *audiofile){
 	MSFilter *f=get_audio_resource(lc,LinphoneLocalPlayer);
 	int loopms=-1;
@@ -6537,34 +5740,16 @@ void linphone_core_play_call_error_tone(LinphoneCore *lc, LinphoneReason reason)
 	}
 }
 
-/**
- * @ingroup media_parameters
- *
- * Stops playing a dtmf started by linphone_core_play_dtmf().
-**/
 void linphone_core_stop_dtmf(LinphoneCore *lc){
 	MSFilter *f=get_dtmf_gen(lc);
 	if (f!=NULL)
 		ms_filter_call_method_noarg (f, MS_DTMF_GEN_STOP);
 }
 
-
-
-/**
- * Retrieves the user pointer that was given to linphone_core_new()
- *
- * @ingroup initializing
-**/
 void *linphone_core_get_user_data(const LinphoneCore *lc){
 	return lc->data;
 }
 
-
-/**
- * Associate a user pointer to the linphone core.
- *
- * @ingroup initializing
-**/
 void linphone_core_set_user_data(LinphoneCore *lc, void *userdata){
 	lc->data=userdata;
 }
@@ -6573,13 +5758,6 @@ int linphone_core_get_mtu(const LinphoneCore *lc){
 	return lc->net_conf.mtu;
 }
 
-/**
- * Sets the maximum transmission unit size in bytes.
- * This information is useful for sending RTP packets.
- * Default value is 1500.
- *
- * @ingroup media_parameters
-**/
 void linphone_core_set_mtu(LinphoneCore *lc, int mtu){
 	lc->net_conf.mtu=mtu;
 	if (mtu>0){
@@ -6620,17 +5798,6 @@ void linphone_core_stop_waiting(LinphoneCore *lc){
 void linphone_core_set_rtp_transport_factories(LinphoneCore* lc, LinphoneRtpTransportFactories *factories){
 	lc->rtptf=factories;
 }
-
-/**
- * Retrieve RTP statistics regarding current call.
- * @param lc the LinphoneCore
- * @param local RTP statistics computed locally.
- * @param remote RTP statistics computed by far end (obtained via RTCP feedback).
- *
- * @note Remote RTP statistics is not implemented yet.
- *
- * @return 0 or -1 if no call is running.
-**/
 
 int linphone_core_get_current_call_stats(LinphoneCore *lc, rtp_stats_t *local, rtp_stats_t *remote){
 	LinphoneCall *call=linphone_core_get_current_call (lc);
@@ -6855,14 +6022,6 @@ void friends_config_uninit(LinphoneCore* lc)
 	ms_message("Destroying friends done.");
 }
 
-/**
- * Returns the LpConfig object used to manage the storage (config) file.
- *
- * @ingroup misc
- * The application can use the LpConfig object to insert its own private
- * sections and pairs of key=value in the configuration file.
- *
-**/
 LpConfig * linphone_core_get_config(LinphoneCore *lc){
 	return lc->config;
 }
@@ -7103,29 +6262,15 @@ bool_t linphone_core_is_network_reachable(LinphoneCore* lc) {
 ortp_socket_t linphone_core_get_sip_socket(LinphoneCore *lc){
 	return sal_get_socket(lc->sal);
 }
-/**
- * Destroys a LinphoneCore
- *
- * @ingroup initializing
- * @deprecated Use linphone_core_unref() instead.
-**/
+
 void linphone_core_destroy(LinphoneCore *lc){
 	linphone_core_unref(lc);
 }
-/**
- * Get the number of Call
- *
- * @ingroup call_control
-**/
+
 int linphone_core_get_calls_nb(const LinphoneCore *lc){
 	return (int)bctbx_list_size(lc->calls);
 }
 
-/**
- * Check if we do not have exceed the number of simultaneous call
- *
- * @ingroup call_control
-**/
 bool_t linphone_core_can_we_add_call(LinphoneCore *lc)
 {
 	if(linphone_core_get_calls_nb(lc) < lc->max_calls)
@@ -7280,16 +6425,6 @@ static LinphoneCallParams *_create_call_params(LinphoneCore *lc){
 	return p;
 }
 
-
-/**
- * Create a LinphoneCallParams suitable for linphone_core_invite_with_params(), linphone_core_accept_call_with_params(), linphone_core_accept_early_media_with_params(),
- * linphone_core_accept_call_update().
- * The parameters are initialized according to the current LinphoneCore configuration and the current state of the LinphoneCall.
- * @param lc the LinphoneCore
- * @param call the call for which the parameters are to be build, or NULL in the case where the parameters are to be used for a new outgoing call.
- * @return a new LinphoneCallParams
- * @ingroup call_control
- */
 LinphoneCallParams *linphone_core_create_call_params(LinphoneCore *lc, LinphoneCall *call){
 	if (!call) return _create_call_params(lc);
 	if (call->params){
@@ -7350,9 +6485,7 @@ const char *linphone_reason_to_string(LinphoneReason err){
 const char *linphone_error_to_string(LinphoneReason err){
 	return linphone_reason_to_string(err);
 }
-/**
- * Enables signaling keep alive
- */
+
 void linphone_core_enable_keep_alive(LinphoneCore* lc,bool_t enable) {
 #ifdef BUILD_UPNP
 	if (linphone_core_get_firewall_policy(lc)==LinphonePolicyUseUpnp) {
@@ -7366,9 +6499,7 @@ void linphone_core_enable_keep_alive(LinphoneCore* lc,bool_t enable) {
 		sal_set_keepalive_period(lc->sal,0);
 	}
 }
-/**
- * Is signaling keep alive enabled
- */
+
 bool_t linphone_core_keep_alive_enabled(LinphoneCore* lc) {
 	return sal_get_keepalive_period(lc->sal) > 0;
 }
@@ -7378,14 +6509,6 @@ void linphone_core_start_dtmf_stream(LinphoneCore* lc) {
 	lc->ringstream_autorelease=FALSE; /*disable autorelease mode*/
 }
 
-/**
- * Whenever the liblinphone is playing a ring to advertise an incoming call or ringback of an outgoing call, this function stops
- * the ringing. Typical use is to stop ringing when the user requests to ignore the call.
- *
- * @param lc The LinphoneCore object
- *
- * @ingroup media_parameters
-**/
 void linphone_core_stop_ringing(LinphoneCore* lc) {
 	LinphoneCall *call=linphone_core_get_current_call(lc);
 	if (linphone_ringtoneplayer_is_started(lc->ringtoneplayer)) {
@@ -7476,18 +6599,6 @@ LinphoneCall* linphone_core_find_call_from_uri(const LinphoneCore *lc, const cha
 	return NULL;
 }
 
-
-/**
- * Check if a call will need the sound resources in near future (typically an outgoing call that is awaiting
- * response).
- * In liblinphone, it is not possible to have two independant calls using sound device or camera at the same time.
- * In order to prevent this situation, an application can use linphone_core_sound_resources_locked() to know whether
- * it is possible at a given time to start a new outgoing call.
- * When the function returns TRUE, an application should not allow the user to start an outgoing call.
- *
- * @ingroup call_control
- * @param lc The LinphoneCore
-**/
 bool_t linphone_core_sound_resources_locked(LinphoneCore *lc){
 	bctbx_list_t *elem;
 	for(elem=lc->calls;elem!=NULL;elem=elem->next) {
@@ -7647,13 +6758,6 @@ const char*  linphone_core_get_device_identifier(const LinphoneCore *lc) {
 	return lc->device_id;
 }
 
-/**
- * Set the DSCP field for SIP signaling channel.
- *
- * @ingroup network_parameters
- * * The DSCP defines the quality of service in IP packets.
- *
-**/
 void linphone_core_set_sip_dscp(LinphoneCore *lc, int dscp){
 	sal_set_dscp(lc->sal,dscp);
 	if (linphone_core_ready(lc)){
@@ -7662,72 +6766,29 @@ void linphone_core_set_sip_dscp(LinphoneCore *lc, int dscp){
 	}
 }
 
-/**
- * Get the DSCP field for SIP signaling channel.
- *
- * @ingroup network_parameters
- * * The DSCP defines the quality of service in IP packets.
- *
-**/
 int linphone_core_get_sip_dscp(const LinphoneCore *lc){
 	return lp_config_get_int(lc->config,"sip","dscp",0x1a);
 }
 
-/**
- * Set the DSCP field for outgoing audio streams.
- *
- * @ingroup network_parameters
- * The DSCP defines the quality of service in IP packets.
- *
-**/
 void linphone_core_set_audio_dscp(LinphoneCore *lc, int dscp){
 	if (linphone_core_ready(lc))
 		lp_config_set_int_hex(lc->config,"rtp","audio_dscp",dscp);
 }
 
-/**
- * Get the DSCP field for outgoing audio streams.
- *
- * @ingroup network_parameters
- * The DSCP defines the quality of service in IP packets.
- *
-**/
 int linphone_core_get_audio_dscp(const LinphoneCore *lc){
 	return lp_config_get_int(lc->config,"rtp","audio_dscp",0x2e);
 }
 
-/**
- * Set the DSCP field for outgoing video streams.
- *
- * @ingroup network_parameters
- * The DSCP defines the quality of service in IP packets.
- *
-**/
 void linphone_core_set_video_dscp(LinphoneCore *lc, int dscp){
 	if (linphone_core_ready(lc))
 		lp_config_set_int_hex(lc->config,"rtp","video_dscp",dscp);
 
 }
 
-/**
- * Get the DSCP field for outgoing video streams.
- *
- * @ingroup network_parameters
- * The DSCP defines the quality of service in IP packets.
- *
-**/
 int linphone_core_get_video_dscp(const LinphoneCore *lc){
 	return lp_config_get_int(lc->config,"rtp","video_dscp",0);
 }
 
-
-/**
- * Sets the database filename where chat messages will be stored.
- * If the file does not exist, it will be created.
- * @ingroup initializing
- * @param lc the linphone core
- * @param path filesystem path
-**/
 void linphone_core_set_chat_database_path(LinphoneCore *lc, const char *path){
 	if (lc->chat_db_file){
 		ms_free(lc->chat_db_file);
@@ -7756,71 +6817,30 @@ const char * linphone_core_get_file_transfer_server(LinphoneCore *core) {
 	return lp_config_get_string(core->config, "misc", "file_transfer_server_url", NULL);
 }
 
-/**
- * This function controls signaling features supported by the core.
- * They are typically included in a SIP Supported header.
- * @param lc the LinphoneCore
- * @param tag the feature tag name
- * @ingroup initializing
-**/
 void linphone_core_add_supported_tag(LinphoneCore *lc, const char *tag){
 	sal_add_supported_tag(lc->sal,tag);
 	lp_config_set_string(lc->config,"sip","supported",sal_get_supported_tags(lc->sal));
 }
 
-/**
- * Remove a supported tag. @see linphone_core_add_supported_tag()
- * @param lc the LinphoneCore
- * @param tag the tag to remove
- * @ingroup initializing
-**/
 void linphone_core_remove_supported_tag(LinphoneCore *lc, const char *tag){
 	sal_remove_supported_tag(lc->sal,tag);
 	lp_config_set_string(lc->config,"sip","supported",sal_get_supported_tags(lc->sal));
 }
 
-/**
- * Enable RTCP feedback (also known as RTP/AVPF profile).
- * Setting LinphoneAVPFDefault is equivalent to LinphoneAVPFDisabled.
- * This setting can be overriden per LinphoneProxyConfig with linphone_proxy_config_set_avpf_mode().
- * The value set here is used for calls placed or received out of any proxy configured, or if the proxy config is configured with LinphoneAVPFDefault.
- * @param lc the LinphoneCore
- * @param mode the mode.
- * @ingroup media_parameters
-**/
 void linphone_core_set_avpf_mode(LinphoneCore *lc, LinphoneAVPFMode mode){
 	if (mode==LinphoneAVPFDefault) mode=LinphoneAVPFDisabled;
 	lc->rtp_conf.avpf_mode=mode;
 	if (linphone_core_ready(lc)) lp_config_set_int(lc->config,"rtp","avpf",mode);
 }
 
-/**
- * Return AVPF enablement. See linphone_core_set_avpf_mode() .
- * @param lc the core
- * @return the avpf enablement mode.
- * @ingroup media_parameters
-**/
 LinphoneAVPFMode linphone_core_get_avpf_mode(const LinphoneCore *lc){
 	return lc->rtp_conf.avpf_mode;
 }
 
-/**
- * Return the avpf report interval in seconds.
- * @param lc the LinphoneCore
- * @return the avpf report interval in seconds.
- * @ingroup media_parameters
-**/
 int linphone_core_get_avpf_rr_interval(const LinphoneCore *lc){
 	return lp_config_get_int(lc->config,"rtp","avpf_rr_interval",5);
 }
 
-/**
- * Set the avpf report interval in seconds.
- * This value can be overriden by the proxy config using linphone_proxy_config_set_avpf_rr_interval().
- * @param lc the core
- * @param interval interval in seconds.
- * @ingroup media_parameters
-**/
 void linphone_core_set_avpf_rr_interval(LinphoneCore *lc, int interval){
 	lp_config_set_int(lc->config,"rtp","avpf_rr_interval",interval);
 }
