@@ -4157,7 +4157,7 @@ LINPHONE_PUBLIC	int linphone_core_set_sip_transports(LinphoneCore *lc, const Lin
  * A zero value port for a given transport means the transport
  * is not used. A value of LC_SIP_TRANSPORT_RANDOM (-1) means the port is to be chosen randomly by the system.
  * @ingroup network_parameters
- */
+ */
 LINPHONE_PUBLIC	int linphone_core_get_sip_transports(LinphoneCore *lc, LinphoneSipTransports *transports);
 
 /**
