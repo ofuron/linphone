@@ -6266,6 +6266,13 @@ LINPHONE_PUBLIC LinphoneCore *linphone_factory_create_core_with_config(const Lin
  */
 LINPHONE_PUBLIC LinphoneCoreCbs *linphone_core_factory_create_core_cbs(const LinphoneFactory *factory);
 
+/**
+ * Create an empty #LinphoneVcard.
+ * @return a new #LinphoneVcard.
+ * @ingroup initializing
+ */
+LINPHONE_PUBLIC LinphoneVcard *linphone_factory_create_vcard(LinphoneFactory *factory);
+
 #include "linphone/ringtoneplayer.h"
 
 #ifdef __cplusplus

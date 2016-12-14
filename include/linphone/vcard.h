@@ -53,8 +53,9 @@ typedef struct _LinphoneVcard LinphoneVcard;
 /**
  * Creates a LinphoneVcard object that has a pointer to an empty vCard
  * @return a new LinphoneVcard object
+ * @deprecated Use linphone_factory_create_vcard() instead.
  */
-LINPHONE_PUBLIC LinphoneVcard* linphone_vcard_new(void);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC LinphoneVcard* linphone_vcard_new(void);
 
 /**
  * Deletes a LinphoneVcard object properly

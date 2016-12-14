@@ -58,7 +58,7 @@ void linphone_vcard_context_set_user_data(LinphoneVcardContext *context, void *d
 	if (context) context->user_data = data;
 }
 
-}
+} // extern "C"
 
 
 struct _LinphoneVcard {
@@ -88,10 +88,18 @@ BELLE_SIP_INSTANCIATE_VPTR(LinphoneVcard, belle_sip_object_t,
 	FALSE
 );
 
-LinphoneVcard* linphone_vcard_new(void) {
+static LinphoneVcard* _linphone_vcard_new(void) {
 	LinphoneVcard* vCard = belle_sip_object_new(LinphoneVcard);
 	vCard->belCard = belcard::BelCardGeneric::create<belcard::BelCard>();
 	return vCard;
+}
+
+LinphoneVcard *linphone_vcard_new(void) {
+	return _linphone_vcard_new();
+}
+
+LinphoneVcard *linphone_factory_create_vcard(LinphoneFactory *factory) {
+	return _linphone_vcard_new();
 }
 
 static LinphoneVcard* linphone_vcard_new_from_belcard(shared_ptr<belcard::BelCard> belcard) {
