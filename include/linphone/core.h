@@ -468,7 +468,7 @@ typedef struct _LinphoneInfoMessage LinphoneInfoMessage;
  * Creates an empty info message.
  * @param lc the LinphoneCore
  * @return a new LinphoneInfoMessage.
- * 
+ *
  * The info message can later be filled with information using linphone_info_message_add_header() or linphone_info_message_set_content(),
  * and finally sent with linphone_core_send_info_message().
 **/
@@ -3076,8 +3076,11 @@ LINPHONE_PUBLIC void linphone_core_remove_listener(LinphoneCore *lc, const Linph
  */
 LINPHONE_PUBLIC	void linphone_core_set_user_agent(LinphoneCore *lc, const char *ua_name, const char *version);
 
-/** See linphone_proxy_config_normalize_sip_uri for documentation. Default proxy config is used to parse
-the address. */
+/**
+ * See linphone_proxy_config_normalize_sip_uri for documentation. Default proxy config is used to parse
+ * the address.
+ * @ingroup misc
+ */
 LINPHONE_PUBLIC	LinphoneAddress * linphone_core_interpret_url(LinphoneCore *lc, const char *url);
 
 /**
