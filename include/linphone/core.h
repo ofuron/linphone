@@ -1015,6 +1015,11 @@ LINPHONE_PUBLIC	const char *linphone_registration_state_to_string(LinphoneRegist
 typedef struct _LinphoneAuthInfo LinphoneAuthInfo;
 
 /**
+ * Cast a #belle_sip_object_t into #LinphoneAuthInfo
+ */
+#define LINPHONE_AUTH_INFO(obj) BELLE_SIP_CAST(obj, LinphoneAuthInfo)
+
+/**
  * Creates a #LinphoneAuthInfo object with supplied information.
  * The object can be created empty, that is with all arguments set to NULL.
  * Username, userid, password, realm and domain can be set later using specific methods.
@@ -1037,6 +1042,16 @@ LINPHONE_PUBLIC	LinphoneAuthInfo *linphone_auth_info_new(const char *username, c
  * @return The newly created #LinphoneAuthInfo object.
  */
 LINPHONE_PUBLIC	LinphoneAuthInfo *linphone_auth_info_clone(const LinphoneAuthInfo* source);
+
+/**
+ * Take ownership
+ */
+LINPHONE_PUBLIC LinphoneAuthInfo *linphone_auth_info_ref(LinphoneAuthInfo *obj);
+
+/**
+ * Release ownership
+ */
+LINPHONE_PUBLIC void linphone_auth_info_unref(LinphoneAuthInfo *obj);
 
 /**
  * Sets the password.
@@ -1191,7 +1206,7 @@ LINPHONE_PUBLIC const char *linphone_auth_info_get_tls_cert_path(const LinphoneA
 LINPHONE_PUBLIC const char *linphone_auth_info_get_tls_key_path(const LinphoneAuthInfo *info);
 
 /* you don't need those function*/
-LINPHONE_PUBLIC void linphone_auth_info_destroy(LinphoneAuthInfo *info);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC void linphone_auth_info_destroy(LinphoneAuthInfo *info);
 LINPHONE_PUBLIC LinphoneAuthInfo * linphone_auth_info_new_from_config_file(LpConfig *config, int pos);
 
 /**

@@ -671,6 +671,7 @@ BELLE_SIP_DECLARE_VPTR(LinphoneProxyConfig);
 
 struct _LinphoneAuthInfo
 {
+	belle_sip_object_t base;
 	char *username;
 	char *realm;
 	char *userid;
@@ -1531,6 +1532,7 @@ BELLE_SIP_TYPE_ID(LinphoneNatPolicy),
 BELLE_SIP_TYPE_ID(LinphoneCore),
 BELLE_SIP_TYPE_ID(LinphoneCoreCbs),
 BELLE_SIP_TYPE_ID(LinphoneFactory),
+BELLE_SIP_TYPE_ID(LinphoneAuthInfo)
 BELLE_SIP_DECLARE_TYPES_END
 
 
