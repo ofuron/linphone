@@ -32,7 +32,7 @@ extern "C" {
  */
 
 /**
-* Enum describing the status of a LinphoneAccountCreator operation.
+ * Enum describing the status of a LinphoneAccountCreator operation.
 **/
 typedef enum _LinphoneAccountCreatorStatus {
 	LinphoneAccountCreatorOK,
@@ -187,7 +187,7 @@ LINPHONE_PUBLIC const char * linphone_account_creator_get_password(const Linphon
 /**
  * Set the ha1.
  * @param[in] creator LinphoneAccountCreator object
- * @param[in] password The ha1 to set
+ * @param[in] ha1 The ha1 to set
  * @return LinphoneAccountCreatorOk if everything is OK, or a specific error otherwise.
 **/
 LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_set_ha1(LinphoneAccountCreator *creator, const char *ha1);
@@ -209,7 +209,7 @@ LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_set_activa
 /**
  * Set the language to use in email or SMS if supported.
  * @param[in] creator LinphoneAccountCreator object
- * @param[in] activation_code The language code to use
+ * @param[in] lang The language code to use
 **/
 LINPHONE_PUBLIC LinphoneAccountCreatorStatus linphone_account_creator_set_language(LinphoneAccountCreator *creator, const char *lang);
 

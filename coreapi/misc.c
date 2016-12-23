@@ -250,7 +250,6 @@ bool_t linphone_core_is_payload_type_usable_for_bandwidth(LinphoneCore *lc, cons
 	return ret;
 }
 
-/* return TRUE if codec can be used with bandwidth, FALSE else*/
 bool_t linphone_core_check_payload_type_usability(LinphoneCore *lc, const PayloadType *pt){
 	int maxbw=get_min_bandwidth(linphone_core_get_download_bandwidth(lc),
 					linphone_core_get_upload_bandwidth(lc));
@@ -1240,65 +1239,30 @@ LinphoneReason linphone_reason_from_sal(SalReason r){
 	return ret;
 }
 
-/**
- * Get reason code from the error info.
- * @param ei the error info.
- * @return a #LinphoneReason
- * @ingroup misc
-**/
 LinphoneReason linphone_error_info_get_reason(const LinphoneErrorInfo *ei){
 	const SalErrorInfo *sei=(const SalErrorInfo*)ei;
 	return linphone_reason_from_sal(sei->reason);
 }
 
-/**
- * Get textual phrase from the error info.
- * This is the text that is provided by the peer in the protocol (SIP).
- * @param ei the error info.
- * @return the error phrase
- * @ingroup misc
-**/
 const char *linphone_error_info_get_phrase(const LinphoneErrorInfo *ei){
 	const SalErrorInfo *sei=(const SalErrorInfo*)ei;
 	return sei->status_string;
 }
 
-/**
- * Provides additional information regarding the failure.
- * With SIP protocol, the "Reason" and "Warning" headers are returned.
- * @param ei the error info.
- * @return more details about the failure.
- * @ingroup misc
-**/
 const char *linphone_error_info_get_details(const LinphoneErrorInfo *ei){
 	const SalErrorInfo *sei=(const SalErrorInfo*)ei;
 	return sei->warnings;
 }
 
-/**
- * Get the status code from the low level protocol (ex a SIP status code).
- * @param ei the error info.
- * @return the status code.
- * @ingroup misc
-**/
 int linphone_error_info_get_protocol_code(const LinphoneErrorInfo *ei){
 	const SalErrorInfo *sei=(const SalErrorInfo*)ei;
 	return sei->protocol_code;
 }
 
-/**
- * Set the name of the mediastreamer2 filter to be used for rendering video.
- * This is for advanced users of the library, mainly to workaround hardware/driver bugs.
- * @ingroup media_parameters
-**/
 void linphone_core_set_video_display_filter(LinphoneCore *lc, const char *filter_name){
 	lp_config_set_string(lc->config,"video","displaytype",filter_name);
 }
 
-/**
- * Get the name of the mediastreamer2 filter used for rendering video.
- * @ingroup media_parameters
-**/
 const char *linphone_core_get_video_display_filter(LinphoneCore *lc){
 	return lp_config_get_string(lc->config,"video","displaytype",NULL);
 }
@@ -1358,16 +1322,6 @@ static void linphone_core_migrate_proxy_config(LinphoneCore *lc, LinphoneTranspo
 	}
 }
 
-/**
- * Migrate configuration so that all SIP transports are enabled.
- * Versions of linphone < 3.7 did not support using multiple SIP transport simultaneously.
- * This function helps application to migrate the configuration so that all transports are enabled.
- * Existing proxy configuration are added a transport parameter so that they continue using the unique transport that was set previously.
- * This function must be used just after creating the core, before any call to linphone_core_iterate()
- * @param lc the linphone core
- * @return 1 if migration was done, 0 if not done because unnecessary or already done, -1 in case of error.
- * @ingroup initializing
-**/
 int linphone_core_migrate_to_multi_transport(LinphoneCore *lc){
 	if (!lp_config_get_int(lc->config,"sip","multi_transport_migration_done",0)){
 		LinphoneTransportType tpt;
@@ -1431,24 +1385,10 @@ void _linphone_core_set_tone(LinphoneCore *lc, LinphoneReason reason, LinphoneTo
 	lc->tones=bctbx_list_append(lc->tones,tone);
 }
 
-/**
- * Assign an audio file to be played locally upon call failure, for a given reason.
- * @param lc the core
- * @param reason the #LinphoneReason representing the failure error code.
- * @param audiofile a wav file to be played when such call failure happens.
- * @ingroup misc
-**/
 void linphone_core_set_call_error_tone(LinphoneCore *lc, LinphoneReason reason, const char *audiofile){
 	_linphone_core_set_tone(lc,reason,LinphoneToneUndefined, audiofile);
 }
 
-/**
- * Assign an audio file to be played as a specific tone id.
- * This function typically allows to customize telephony tones per country.
- * @param lc the core
- * @param id the tone id
- * @param audiofile a wav file to be played.
-**/
 void linphone_core_set_tone(LinphoneCore *lc, LinphoneToneID id, const char *audiofile){
 	_linphone_core_set_tone(lc, LinphoneReasonNone, id, audiofile);
 }

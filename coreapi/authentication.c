@@ -482,11 +482,6 @@ void linphone_core_add_auth_info(LinphoneCore *lc, const LinphoneAuthInfo *info)
 	write_auth_infos(lc);
 }
 
-
-/**
- * This method is used to abort a user authentication request initiated by LinphoneCore
- * from the auth_info_requested callback of LinphoneCoreVTable.
-**/
 void linphone_core_abort_authentication(LinphoneCore *lc,  LinphoneAuthInfo *info){
 }
 
@@ -504,9 +499,6 @@ const bctbx_list_t *linphone_core_get_auth_info_list(const LinphoneCore *lc){
 	return lc->auth_info;
 }
 
-/**
- * Clear all authentication information.
-**/
 void linphone_core_clear_all_auth_info(LinphoneCore *lc){
 	bctbx_list_t *elem;
 	int i;
@@ -518,7 +510,3 @@ void linphone_core_clear_all_auth_info(LinphoneCore *lc){
 	bctbx_list_free(lc->auth_info);
 	lc->auth_info=NULL;
 }
-
-/**
- * @}
-**/

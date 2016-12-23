@@ -112,6 +112,13 @@ LINPHONE_PUBLIC LinphoneAddress *linphone_factory_create_address(const LinphoneF
 LINPHONE_PUBLIC LinphoneAuthInfo *linphone_factory_create_auth_info(const LinphoneFactory *factory, const char *username, const char *userid, const char *passwd, const char *ha1, const char *realm, const char *domain);
 
 /**
+ * Create an empty #LinphoneVcard.
+ * @return a new #LinphoneVcard.
+ * @ingroup initializing
+ */
+LINPHONE_PUBLIC LinphoneVcard *linphone_factory_create_vcard(LinphoneFactory *factory);
+
+/**
  * @}
  */
 

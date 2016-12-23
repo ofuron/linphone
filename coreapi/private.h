@@ -1111,7 +1111,13 @@ void linphone_tunnel_destroy(LinphoneTunnel *tunnel);
 void linphone_tunnel_configure(LinphoneTunnel *tunnel);
 void linphone_tunnel_enable_logs_with_handler(LinphoneTunnel *tunnel, bool_t enabled, OrtpLogFunc logHandler);
 
+/**
+ * Check if we do not have exceed the number of simultaneous call
+ *
+ * @ingroup call_control
+**/
 bool_t linphone_core_can_we_add_call(LinphoneCore *lc);
+
 int linphone_core_add_call( LinphoneCore *lc, LinphoneCall *call);
 int linphone_core_del_call( LinphoneCore *lc, LinphoneCall *call);
 int linphone_core_get_calls_nb(const LinphoneCore *lc);
@@ -1532,7 +1538,8 @@ BELLE_SIP_TYPE_ID(LinphoneNatPolicy),
 BELLE_SIP_TYPE_ID(LinphoneCore),
 BELLE_SIP_TYPE_ID(LinphoneCoreCbs),
 BELLE_SIP_TYPE_ID(LinphoneFactory),
-BELLE_SIP_TYPE_ID(LinphoneAuthInfo)
+BELLE_SIP_TYPE_ID(LinphoneAuthInfo),
+BELLE_SIP_TYPE_ID(LinphoneVcard),
 BELLE_SIP_DECLARE_TYPES_END
 
 

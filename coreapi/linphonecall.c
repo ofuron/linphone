@@ -134,14 +134,6 @@ const char* linphone_call_get_authentication_token(LinphoneCall *call){
 	return call->auth_token;
 }
 
-/**
- * Returns whether ZRTP authentication token is verified.
- * If not, it must be verified by users as described in ZRTP procedure.
- * Once done, the application must inform of the results with linphone_call_set_authentication_token_verified().
- * @param call the LinphoneCall
- * @return TRUE if authentication token is verifed, false otherwise.
- * @ingroup call_control
-**/
 bool_t linphone_call_get_authentication_token_verified(LinphoneCall *call){
 	return call->auth_token_verified;
 }
@@ -271,13 +263,6 @@ static void linphone_call_audiostream_auth_token_ready(void *data, const char* a
 	ms_message("Authentication token is %s (%s)", auth_token, verified?"verified":"unverified");
 }
 
-/**
- * Set the result of ZRTP short code verification by user.
- * If remote party also does the same, it will update the ZRTP cache so that user's verification will not be required for the two users.
- * @param call the LinphoneCall
- * @param verified whether the ZRTP SAS is verified.
- * @ingroup call_control
-**/
 void linphone_call_set_authentication_token_verified(LinphoneCall *call, bool_t verified){
 	if (call->audiostream==NULL || !media_stream_started(&call->audiostream->ms)){
 		ms_error("linphone_call_set_authentication_token_verified(): No audio stream or not started");
@@ -1889,9 +1874,6 @@ static unsigned int linphone_call_get_n_active_streams(const LinphoneCall *call)
 	return sal_media_description_nb_active_streams_of_type(md, SalAudio) + sal_media_description_nb_active_streams_of_type(md, SalVideo) + sal_media_description_nb_active_streams_of_type(md, SalText);
 }
 
-/**
- * Returns current parameters associated to the call.
-**/
 const LinphoneCallParams * linphone_call_get_current_params(LinphoneCall *call){
 	SalMediaDescription *md=call->resultdesc;
 	int all_streams_encrypted = 0;
@@ -1986,12 +1968,6 @@ const LinphoneCallParams * linphone_call_get_current_params(LinphoneCall *call){
 	return call->current_params;
 }
 
-/**
- * Returns call parameters proposed by remote.
- *
- * This is useful when receiving an incoming call, to know whether the remote party
- * supports video, encryption or whatever.
-**/
 const LinphoneCallParams * linphone_call_get_remote_params(LinphoneCall *call){
 	if (call->op){
 		LinphoneCallParams *cp;
@@ -2045,27 +2021,14 @@ const LinphoneCallParams * linphone_call_get_remote_params(LinphoneCall *call){
 	return NULL;
 }
 
-/**
- * Returns the remote address associated to this call
- *
-**/
 const LinphoneAddress * linphone_call_get_remote_address(const LinphoneCall *call){
 	return call->dir==LinphoneCallIncoming ? call->log->from : call->log->to;
 }
 
-/**
- * Returns the remote address associated to this call as a string.
- *
- * The result string must be freed by user using ms_free().
-**/
 char *linphone_call_get_remote_address_as_string(const LinphoneCall *call){
 	return linphone_address_as_string(linphone_call_get_remote_address(call));
 }
 
-/**
- * Returns the diversion address associated to this call
- *
-**/
 const LinphoneAddress * linphone_call_get_diversion_address(const LinphoneCall *call){
 	return call->op?(const LinphoneAddress *)sal_op_get_diversion_address(call->op):NULL;
 }
@@ -2077,16 +2040,10 @@ LinphoneCallState linphone_call_get_state(const LinphoneCall *call){
 	return call->state;
 }
 
-/**
- * Returns the reason for a call termination (either error or normal termination)
-**/
 LinphoneReason linphone_call_get_reason(const LinphoneCall *call){
 	return linphone_error_info_get_reason(linphone_call_get_error_info(call));
 }
 
-/**
- * Returns full details about call errors or termination reasons.
-**/
 const LinphoneErrorInfo *linphone_call_get_error_info(const LinphoneCall *call){
 	if (call->non_op_error.reason!=SalReasonNone){
 		return (const LinphoneErrorInfo*)&call->non_op_error;
@@ -2103,45 +2060,27 @@ void linphone_call_set_user_data(LinphoneCall *call, void *user_pointer)
 	call->user_data = user_pointer;
 }
 
-/**
- * Returns the call log associated to this call.
-**/
 LinphoneCallLog *linphone_call_get_call_log(const LinphoneCall *call){
 	return call->log;
 }
 
-/**
- * Returns the refer-to uri (if the call was transfered).
-**/
+
 const char *linphone_call_get_refer_to(const LinphoneCall *call){
 	return call->refer_to;
 }
 
-/**
- * Returns the transferer if this call was started automatically as a result of an incoming transfer request.
- * The call in which the transfer request was received is returned in this case.
-**/
 LinphoneCall *linphone_call_get_transferer_call(const LinphoneCall *call){
 	return call->referer;
 }
 
-/**
- * When this call has received a transfer request, returns the new call that was automatically created as a result of the transfer.
-**/
 LinphoneCall *linphone_call_get_transfer_target_call(const LinphoneCall *call){
 	return call->transfer_target;
 }
 
-/**
- * Returns direction of the call (incoming or outgoing).
-**/
 LinphoneCallDir linphone_call_get_dir(const LinphoneCall *call){
 	return call->log->dir;
 }
 
-/**
- * Returns the far end's user agent description string, if available.
-**/
 const char *linphone_call_get_remote_user_agent(LinphoneCall *call){
 	if (call->op){
 		return sal_op_get_remote_ua (call->op);
@@ -2149,9 +2088,6 @@ const char *linphone_call_get_remote_user_agent(LinphoneCall *call){
 	return NULL;
 }
 
-/**
- * Returns the far end's sip contact as a string, if available.
-**/
 const char *linphone_call_get_remote_contact(LinphoneCall *call){
 	if( call->op ){
 		/*sal_op_get_remote_contact preserves header params*/
@@ -2160,33 +2096,15 @@ const char *linphone_call_get_remote_contact(LinphoneCall *call){
 	return NULL;
 }
 
-
-/**
- * Returns true if this calls has received a transfer that has not been
- * executed yet.
- * Pending transfers are executed when this call is being paused or closed,
- * locally or by remote endpoint.
- * If the call is already paused while receiving the transfer request, the
- * transfer immediately occurs.
-**/
 bool_t linphone_call_has_transfer_pending(const LinphoneCall *call){
 	return call->refer_pending;
 }
 
-/**
- * Returns call's duration in seconds.
-**/
 int linphone_call_get_duration(const LinphoneCall *call){
 	if (call->log->connected_date_time==0) return 0;
 	return (int)(ms_time(NULL) - call->log->connected_date_time);
 }
 
-/**
- * Returns the call object this call is replacing, if any.
- * Call replacement can occur during call transfers.
- * By default, the core automatically terminates the replaced call and accept the new one.
- * This function allows the application to know whether a new incoming call is a one that replaces another one.
-**/
 LinphoneCall *linphone_call_get_replaced_call(LinphoneCall *call){
 	SalOp *op=sal_call_get_replaces(call->op);
 	if (op){
@@ -2195,9 +2113,6 @@ LinphoneCall *linphone_call_get_replaced_call(LinphoneCall *call){
 	return NULL;
 }
 
-/**
- * Indicate whether camera input should be sent to remote end.
-**/
 void linphone_call_enable_camera (LinphoneCall *call, bool_t enable){
 #ifdef VIDEO_ENABLED
 	call->camera_enabled=enable;
@@ -2222,9 +2137,6 @@ void linphone_call_enable_camera (LinphoneCall *call, bool_t enable){
 #endif
 }
 
-/**
- * Request remote side to send us a Video Fast Update.
-**/
 void linphone_call_send_vfu_request(LinphoneCall *call) {
 #ifdef VIDEO_ENABLED
 	const LinphoneCallParams *current_params = linphone_call_get_current_params(call);
@@ -2241,14 +2153,6 @@ void linphone_call_send_vfu_request(LinphoneCall *call) {
 #endif
 }
 
-
-/**
- * Take a photo of currently received video and write it into a jpeg file.
- * Note that the snapshot is asynchronous, an application shall not assume that the file is created when the function returns.
- * @param call a LinphoneCall
- * @param file a path where to write the jpeg content.
- * @return 0 if successfull, -1 otherwise (typically if jpeg format is not supported).
-**/
 int linphone_call_take_video_snapshot(LinphoneCall *call, const char *file){
 #ifdef VIDEO_ENABLED
 	if (call->videostream!=NULL && call->videostream->jpegwriter!=NULL){
@@ -2259,13 +2163,6 @@ int linphone_call_take_video_snapshot(LinphoneCall *call, const char *file){
 	return -1;
 }
 
-/**
- * Take a photo of currently captured video and write it into a jpeg file.
- * Note that the snapshot is asynchronous, an application shall not assume that the file is created when the function returns.
- * @param call a LinphoneCall
- * @param file a path where to write the jpeg content.
- * @return 0 if successfull, -1 otherwise (typically if jpeg format is not supported).
-**/
 int linphone_call_take_preview_snapshot(LinphoneCall *call, const char *file){
 #ifdef VIDEO_ENABLED
 	if (call->videostream!=NULL && call->videostream->local_jpegwriter!=NULL){
@@ -2277,9 +2174,6 @@ int linphone_call_take_preview_snapshot(LinphoneCall *call, const char *file){
 	return -1;
 }
 
-/**
- * Returns TRUE if camera pictures are allowed to be sent to the remote party.
-**/
 bool_t linphone_call_camera_enabled (const LinphoneCall *call){
 	return call->camera_enabled;
 }
@@ -4013,15 +3907,6 @@ bool_t linphone_call_echo_limiter_enabled(const LinphoneCall *call){
 	}
 }
 
-/**
- * @addtogroup call_misc
- * @{
-**/
-
-/**
- * Returns the measured sound volume played locally (received from remote).
- * It is expressed in dbm0.
-**/
 float linphone_call_get_play_volume(LinphoneCall *call){
 	AudioStream *st=call->audiostream;
 	if (st && st->volrecv){
@@ -4033,10 +3918,6 @@ float linphone_call_get_play_volume(LinphoneCall *call){
 	return LINPHONE_VOLUME_DB_LOWEST;
 }
 
-/**
- * Returns the measured sound volume recorded locally (sent to remote).
- * It is expressed in dbm0.
-**/
 float linphone_call_get_record_volume(LinphoneCall *call){
 	AudioStream *st=call->audiostream;
 	if (st && st->volsend && !call->audio_muted && call->state==LinphoneCallStreamsRunning){
@@ -4081,23 +3962,7 @@ static float agregate_ratings(float audio_rating, float video_rating){
 	else result=audio_rating*video_rating*5.0f;
 	return result;
 }
-/**
- * Obtain real-time quality rating of the call
- *
- * Based on local RTP statistics and RTCP feedback, a quality rating is computed and updated
- * during all the duration of the call. This function returns its value at the time of the function call.
- * It is expected that the rating is updated at least every 5 seconds or so.
- * The rating is a floating point number comprised between 0 and 5.
- *
- * 4-5 = good quality <br>
- * 3-4 = average quality <br>
- * 2-3 = poor quality <br>
- * 1-2 = very poor quality <br>
- * 0-1 = can't be worse, mostly unusable <br>
- *
- * @return The function returns -1 if no quality measurement is available, for example if no
- * active audio stream exist. Otherwise it returns the quality rating.
-**/
+
 float linphone_call_get_current_quality(LinphoneCall *call){
 	float audio_rating=-1.f;
 	float video_rating=-1.f;
@@ -4111,11 +3976,6 @@ float linphone_call_get_current_quality(LinphoneCall *call){
 	return agregate_ratings(audio_rating, video_rating);
 }
 
-/**
- * Returns call quality averaged over all the duration of the call.
- *
- * See linphone_call_get_current_quality() for more details about quality measurement.
-**/
 float linphone_call_get_average_quality(LinphoneCall *call){
 	float audio_rating=-1.f;
 	float video_rating=-1.f;
@@ -4138,9 +3998,6 @@ static void update_local_stats(LinphoneCallStats *stats, MediaStream *stream) {
 	media_stream_get_local_rtp_stats(stream, &stats->rtp_stats);
 }
 
-/**
- * Access last known statistics for audio stream, for a given call.
-**/
 const LinphoneCallStats *linphone_call_get_audio_stats(LinphoneCall *call) {
 	LinphoneCallStats *stats = &call->stats[LINPHONE_CALL_STATS_AUDIO];
 	if (call->audiostream){
@@ -4149,9 +4006,6 @@ const LinphoneCallStats *linphone_call_get_audio_stats(LinphoneCall *call) {
 	return stats;
 }
 
-/**
- * Access last known statistics for video stream, for a given call.
-**/
 const LinphoneCallStats *linphone_call_get_video_stats(LinphoneCall *call) {
 	LinphoneCallStats *stats = &call->stats[LINPHONE_CALL_STATS_VIDEO];
 	if (call->videostream){
@@ -4160,9 +4014,6 @@ const LinphoneCallStats *linphone_call_get_video_stats(LinphoneCall *call) {
 	return stats;
 }
 
-/**
- * Access last known statistics for video stream, for a given call.
-**/
 const LinphoneCallStats *linphone_call_get_text_stats(LinphoneCall *call) {
 	LinphoneCallStats *stats = &call->stats[LINPHONE_CALL_STATS_TEXT];
 	if (call->textstream){
@@ -4175,15 +4026,6 @@ static bool_t ice_in_progress(LinphoneCallStats *stats){
 	return stats->ice_state==LinphoneIceStateInProgress;
 }
 
-/**
- * Indicates whether an operation is in progress at the media side.
- * It can be a bad idea to initiate signaling operations (adding video, pausing the call, removing video, changing video parameters) while
- * the media is busy in establishing the connection (typically ICE connectivity checks). It can result in failures generating loss of time
- * in future operations in the call.
- * Applications are invited to check this function after each call state change to decide whether certain operations are permitted or not.
- * @param call the call
- * @return TRUE if media is busy in establishing the connection, FALSE otherwise.
-**/
 bool_t linphone_call_media_in_progress(LinphoneCall *call){
 	bool_t ret=FALSE;
 	if (ice_in_progress(&call->stats[LINPHONE_CALL_STATS_AUDIO]) || ice_in_progress(&call->stats[LINPHONE_CALL_STATS_VIDEO]) || ice_in_progress(&call->stats[LINPHONE_CALL_STATS_TEXT]))
@@ -4313,10 +4155,6 @@ LinphoneUpnpState linphone_call_stats_get_upnp_state(const LinphoneCallStats *st
 	return stats->upnp_state;
 }
 
-/**
- * Start call recording.
- * The output file where audio is recorded must be previously specified with linphone_call_params_set_record_file().
-**/
 void linphone_call_start_recording(LinphoneCall *call){
 	if (!call->params->record_file){
 		ms_error("linphone_call_start_recording(): no output file specified. Use linphone_call_params_set_record_file().");
@@ -4328,19 +4166,12 @@ void linphone_call_start_recording(LinphoneCall *call){
 	call->record_active=TRUE;
 }
 
-/**
- * Stop call recording.
-**/
 void linphone_call_stop_recording(LinphoneCall *call){
 	if (call->audiostream && !call->params->in_conference){
 		audio_stream_mixed_record_stop(call->audiostream);
 	}
 	call->record_active=FALSE;
 }
-
-/**
- * @}
-**/
 
 static void report_bandwidth(LinphoneCall *call, MediaStream *as, MediaStream *vs, MediaStream *ts){
 	bool_t as_active =  as ? (media_stream_get_state(as) == MSStreamStarted) : FALSE;
@@ -4732,10 +4563,6 @@ void linphone_call_log_completed(LinphoneCall *call){
 	linphone_core_notify_call_log_updated(lc,call->log);
 }
 
-/**
- * Returns the current transfer state, if a transfer has been initiated from this call.
- * @see linphone_core_transfer_call() , linphone_core_transfer_call_to_another()
-**/
 LinphoneCallState linphone_call_get_transfer_state(LinphoneCall *call) {
 	return call->transfer_state;
 }
@@ -4759,15 +4586,6 @@ LinphoneConference *linphone_call_get_conference(const LinphoneCall *call) {
 	return call->conf_ref;
 }
 
-/**
- * Perform a zoom of the video displayed during a call.
- * @param call the call.
- * @param zoom_factor a floating point number describing the zoom factor. A value 1.0 corresponds to no zoom applied.
- * @param cx a floating point number pointing the horizontal center of the zoom to be applied. This value should be between 0.0 and 1.0.
- * @param cy a floating point number pointing the vertical center of the zoom to be applied. This value should be between 0.0 and 1.0.
- *
- * cx and cy are updated in return in case their coordinates were too excentrated for the requested zoom factor. The zoom ensures that all the screen is fullfilled with the video.
-**/
 void linphone_call_zoom_video(LinphoneCall* call, float zoom_factor, float* cx, float* cy) {
 	VideoStream* vstream = call->videostream;
 	if (vstream && vstream->output) {
