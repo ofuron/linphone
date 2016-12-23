@@ -4,16 +4,16 @@ using namespace {{{namespace}}};
 
 {{#_class}}
 
-{{#constructor}}
-{{{className}}}::{{{className}}}(::belle_sip_object_t *ptr, bool takeRef): {{{parentClassName}}}(ptr, takeRef) {
+{{#isNotListener}}
+{{{namespace}}}::{{{className}}}::{{{className}}}(::belle_sip_object_t *ptr, bool takeRef): {{{parentClassName}}}(ptr, takeRef) {
 {{#ismonolistenable}}
-	{{{cListenerName}}} *cbs = {{{cCbsGetter}}}(({{{cname}}} *)ptr);
+	{{{cListenerName}}} *cbs = {{{cCbsGetter}}}(({{{cClassName}}} *)ptr);
 	{{#wrapperCbs}}
 	{{{callbackSetter}}}(cbs, {{{cbName}}});
 	{{/wrapperCbs}}
 {{/ismonolistenable}}
 }
-{{/constructor}}
+{{/isNotListener}}
 
 {{#ismultilistenable}}
 {{{cListenerName}}} *{{{className}}}::createCallbacks(const std::shared_ptr<{{{listenerClassName}}}> &listener) {
@@ -48,7 +48,7 @@ std::shared_ptr<Core> Factory::createCore(const std::shared_ptr<CoreListener> & 
 	::LinphoneFactory *factory = linphone_factory_get();
 	::LinphoneCoreCbs *c_cbs = cbs != nullptr ? Core::createCallbacks(cbs) : NULL;
 	::LinphoneCore *core_ptr = linphone_factory_create_core(factory, c_cbs, configPath.c_str(), factoryConfigPath.c_str());
-	std::shared_ptr<Core> core = std::static_pointer_cast<Core,Object>(cPtrToSharedPtr((belle_sip_object_t *)core_ptr, false));
+	std::shared_ptr<Core> core = cPtrToSharedPtr<Core>((belle_sip_object_t *)core_ptr, false);
 	if (core != nullptr && cbs != nullptr) {
 		std::static_pointer_cast<MultiListenableObject,Core>(core)->addListener(cbs);
 		cbs->setCallbacks((belle_sip_object_t *)c_cbs);
@@ -61,7 +61,7 @@ std::shared_ptr<Core> Factory::createCoreWithConfig(const std::shared_ptr<CoreLi
 	::LinphoneFactory *factory = linphone_factory_get();
 	::LinphoneCoreCbs *c_cbs = cbs != nullptr ? Core::createCallbacks(cbs) : NULL;
 	::LinphoneCore *core_ptr = linphone_factory_create_core_with_config(factory, c_cbs, (::LinphoneConfig *)sharedPtrToCPtr(config));
-	std::shared_ptr<Core> core = std::static_pointer_cast<Core,Object>(cPtrToSharedPtr((belle_sip_object_t *)core_ptr, false));
+	std::shared_ptr<Core> core = cPtrToSharedPtr<Core>((belle_sip_object_t *)core_ptr, false);
 	if (core != nullptr && cbs != nullptr) {
 		std::static_pointer_cast<MultiListenableObject,Core>(core)->addListener(cbs);
 		cbs->setCallbacks((belle_sip_object_t *)c_cbs);

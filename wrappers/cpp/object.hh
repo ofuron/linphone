@@ -62,7 +62,19 @@ namespace linphone {
 		bool dataExists(const std::string &key);
 	
 	public:
-		static std::shared_ptr<Object> cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef=true);
+		template <class T>
+		static std::shared_ptr<T> cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef=true) {
+			if (ptr == NULL) {
+				return nullptr;
+			} else {
+				T *cppPtr = (T *)belle_sip_object_data_get(ptr, "cpp_object");
+				if (cppPtr == NULL) {
+					return std::make_shared<T>(ptr, takeRef);
+				} else {
+					return std::static_pointer_cast<T,Object>(cppPtr->shared_from_this());
+				}
+			}
+		}
 		static ::belle_sip_object_t *sharedPtrToCPtr(const std::shared_ptr<const Object> &sharedPtr);
 		
 	protected:
@@ -74,7 +86,7 @@ namespace linphone {
 		static std::list<std::shared_ptr<T> > bctbxObjectListToCppList(const ::bctbx_list_t *bctbxList) {
 			std::list<std::shared_ptr<T> > cppList;
 			for(const ::bctbx_list_t *it=bctbxList; it!=NULL; it=it->next) {
-				std::shared_ptr<T> newObj = std::static_pointer_cast<T,Object>(Object::cPtrToSharedPtr((::belle_sip_object_t *)it->data));
+				std::shared_ptr<T> newObj = Object::cPtrToSharedPtr<T>((::belle_sip_object_t *)it->data);
 				cppList.push_back(newObj);
 			}
 			return cppList;

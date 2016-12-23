@@ -60,19 +60,6 @@ bool Object::dataExists(const std::string &key) {
 	return mUserData.find(key) != mUserData.end();
 }
 
-std::shared_ptr<Object> Object::cPtrToSharedPtr(::belle_sip_object_t *ptr, bool takeRef) {
-	if (ptr == NULL) {
-		return nullptr;
-	} else {
-		Object *cppPtr = (Object *)belle_sip_object_data_get((::belle_sip_object_t *)ptr, "cpp_object");
-		if (cppPtr == NULL) {
-			return std::make_shared<Object>((::belle_sip_object_t *)ptr, takeRef);
-		} else {
-			return std::shared_ptr<Object>(cppPtr->shared_from_this());
-		}
-	}
-}
-
 ::belle_sip_object_t *Object::sharedPtrToCPtr(const std::shared_ptr<const Object> &sharedPtr) {
 	if (sharedPtr == nullptr) return NULL;
 	else return sharedPtr->mPrivPtr;

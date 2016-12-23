@@ -51,6 +51,7 @@ class CppTranslator(object):
 		classDict['isnotlistenable'] = not islistenable
 		classDict['ismonolistenable'] = ismonolistenable
 		classDict['ismultilistenable'] = ismultilistenable
+		classDict['isNotListener'] = True
 		classDict['isfactory'] = (_class.name.to_c() == 'LinphoneFactory')
 		classDict['parentClassName'] = None
 		classDict['className'] = CppTranslator.translate_class_name(_class.name)
@@ -71,11 +72,7 @@ class CppTranslator(object):
 				classDict['wrapperCbs'].append(CppTranslator._generate_wrapper_callback(self, _class, method))
 		
 		if ismonolistenable:
-			constructorDict = {}
-			constructorDict['cCbsGetter'] = _class.name.to_snake_case(fullName=True) + '_get_callbacks'
-			constructorDict['cname'] = _class.name.to_c()
-			
-			classDict['constructor'] = constructorDict
+			classDict['cCbsGetter'] = _class.name.to_snake_case(fullName=True) + '_get_callbacks'
 			classDict['cppListenerName'] = CppTranslator.translate_class_name(_class.listenerInterface.name)
 			classDict['parentClassName'] = 'ListenableObject'
 		elif ismultilistenable:
@@ -144,6 +141,7 @@ class CppTranslator(object):
 		intDict['className'] = CppTranslator.translate_class_name(interface.name)
 		intDict['constructor'] = None
 		intDict['parentClassName'] = 'Listener'
+		intDict['isNotListener'] = False
 		intDict['methods'] = []
 		for method in interface.methods:
 			try:
@@ -291,9 +289,9 @@ class CppTranslator(object):
 			cppReturnType = CppTranslator.sharedPtrTypeExtractor.match(cppReturnType).group(2)
 			
 			if type(exprtype.parent) is AbsApi.Method and len(exprtype.parent.name.words) >=1 and (exprtype.parent.name.words == ['new'] or exprtype.parent.name.words[0] == 'create'):
-				return 'std::static_pointer_cast<{0},Object>(cPtrToSharedPtr((::belle_sip_object_t *){1}, false))'.format(cppReturnType, cExpr)
+				return 'cPtrToSharedPtr<{0}>((::belle_sip_object_t *){1}, false)'.format(cppReturnType, cExpr)
 			else:
-				return 'std::static_pointer_cast<{0},Object>(cPtrToSharedPtr((::belle_sip_object_t *){1}))'.format(cppReturnType, cExpr)
+				return 'cPtrToSharedPtr<{0}>((::belle_sip_object_t *){1})'.format(cppReturnType, cExpr)
 		elif type(exprtype) is AbsApi.ListType:
 			if type(exprtype.containedTypeDesc) is AbsApi.BaseType and exprtype.containedTypeDesc.name == 'string':
 				return 'bctbxStringListToCppList({0})'.format(cExpr)
@@ -633,7 +631,8 @@ def main():
 					   'linphone_proxy_config_set_file_transfer_server',
 					   'linphone_proxy_config_get_file_transfer_server',
 					   'linphone_factory_create_core',
-					   'linphone_factory_create_core_with_config']
+					   'linphone_factory_create_core_with_config',
+					   'linphone_buffer_get_content']
 	
 	renderer = pystache.Renderer()	
 	

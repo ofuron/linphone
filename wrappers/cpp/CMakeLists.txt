@@ -2,7 +2,7 @@ set(GENERATED_SOURCES
 	src/account_creator.cc
 	src/address.cc
 	src/auth_info.cc
-	#src/buffer.cc
+	src/buffer.cc
 	src/call.cc
 	src/call_log.cc
 	src/call_params.cc

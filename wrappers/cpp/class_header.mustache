@@ -27,7 +27,9 @@ namespace linphone {
 		{{/friendClasses}}
 	
 		public:
-			{{#constructor}}{{{className}}}(::belle_sip_object_t *ptr, bool takeRef=true);{{/constructor}}
+			{{#isNotListener}}
+			{{{className}}}(::belle_sip_object_t *ptr, bool takeRef=true);
+			{{/isNotListener}}
 
 			{{#ismultilistenable}}
 			void addListener(std::shared_ptr<{{{listenerClassName}}}> &listener);
