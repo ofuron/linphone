@@ -2658,11 +2658,11 @@ LINPHONE_PUBLIC void linphone_core_v_table_destroy(LinphoneCoreVTable* table);
 
 /**
  * That class holds all the callbacks which are called by #LinphoneCore.
- * 
+ *
  * Use linphone_factory_create_core_cbs() to create an instance. Then, call the
  * callback setters on the events you need to monitor and pass the object to
  * a #LinphoneCore instance through linphone_core_add_listener().
- * 
+ *
  * That class is inherited from #belle_sip_object_t.
  */
 typedef struct _LinphoneCoreCbs LinphoneCoreCbs;
@@ -3142,11 +3142,11 @@ LINPHONE_PUBLIC void linphone_core_unref(LinphoneCore *lc);
  *  - performs registration to proxies
  *  - authentication retries
  * The application MUST call this function periodically, in its main loop.
- * 
+ *
  * Be careful that this function must be called from the same thread as
  * other liblinphone methods. If it is not the case make sure all liblinphone calls are
  * serialized with a mutex.
- * 
+ *
  * For ICE to work properly it should be called every 20ms.
  * @ingroup initializing
  */
@@ -3211,12 +3211,12 @@ LINPHONE_PUBLIC	LinphoneCall * linphone_core_invite(LinphoneCore *lc, const char
 
 /**
  * Initiates an outgoing call given a destination #LinphoneAddress.
- * 
+ *
  * The #LinphoneAddress can be constructed directly using linphone_address_new(), or
  * created by linphone_core_interpret_url().
  * The application doesn't own a reference to the returned LinphoneCall object.
  * Use linphone_call_ref() to safely keep the LinphoneCall pointer valid within your application.
- * 
+ *
  * @param lc the LinphoneCore object
  * @param addr the destination of the call (sip address).
  * @return a #LinphoneCall object or NULL in case of failure
@@ -3226,10 +3226,10 @@ LINPHONE_PUBLIC	LinphoneCall * linphone_core_invite_address(LinphoneCore *lc, co
 
 /**
  * Initiates an outgoing call according to supplied call parameters.
- * 
+ *
  * The application doesn't own a reference to the returned LinphoneCall object.
  * Use linphone_call_ref() to safely keep the LinphoneCall pointer valid within your application.
- * 
+ *
  * @ingroup call_control
  * @param lc the LinphoneCore object
  * @param url the destination of the call (sip address, or phone number).
@@ -4058,6 +4058,7 @@ LINPHONE_PUBLIC const bctbx_list_t *linphone_core_get_auth_info_list(const Linph
  * @param username the SIP username to be authenticated (mandatory)
  * @param sip_domain the SIP domain name (optional)
  * @return a #LinphoneAuthInfo
+ * @ingroup authentication
 **/
 LINPHONE_PUBLIC const LinphoneAuthInfo *linphone_core_find_auth_info(LinphoneCore *lc, const char *realm, const char *username, const char *sip_domain);
 
@@ -5478,12 +5479,12 @@ LINPHONE_PUBLIC LpConfig * linphone_core_get_config(LinphoneCore *lc);
  */
 LINPHONE_PUBLIC LpConfig * linphone_core_create_lp_config(LinphoneCore *lc, const char *filename);
 
-/** 
+/**
  * Set a callback for some blocking operations, it takes you informed of the progress of the operation
  */
 LINPHONE_PUBLIC void linphone_core_set_waiting_callback(LinphoneCore *lc, LinphoneCoreWaitingCallback cb, void *user_context);
 
-/** 
+/**
  * Returns the list of registered SipSetup (linphonecore plugins)
  */
 LINPHONE_PUBLIC const bctbx_list_t * linphone_core_get_sip_setups(LinphoneCore *lc);
