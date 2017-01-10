@@ -34,6 +34,10 @@ namespace linphone {
 			{{#isNotListener}}
 			{{{className}}}(::belle_sip_object_t *ptr, bool takeRef=true);
 			{{/isNotListener}}
+			
+			{{#ismonolistenable}}
+			void setListener(const std::shared_ptr<{{{listenerClassName}}}> &listener);
+			{{/ismonolistenable}}
 
 			{{#ismultilistenable}}
 			void addListener(std::shared_ptr<{{{listenerClassName}}}> &listener);

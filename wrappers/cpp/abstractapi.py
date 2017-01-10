@@ -519,9 +519,7 @@ class CParser(object):
 					absProperty = CParser._parse_property(self, cproperty, namespace=name)
 					_class.add_property(absProperty)
 				else:
-					listenerMethod = CParser._parse_callbacks_property(self, cproperty, namespace=name)
-					_class.add_instance_method(listenerMethod)
-					_class.listenerInterface = self.interfacesIndex[listenerMethod.args[0].type.name]
+					_class.listenerInterface = self.interfacesIndex[cproperty.getter.returnArgument.ctype]
 			except Error as e:
 				print('Could not parse {0} property in {1}: {2}'.format(cproperty.name, cclass.name, e.args[0]))
 		
@@ -565,21 +563,6 @@ class CParser(object):
 			aproperty.getter = method
 		return aproperty
 	
-	def _parse_callbacks_property(self, cproperty, namespace=None):
-		methodName = MethodName()
-		methodName.words = ['set', 'listener']
-		methodName.prev = namespace
-		
-		argName = ArgName()
-		argName.words = ['listener']
-		argType = ClassType(cproperty.getter.returnArgument.ctype)
-		
-		method = Method(methodName)
-		method.returnType = BaseType('void')
-		method.add_arguments(Argument(argName, argType))
-		
-		return method
-		
 	
 	def _parse_listener(self, cclass):
 		name = InterfaceName()

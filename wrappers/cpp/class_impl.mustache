@@ -5,15 +5,24 @@ using namespace {{{namespace}}};
 {{#_class}}
 
 {{#isNotListener}}
-{{{namespace}}}::{{{className}}}::{{{className}}}(::belle_sip_object_t *ptr, bool takeRef): {{{parentClassName}}}(ptr, takeRef) {
-{{#ismonolistenable}}
-	{{{cListenerName}}} *cbs = {{{cCbsGetter}}}(({{{cClassName}}} *)ptr);
-	{{#wrapperCbs}}
-	{{{callbackSetter}}}(cbs, {{{cbName}}});
-	{{/wrapperCbs}}
-{{/ismonolistenable}}
-}
+{{{namespace}}}::{{{className}}}::{{{className}}}(::belle_sip_object_t *ptr, bool takeRef): {{{parentClassName}}}(ptr, takeRef) {}
 {{/isNotListener}}
+
+{{#ismonolistenable}}
+void {{{namespace}}}::{{{className}}}::setListener(const std::shared_ptr<{{{listenerClassName}}}> & listener) {
+	ListenableObject::setListener(std::static_pointer_cast<Listener>(listener));
+	{{{cListenerName}}} *cbs = {{{cCbsGetter}}}(({{{cClassName}}} *)mPrivPtr);
+	if (listener == nullptr) {
+		{{#wrapperCbs}}
+		{{{callbackSetter}}}(cbs, NULL);
+		{{/wrapperCbs}}
+	} else {
+		{{#wrapperCbs}}
+		{{{callbackSetter}}}(cbs, {{{cbName}}});
+		{{/wrapperCbs}}
+	}
+}
+{{/ismonolistenable}}
 
 {{#ismultilistenable}}
 {{{cListenerName}}} *{{{className}}}::createCallbacks(const std::shared_ptr<{{{listenerClassName}}}> &listener) {
