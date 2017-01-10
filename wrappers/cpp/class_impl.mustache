@@ -77,11 +77,11 @@ std::shared_ptr<Core> Factory::createCoreWithConfig(const std::shared_ptr<CoreLi
 }
 {{/methods}}
 
-{{#staticmethods}}
+{{#staticMethods}}
 {{{implPrototype}}} {
 	{{{sourceCode}}}
 }
-{{/staticmethods}}
+{{/staticMethods}}
 
 {{#wrapperCbs}}
 {{{returnType}}} {{{className}}}::{{{cbName}}}({{{declArgs}}}) {

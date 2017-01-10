@@ -543,7 +543,7 @@ class CParser(object):
 		for cMethod in cclass.classMethods.values():
 			try:
 				method = CParser.parse_method(self, cMethod, type=Method.Type.Class, namespace=name)
-				_class.add_instance_method(method)
+				_class.add_class_method(method)
 			except Error as e:
 				print('Could not parse {0} function: {1}'.format(cMethod.name, e.args[0]))
 		
