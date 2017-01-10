@@ -10,6 +10,10 @@
 {{/internal}}
 {{/includes}}
 
+{{#_class}}{{#isfactory}}
+#include "config.hh"
+{{/isfactory}}{{/_class}}
+
 #include "linphone/linphonecore.h"
 #include "linphone/linphone_tunnel.h"
 #include "linphone/linphonecore_utils.h"
