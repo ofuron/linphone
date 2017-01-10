@@ -213,7 +213,7 @@ class CppTranslator(object):
 	def _generate_source_code(self, method, usedNamespace=None):
 		nsName = usedNamespace.name if usedNamespace is not None else None
 		params = {
-			'functionName': method.name.to_snake_case(fullName=True),
+			'functionName': method.name.to_c(),
 			'args': CppTranslator._generate_wrapped_arguments(self, method, usedNamespace=usedNamespace)
 		}
 		
@@ -632,7 +632,8 @@ def main():
 					   'linphone_proxy_config_get_file_transfer_server',
 					   'linphone_factory_create_core',
 					   'linphone_factory_create_core_with_config',
-					   'linphone_buffer_get_content']
+					   'linphone_buffer_get_content',
+					   'linphone_chat_room_send_chat_message']
 	
 	renderer = pystache.Renderer()	
 	

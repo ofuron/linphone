@@ -1785,6 +1785,7 @@ LINPHONE_PUBLIC	const LinphoneAddress* linphone_chat_room_get_peer_address(Linph
  * @param cr #LinphoneChatRoom object
  * @param msg message to be sent
  */
+
 LINPHONE_PUBLIC	LINPHONE_DEPRECATED void linphone_chat_room_send_message(LinphoneChatRoom *cr, const char *msg);
 /**
  * Send a message to peer member of this chat room.
@@ -1796,7 +1797,19 @@ LINPHONE_PUBLIC	LINPHONE_DEPRECATED void linphone_chat_room_send_message(Linphon
  * @note The LinphoneChatMessage must not be destroyed until the the callback is called.
  * The LinphoneChatMessage reference is transfered to the function and thus doesn't need to be unref'd by the application.
  */
-LINPHONE_PUBLIC	LINPHONE_DEPRECATED void linphone_chat_room_send_message2(LinphoneChatRoom *cr, LinphoneChatMessage* msg,LinphoneChatMessageStateChangedCb status_cb,void* ud);
+LINPHONE_PUBLIC	LINPHONE_DEPRECATED void linphone_chat_room_send_message_2(LinphoneChatRoom *cr, LinphoneChatMessage* msg,LinphoneChatMessageStateChangedCb status_cb,void* ud);
+
+#define linphone_chat_room_send_message2 linphone_chat_room_send_message_2
+
+/**
+ * Send a message to peer member of this chat room.
+ * @param[in] cr LinphoneChatRoom object
+ * @param[in] msg LinphoneChatMessage object
+ * The state of the message sending will be notified via the callbacks defined in the LinphoneChatMessageCbs object that can be obtained
+ * by calling linphone_chat_message_get_callbacks().
+ */
+LINPHONE_PUBLIC void linphone_chat_room_send_message_3(LinphoneChatRoom *cr, LinphoneChatMessage *msg);
+
 /**
  * Send a message to peer member of this chat room.
  * @param[in] cr LinphoneChatRoom object
@@ -1812,6 +1825,7 @@ LINPHONE_PUBLIC void linphone_chat_room_send_chat_message(LinphoneChatRoom *cr, 
  * @param[in] cr The #LinphoneChatRoom object corresponding to the conversation.
  */
 LINPHONE_PUBLIC void linphone_chat_room_mark_as_read(LinphoneChatRoom *cr);
+
 /**
  * Delete a message from the chat room history.
  * @param[in] cr The #LinphoneChatRoom object corresponding to the conversation.

@@ -136,8 +136,22 @@ class EnumValueName(ClassName):
 
 
 class MethodName(Name):
+	regex = re.compile('^\d+$')
+	
+	def __init__(self):
+		self.overloadRef = 0
+	
+	def from_snake_case(self, name, namespace=None):
+		Name.from_snake_case(self, name, namespace=namespace)
+		if len(self.words) > 0:
+			suffix = self.words[-1]
+			if MethodName.regex.match(suffix) is not None:
+				self.overloadRef = int(suffix)
+				del self.words[-1]
+	
 	def to_c(self):
-		return Name.to_snake_case(self, fullName=True)
+		suffix = ('_' + str(self.overloadRef)) if self.overloadRef > 0 else ''
+		return Name.to_snake_case(self, fullName=True) + suffix
 
 
 class ArgName(Name):
