@@ -62,7 +62,6 @@ void Object::unsetData(const std::string &key) {
 
 bool Object::dataExists(const std::string &key) {
 	map<string,void *> userData = getUserData();
-	map<string,void *>::iterator it = userData.find(key);
 	return userData.find(key) != userData.end();
 }
 
