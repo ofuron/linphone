@@ -6072,6 +6072,10 @@ LpConfig * linphone_core_create_lp_config(LinphoneCore *lc, const char *filename
 	return lp_config_new(filename);
 }
 
+LinphoneConfig * linphone_core_create_config(LinphoneCore *lc, const char *filename) {
+	return lp_config_new(filename);
+}
+
 static void linphone_core_uninit(LinphoneCore *lc)
 {
 	bctbx_list_t *elem = NULL;

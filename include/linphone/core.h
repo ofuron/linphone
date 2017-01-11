@@ -5483,15 +5483,24 @@ LINPHONE_PUBLIC	void linphone_core_set_user_data(LinphoneCore *lc, void *userdat
  * The application can use the LpConfig object to insert its own private
  * sections and pairs of key=value in the configuration file.
 **/
-LINPHONE_PUBLIC LpConfig * linphone_core_get_config(LinphoneCore *lc);
+LINPHONE_PUBLIC LinphoneConfig * linphone_core_get_config(LinphoneCore *lc);
 
 /**
  * Create a LpConfig object from a user config file.
  * @param[in] lc #LinphoneCore object
  * @param[in] filename The filename of the config file to read to fill the instantiated LpConfig
  * @ingroup misc
+ * @deprecated Use linphone_core_create_config() instead.
  */
-LINPHONE_PUBLIC LpConfig * linphone_core_create_lp_config(LinphoneCore *lc, const char *filename);
+LINPHONE_DEPRECATED LINPHONE_PUBLIC LinphoneConfig * linphone_core_create_lp_config(LinphoneCore *lc, const char *filename);
+
+/**
+ * Create a #LinphoneConfig object from a user config file.
+ * @param[in] lc #LinphoneCore object
+ * @param[in] filename The filename of the config file to read to fill the instantiated #LinphoneConfig
+ * @ingroup misc
+ */
+LINPHONE_PUBLIC LinphoneConfig * linphone_core_create_config(LinphoneCore *lc, const char *filename);
 
 /**
  * Set a callback for some blocking operations, it takes you informed of the progress of the operation
