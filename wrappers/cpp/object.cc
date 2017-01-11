@@ -37,6 +37,10 @@ StringBctbxListWrapper::~StringBctbxListWrapper() {
 	mCList = bctbx_list_free_with_data(mCList, free);
 }
 
+
+
+const std::string Object::sUserDataKey = "cppUserData";
+
 Object::Object(::belle_sip_object_t *ptr, bool takeRef):
 		enable_shared_from_this<Object>(), mPrivPtr(ptr) {
 	if(takeRef) belle_sip_object_ref(mPrivPtr);
@@ -51,13 +55,15 @@ Object::~Object() {
 }
 
 void Object::unsetData(const std::string &key) {
-	map<string,void *>::iterator it = mUserData.find(key);
-	if (it != mUserData.end()) mUserData.erase(it);
+	map<string,void *> userData = getUserData();
+	map<string,void *>::iterator it = userData.find(key);
+	if (it != userData.end()) userData.erase(it);
 }
 
 bool Object::dataExists(const std::string &key) {
-	map<string,void *>::iterator it = mUserData.find(key);
-	return mUserData.find(key) != mUserData.end();
+	map<string,void *> userData = getUserData();
+	map<string,void *>::iterator it = userData.find(key);
+	return userData.find(key) != userData.end();
 }
 
 ::belle_sip_object_t *Object::sharedPtrToCPtr(const std::shared_ptr<const Object> &sharedPtr) {
@@ -106,6 +112,19 @@ std::list<std::string> Object::cStringArrayToCppList(const char **cArray) {
 		cppList.push_back(cArray[i]);
 	}
 	return cppList;
+}
+
+static void deleteCppUserDataMap(std::map<std::string,void *> *userDataMap) {
+	delete userDataMap;
+}
+
+std::map<std::string,void *> &Object::getUserData() const {
+	map<string,void *> *userData = (map<string,void *> *)belle_sip_object_data_get(mPrivPtr, sUserDataKey.c_str());
+	if (userData == NULL) {
+		userData = new map<string,void *>();
+		belle_sip_object_data_set(mPrivPtr, sUserDataKey.c_str(), userData, (belle_sip_data_destroy)deleteCppUserDataMap);
+	}
+	return *userData;
 }
 
 

@@ -47,11 +47,13 @@ namespace linphone {
 	public:
 		template <class T>
 		void setData(const std::string &key, T &data) {
-			mUserData[key] = &data;
+			std::map<std::string,void *> &userData = getUserData();
+			userData[key] = &data;
 		}
 		template <class T>
 		T &getData(const std::string &key) {
-			void *ptr = mUserData[key];
+			std::map<std::string,void *> &userData = getUserData();
+			void *ptr = userData[key];
 			if (ptr == NULL) {
 				throw std::out_of_range("unknown data key [" + key + "]");
 			} else {
@@ -96,6 +98,7 @@ namespace linphone {
 		static std::list<std::string> cStringArrayToCppList(const char **cArray);
 	
 	private:
+		std::map<std::string,void *> &getUserData() const;
 		template <class T> static void deleteSharedPtr(std::shared_ptr<T> *ptr) {if (ptr != NULL) delete ptr;}
 		static void deleteString(std::string *str) {if (str != NULL) delete str;}
 	
@@ -103,7 +106,7 @@ namespace linphone {
 		::belle_sip_object_t *mPrivPtr;
 	
 	private:
-		std::map<std::string,void *> mUserData;
+		static const std::string sUserDataKey;
 	};
 	
 	
