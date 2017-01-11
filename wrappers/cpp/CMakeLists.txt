@@ -94,7 +94,7 @@ set(HEADERS
 
 add_custom_command(OUTPUT ${GENERATED_SOURCES} ${GENERATED_HEADERS}
 	COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/genheaders.py" "${PROJECT_BINARY_DIR}/coreapi/help/doc/xml"
-	DEPENDS *.py *.mustache linphone-doc
+	DEPENDS *.py *.mustache linphone-doc "${PROJECT_BINARY_DIR}/coreapi/help/doc/xml/index.xml"
 )
 
 add_compile_options(-Wall -Wextra -Wno-deprecated-declarations -Wno-unused-parameter -Werror --std=c++11)
