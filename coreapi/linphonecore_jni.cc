@@ -3416,8 +3416,28 @@ extern "C" jfloat Java_org_linphone_core_LinphoneCallStatsImpl_getLocalLateRate(
 	return stats->local_late_rate;
 }
 
+extern "C" jlong Java_org_linphone_core_LinphoneCallStatsImpl_getCumulativePacketsLost(JNIEnv *env, jobject thiz, jlong stats_ptr) {
+    return (jlong)((LinphoneCallStats *)stats_ptr)->rtp_stats.cum_packet_loss;
+}
+
 extern "C" jint Java_org_linphone_core_LinphoneCallStatsImpl_getIpFamilyOfRemote(JNIEnv *env, jobject thiz, jlong stats_ptr) {
 	return (jint) ((LinphoneCallStats *)stats_ptr)->rtp_remote_family;
+}
+
+extern "C" jlong Java_org_linphone_core_LinphoneCallStatsImpl_getNumberPacketsSent(JNIEnv *env, jobject thiz, jlong stats_ptr) {
+    return (jlong)((LinphoneCallStats *)stats_ptr)->rtp_stats.packet_sent;
+}
+
+extern "C" jlong Java_org_linphone_core_LinphoneCallStatsImpl_getNumberPacketsReceived(JNIEnv *env, jobject thiz, jlong stats_ptr) {
+    return (jlong)((LinphoneCallStats *)stats_ptr)->rtp_stats.packet_recv;
+}
+
+extern "C" jlong Java_org_linphone_core_LinphoneCallStatsImpl_getNumberBytesSent(JNIEnv *env, jobject thiz, jlong stats_ptr) {
+    return (jlong)((LinphoneCallStats *)stats_ptr)->rtp_stats.sent;
+}
+
+extern "C" jlong Java_org_linphone_core_LinphoneCallStatsImpl_getNumberBytesReceived(JNIEnv *env, jobject thiz, jlong stats_ptr) {
+    return (jlong)((LinphoneCallStats *)stats_ptr)->rtp_stats.recv;
 }
 
 /*payloadType*/

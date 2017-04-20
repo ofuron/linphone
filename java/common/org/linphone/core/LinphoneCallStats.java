@@ -195,8 +195,38 @@ public interface LinphoneCallStats {
 	public float getLocalLateRate();
 
 	/**
+	 * Get the cumulative number of incoming packets lost.
+	 * @return the cumulative number of incoming packets lost
+	 **/
+	public long getCumulativePacketsLost();
+
+	/**
 	 * Get family of remote ip
 	 * @return enum LinphoneAddressFamily
      */
 	public int getIpFamilyOfRemote();
+
+	/**
+	 * Get the cumulative number of packets sent
+	 * @return The cumulative number of packets sent
+	 */
+	public long getNumberPacketsSent();
+
+	/**
+	 * Get the cumulative number of packets received
+	 * @return The cumulative number of packets received
+	 */
+	public long getNumberPacketsReceived();
+
+	/**
+	 * Get the cumulative number of bytes sent
+	 * @return The cumulative number of bytes sent
+	 */
+	public long getNumberBytesSent();
+
+	/**
+	 * Get the cumulative number of bytes received
+	 * @return The cumulative number of bytes received
+	 */
+	public long getNumberBytesReceived();
 }

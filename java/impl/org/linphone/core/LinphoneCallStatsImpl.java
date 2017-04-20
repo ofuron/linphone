@@ -24,8 +24,13 @@ class LinphoneCallStatsImpl implements LinphoneCallStats {
 	private int iceState;
 	private float downloadBandwidth;
 	private float uploadBandwidth;
+	private long packetsSent;
+	private long packetsReceived;
+	private long bytesSent;
+	private long bytesReceived;
 	private float senderLossRate;
 	private float receiverLossRate;
+	private long cumulativePacketsLost;
 	private float senderInterarrivalJitter;
 	private float receiverInterarrivalJitter;
 	private float roundTripDelay;
@@ -40,6 +45,7 @@ class LinphoneCallStatsImpl implements LinphoneCallStats {
 	private native float getDownloadBandwidth(long nativeStatsPtr);
 	private native float getUploadBandwidth(long nativeStatsPtr);
 	private native float getSenderLossRate(long nativeStatsPtr);
+	private native long getCumulativePacketsLost(long nativePtr);
 	private native float getReceiverLossRate(long nativeStatsPtr);
 	private native float getSenderInterarrivalJitter(long nativeStatsPtr);
 	private native float getReceiverInterarrivalJitter(long nativeStatsPtr);
@@ -50,6 +56,10 @@ class LinphoneCallStatsImpl implements LinphoneCallStats {
 	private native float getLocalLateRate(long nativeStatsPtr);
 	private native void updateStats(long nativeCallPtr, int mediaType);
 	private native int getIpFamilyOfRemote(long nativeStatsPtr);
+	private native long getNumberPacketsSent(long nativeStatsPtr);
+	private native long getNumberPacketsReceived(long nativeStatsPtr);
+	private native long getNumberBytesSent(long nativeStatsPtr);
+	private native long getNumberBytesReceived(long nativeStatsPtr);
 
 	protected LinphoneCallStatsImpl(long nativeStatsPtr) {
 		nativePtr = nativeStatsPtr;
@@ -57,8 +67,13 @@ class LinphoneCallStatsImpl implements LinphoneCallStats {
 		iceState = getIceState(nativeStatsPtr);
 		downloadBandwidth = getDownloadBandwidth(nativeStatsPtr);
 		uploadBandwidth = getUploadBandwidth(nativeStatsPtr);
+		packetsSent = getNumberPacketsSent(nativeStatsPtr);
+		packetsReceived = getNumberPacketsReceived(nativeStatsPtr);
+		bytesSent = getNumberBytesSent(nativeStatsPtr);
+		bytesReceived = getNumberBytesReceived(nativeStatsPtr);
 		senderLossRate = getSenderLossRate(nativeStatsPtr);
 		receiverLossRate = getReceiverLossRate(nativeStatsPtr);
+		cumulativePacketsLost = getCumulativePacketsLost(nativeStatsPtr);
 		senderInterarrivalJitter = getSenderInterarrivalJitter(nativeStatsPtr);
 		receiverInterarrivalJitter = getReceiverInterarrivalJitter(nativeStatsPtr);
 		roundTripDelay = getRoundTripDelay(nativeStatsPtr);
@@ -114,11 +129,19 @@ class LinphoneCallStatsImpl implements LinphoneCallStats {
 		return localLossRate;
 	}
 
-	public float getLocalLateRate(){
-		return localLateRate;
-	}
+	public float getLocalLateRate(){ return localLateRate; }
+
+	public long getCumulativePacketsLost() { return cumulativePacketsLost; }
 
 	public int getIpFamilyOfRemote() {
 		return getIpFamilyOfRemote(nativePtr);
 	}
+
+	public long getNumberPacketsSent() { return getNumberPacketsSent(nativePtr); }
+
+	public long getNumberPacketsReceived() { return getNumberPacketsReceived(nativePtr); }
+
+	public long getNumberBytesSent() { return getNumberBytesSent(nativePtr); }
+
+	public long getNumberBytesReceived() { return getNumberBytesReceived(nativePtr); }
 }
