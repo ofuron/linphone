@@ -1857,22 +1857,23 @@ static void linphone_core_register_default_codecs(LinphoneCore *lc){
 #endif
 	linphone_core_register_payload_type(lc,&payload_type_opus,"useinbandfec=1",opus_enabled);
 	linphone_core_register_payload_type(lc,&payload_type_silk_wb,NULL,TRUE);
-	linphone_core_register_payload_type(lc,&payload_type_speex_wb,"vbr=on",TRUE);
-	linphone_core_register_payload_type(lc,&payload_type_speex_nb,"vbr=on",TRUE);
 	linphone_core_register_payload_type(lc,&payload_type_pcmu8000,NULL,TRUE);
 	linphone_core_register_payload_type(lc,&payload_type_pcma8000,NULL,TRUE);
+	linphone_core_register_payload_type(lc,&payload_type_g722,NULL,TRUE);
 
 	/* Text codecs in order or preference (RED first (more robust), then T140) */
-	linphone_core_register_payload_type(lc, &payload_type_t140_red, NULL, TRUE);
-	linphone_core_register_payload_type(lc, &payload_type_t140, NULL, TRUE);
+	linphone_core_register_payload_type(lc, &payload_type_t140_red, NULL, FALSE);
+	linphone_core_register_payload_type(lc, &payload_type_t140, NULL, FALSE);
 
 	/*other audio codecs, not enabled by default, in order of preference*/
+	linphone_core_register_payload_type(lc,&payload_type_speex_wb,"vbr=on",FALSE);
+    linphone_core_register_payload_type(lc,&payload_type_speex_nb,"vbr=on",FALSE);
 	linphone_core_register_payload_type(lc,&payload_type_gsm,NULL,FALSE);
-	linphone_core_register_payload_type(lc,&payload_type_g722,NULL,FALSE);
 	linphone_core_register_payload_type(lc,&payload_type_ilbc,"mode=30",FALSE);
 	linphone_core_register_payload_type(lc,&payload_type_amr,"octet-align=1",FALSE);
 	linphone_core_register_payload_type(lc,&payload_type_amrwb,"octet-align=1",FALSE);
 	linphone_core_register_payload_type(lc,&payload_type_g729,"annexb=no",FALSE);
+
 	/* For AAC, we use a config value to determine if we ought to support SBR. Since it is not offically supported
 	 * for the mpeg4-generic mime type, setting this flag to 1 will break compatibility with other clients. */
 	if( lp_config_get_int(lc->config, "misc", "aac_use_sbr", FALSE) ) {

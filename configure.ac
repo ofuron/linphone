@@ -573,7 +573,7 @@ AC_WORDS_BIGENDIAN
 AC_ARG_ENABLE([speex],
 	AS_HELP_STRING([--disable-speex], [Disable speex support]),
 	[],
-	[enable_speex=yes]
+	[enable_speex=no]
 )
 if test "x$enable_speex" = "xyes"; then
 	dnl normaly this should only by done by mediastreamer2/configure.ac
