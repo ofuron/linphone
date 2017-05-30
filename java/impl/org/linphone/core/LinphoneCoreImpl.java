@@ -262,8 +262,12 @@ class LinphoneCoreImpl implements LinphoneCore {
 	}
 
 	public synchronized void iterate() {
-		isValid();
-		iterate(nativePtr);
+		try {
+			isValid();
+			iterate(nativePtr);
+		} catch (RuntimeException e) {
+			Log.e("Caught runtime exception:", e);
+		}
 	}
 
 	public synchronized void setDefaultProxyConfig(LinphoneProxyConfig proxyCfg) {
